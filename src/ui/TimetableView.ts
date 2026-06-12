@@ -6,6 +6,15 @@ import { ink } from '../utils/color';
 import { esc } from '../utils/html';
 import { DragController } from './DragController';
 
+/** Gruppe sich überlappender Platzierungen in einer Klassen-/Wochenspalte. */
+interface PlacementCluster {
+  /** Erste Stunde des Clusters (Oberkante der Zelle). */
+  start: number;
+  /** Letzte Stunde des Clusters (auf PERIODS begrenzt). */
+  end: number;
+  cards: Placement[];
+}
+
 export interface TimetableHandlers {
   onDrop: (pos: PlacementPosition) => void;
   onDragEnd: () => void;
@@ -171,14 +180,7 @@ export class TimetableView {
   }
 
   private renderDay(day: number, classes: readonly string[]): string {
-    // Platzierungen nach exakter Startposition gruppieren
-    const stackAt = new Map<string, Placement[]>();
-    for (const pl of this.state.schedule.forDay(day)) {
-      const key = `${pl.startPeriod}_${pl.classIdx}_${pl.week}`;
-      const list = stackAt.get(key) ?? [];
-      list.push(pl);
-      stackAt.set(key, list);
-    }
+    const clusterAt = this.buildClusters(day);
     /** Zellen, die durch ein rowspan darüber bereits abgedeckt sind. */
     const blocked = new Set<string>();
 
@@ -198,11 +200,10 @@ export class TimetableView {
           const key = `${p}_${c}_${w}`;
           if (blocked.has(key)) continue;
 
-          const cards = stackAt.get(key) ?? [];
+          const cluster = clusterAt.get(key);
           let rowspan = 1;
-          if (cards.length >= 1) {
-            const maxDur = Math.max(...cards.map((x) => x.duration));
-            rowspan = Math.min(maxDur, PERIODS - p + 1);
+          if (cluster) {
+            rowspan = cluster.end - cluster.start + 1;
             for (let i = 1; i < rowspan; i++) blocked.add(`${p + i}_${c}_${w}`);
           }
 
@@ -210,14 +211,48 @@ export class TimetableView {
           h += `<td class="cell ${weekClass}" data-d="${day}" data-p="${p}" data-c="${c}" data-w="${w}"${
             rowspan > 1 ? ` rowspan="${rowspan}"` : ''
           }>`;
-          if (cards.length === 1) h += this.renderSingle(cards[0]);
-          else if (cards.length > 1) h += this.renderStack(cards);
+          if (cluster) {
+            h += cluster.cards.length === 1 ? this.renderSingle(cluster.cards[0]) : this.renderStack(cluster);
+          }
           h += '</td>';
         }
       }
       h += '<td class="td-add-empty"></td></tr>';
     }
     return h;
+  }
+
+  /**
+   * Gruppiert die Platzierungen eines Tages je Klassen-/Wochenspalte zu
+   * Clustern aus sich (transitiv) überlappenden Blöcken. Auch versetzt
+   * startende parallele Blöcke landen so im selben Cluster und bleiben
+   * sichtbar. Schlüssel: `start_classIdx_week` der Cluster-Oberkante.
+   */
+  private buildClusters(day: number): Map<string, PlacementCluster> {
+    const byColumn = new Map<string, Placement[]>();
+    for (const pl of this.state.schedule.forDay(day)) {
+      const key = `${pl.classIdx}_${pl.week}`;
+      const list = byColumn.get(key) ?? [];
+      list.push(pl);
+      byColumn.set(key, list);
+    }
+
+    const clusterAt = new Map<string, PlacementCluster>();
+    for (const [colKey, list] of byColumn) {
+      list.sort((a, b) => a.startPeriod - b.startPeriod);
+      let current: PlacementCluster | null = null;
+      for (const pl of list) {
+        const end = Math.min(pl.endPeriod, PERIODS);
+        if (current && pl.startPeriod <= current.end) {
+          current.cards.push(pl);
+          current.end = Math.max(current.end, end);
+        } else {
+          current = { start: pl.startPeriod, end, cards: [pl] };
+          clusterAt.set(`${pl.startPeriod}_${colKey}`, current);
+        }
+      }
+    }
+    return clusterAt;
   }
 
   private renderSingle(pl: Placement): string {
@@ -233,20 +268,31 @@ export class TimetableView {
       </div>`;
   }
 
-  private renderStack(cards: Placement[]): string {
+  /**
+   * Parallele Blöcke teilen die Zelle nebeneinander auf; jeder Block sitzt
+   * innerhalb seiner Spalte vertikal dort, wo seine Stunden liegen
+   * (relevant bei versetzt startenden Blöcken im selben Cluster).
+   */
+  private renderStack(cluster: PlacementCluster): string {
+    const span = cluster.end - cluster.start + 1;
     let h = '<div class="stack-wrap">';
-    for (const pl of cards) {
+    for (const pl of cluster.cards) {
       const fg = ink(pl.color);
-      h += `<div class="placed-mini${pl.isLabor ? ' labor-card' : ''}" data-id="${pl.id}"
-               style="background:${pl.color};color:${fg}" draggable="true">
-          <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
-          <div class="p-abbr">${esc(pl.abbr)}</div>
-          ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
-          ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
+      const visibleEnd = Math.min(pl.endPeriod, cluster.end);
+      const top = ((pl.startPeriod - cluster.start) / span) * 100;
+      const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
+      h += `<div class="stack-col">
+          <div class="placed-mini${pl.isLabor ? ' labor-card' : ''}" data-id="${pl.id}"
+               style="background:${pl.color};color:${fg};top:${top}%;height:${height}%" draggable="true">
+            <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
+            <div class="p-abbr">${esc(pl.abbr)}</div>
+            ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
+            ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
+          </div>
         </div>`;
     }
     h += '</div>';
-    if (cards.every((x) => x.isLabor)) h += '<div class="stack-labor">⚗</div>';
+    if (cluster.cards.every((x) => x.isLabor)) h += '<div class="stack-labor">⚗</div>';
     return h;
   }
 }
