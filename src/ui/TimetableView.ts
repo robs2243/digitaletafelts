@@ -247,7 +247,6 @@ export class TimetableView {
     }
     h += '</div>';
     if (cards.every((x) => x.isLabor)) h += '<div class="stack-labor">⚗</div>';
-    h += `<div class="stack-badge">${cards.length}×</div>`;
     return h;
   }
 }
