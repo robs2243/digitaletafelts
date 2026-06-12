@@ -35,6 +35,7 @@ src/
 │   ├── PoolView.ts         Karten-Pool in der Seitenleiste
 │   ├── StatsView.ts        Stunden-Übersicht
 │   ├── CardModal.ts        Karte anlegen/bearbeiten
+│   ├── CommentModal.ts     Kommentar je Karte (Doppelklick auf Karte)
 │   ├── CollisionModal.ts   Kollisionswarnung mit „Stapeln“-Option
 │   ├── collisionMessages.ts  Formatierung der Kollisionsmeldungen
 │   ├── DragController.ts   Geteilter Drag-Zustand Pool ↔ Raster

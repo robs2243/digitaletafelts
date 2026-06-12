@@ -28,6 +28,8 @@ export class CardModal {
 
   private pickedColor: string = PALETTE[0];
   private editingId: string | null = null;
+  /** Kommentar der bearbeiteten Karte; wird hier nicht editiert, nur durchgereicht. */
+  private existingComment = '';
 
   constructor(handlers: CardModalHandlers) {
     this.handlers = handlers;
@@ -77,6 +79,7 @@ export class CardModal {
 
   openForCreate(suggestedColor: string): void {
     this.editingId = null;
+    this.existingComment = '';
     this.title.textContent = 'Karte erstellen';
     this.deleteBtn.style.display = 'none';
     this.abbrInput.value = '';
@@ -90,6 +93,7 @@ export class CardModal {
 
   openForEdit(card: Card): void {
     this.editingId = card.id;
+    this.existingComment = card.comment;
     this.title.textContent = 'Karte bearbeiten';
     this.deleteBtn.style.display = 'inline-flex';
     this.abbrInput.value = card.abbr;
@@ -109,6 +113,7 @@ export class CardModal {
       duration: parseInt(this.durSelect.value, 10),
       color: this.pickedColor,
       isLabor: this.laborCheckbox.checked,
+      comment: this.existingComment,
     };
     if (this.handlers.onSave(this.editingId, props)) this.close();
   }

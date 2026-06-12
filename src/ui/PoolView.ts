@@ -5,6 +5,7 @@ import { DragController } from './DragController';
 
 export interface PoolViewHandlers {
   onEdit: (cardId: string) => void;
+  onComment: (cardId: string) => void;
   onDragEnd: () => void;
 }
 
@@ -28,6 +29,13 @@ export class PoolView {
       const btn = (e.target as HTMLElement).closest<HTMLElement>('.tc-editbtn');
       const cardEl = btn?.closest<HTMLElement>('.tc');
       if (btn && cardEl?.dataset.id) this.handlers.onEdit(cardEl.dataset.id);
+    });
+
+    this.el.addEventListener('dblclick', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.tc-editbtn')) return;
+      const cardEl = target.closest<HTMLElement>('.tc');
+      if (cardEl?.dataset.id) this.handlers.onComment(cardEl.dataset.id);
     });
 
     this.el.addEventListener('dragstart', (e) => {
@@ -65,6 +73,7 @@ export class PoolView {
             ${c.fach ? `<div class="tc-sub">${esc(c.fach)}</div>` : ''}
             ${c.name && !c.fach ? `<div class="tc-sub">${esc(c.name)}</div>` : ''}
             ${c.name && c.fach ? `<div class="tc-sub2">${esc(c.name)}</div>` : ''}
+            ${c.comment ? `<span class="tc-comment" title="${esc(c.comment)}">💬</span>` : ''}
             <button class="tc-editbtn" title="Bearbeiten">✎</button>
           </div>`;
       })

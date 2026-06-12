@@ -13,6 +13,8 @@ export class Placement {
   readonly duration: number;
   readonly color: string;
   readonly isLabor: boolean;
+  /** Freitext-Kommentar; per Doppelklick auf die platzierte Karte änderbar. */
+  comment: string;
 
   readonly day: number;
   readonly startPeriod: number;
@@ -28,6 +30,7 @@ export class Placement {
     this.duration = card.duration;
     this.color = card.color;
     this.isLabor = card.isLabor;
+    this.comment = card.comment;
     this.day = pos.day;
     this.startPeriod = pos.startPeriod;
     this.classIdx = pos.classIdx;
@@ -46,8 +49,8 @@ export class Placement {
 
   /** Kopie der Karten-Eigenschaften (z. B. für Rückgabe in den Pool). */
   cardSnapshot(): CardProps {
-    const { abbr, fach, name, duration, color, isLabor } = this;
-    return { abbr, fach, name, duration, color, isLabor };
+    const { abbr, fach, name, duration, color, isLabor, comment } = this;
+    return { abbr, fach, name, duration, color, isLabor, comment };
   }
 
   toJSON(): PersistedPlacement {
@@ -71,6 +74,7 @@ export class Placement {
         duration: raw.duration ?? 1,
         color: raw.color ?? '#3f51b5',
         isLabor: !!raw.isLabor,
+        comment: raw.comment ?? '',
       },
       {
         day: raw.day,

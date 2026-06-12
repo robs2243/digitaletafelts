@@ -69,6 +69,22 @@ export class AppState {
     this.emit();
   }
 
+  // ── Kommentare ──────────────────────────────────────────────────────────
+
+  setCardComment(id: string, comment: string): void {
+    const card = this.pool.findById(id);
+    if (!card) return;
+    card.comment = comment;
+    this.emit();
+  }
+
+  setPlacementComment(id: string, comment: string): void {
+    const placement = this.schedule.findById(id);
+    if (!placement) return;
+    placement.comment = comment;
+    this.emit();
+  }
+
   // ── Platzierungen ───────────────────────────────────────────────────────
 
   /** Pool-Karte in den Plan legen; die Pool-Karte wird verbraucht. */

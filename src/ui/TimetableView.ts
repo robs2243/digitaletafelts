@@ -19,6 +19,7 @@ export interface TimetableHandlers {
   onDrop: (pos: PlacementPosition) => void;
   onDragEnd: () => void;
   onRemovePlacement: (placementId: string) => void;
+  onCommentPlacement: (placementId: string) => void;
   onRenameClass: (classIdx: number, name: string, commit: boolean) => void;
   onDeleteClass: (classIdx: number) => void;
   onAddClass: () => void;
@@ -61,6 +62,13 @@ export class TimetableView {
         return;
       }
       if (target.closest('.btn-addcls-col')) this.handlers.onAddClass();
+    });
+
+    this.el.addEventListener('dblclick', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('.p-rm')) return;
+      const plEl = target.closest<HTMLElement>('.placed, .placed-mini');
+      if (plEl?.dataset.id) this.handlers.onCommentPlacement(plEl.dataset.id);
     });
 
     // Tippen: nur speichern (Fokus behalten); Verlassen des Felds: neu rendern
@@ -267,6 +275,7 @@ export class TimetableView {
         ${pl.name && !pl.fach ? `<div class="p-name">${esc(pl.name)}</div>` : ''}
         ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
         ${pl.isLabor ? '<div class="p-range">⚗ Labor</div>' : ''}
+        ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
       </div>`;
   }
 
@@ -290,6 +299,7 @@ export class TimetableView {
             <div class="p-abbr">${esc(pl.abbr)}</div>
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
             ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
+            ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
           </div>
         </div>`;
     }

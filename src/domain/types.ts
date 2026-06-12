@@ -15,6 +15,8 @@ export interface CardProps {
   color: string;
   /** Labor-/Gruppenkarte: darf ohne Rückfrage gestapelt werden. */
   isLabor: boolean;
+  /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
+  comment: string;
 }
 
 /** Position einer Platzierung im Stundenplan. */

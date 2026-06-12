@@ -12,6 +12,7 @@ export class Card {
   duration: number;
   color: string;
   isLabor: boolean;
+  comment: string;
 
   constructor(id: string, props: CardProps) {
     this.id = id;
@@ -21,6 +22,7 @@ export class Card {
     this.duration = props.duration;
     this.color = props.color;
     this.isLabor = props.isLabor;
+    this.comment = props.comment;
   }
 
   update(props: CardProps): void {
@@ -30,12 +32,13 @@ export class Card {
     this.duration = props.duration;
     this.color = props.color;
     this.isLabor = props.isLabor;
+    this.comment = props.comment;
   }
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { abbr, fach, name, duration, color, isLabor } = this;
-    return { abbr, fach, name, duration, color, isLabor };
+    const { abbr, fach, name, duration, color, isLabor, comment } = this;
+    return { abbr, fach, name, duration, color, isLabor, comment };
   }
 
   toJSON(): PersistedCard {
@@ -50,6 +53,7 @@ export class Card {
       duration: raw.duration ?? 1,
       color: raw.color ?? '#3f51b5',
       isLabor: !!raw.isLabor,
+      comment: raw.comment ?? '',
     });
   }
 }

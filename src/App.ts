@@ -4,6 +4,7 @@ import type { CardProps, PlacementPosition } from './domain/types';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
 import { CollisionModal } from './ui/CollisionModal';
+import { CommentModal } from './ui/CommentModal';
 import { collisionMessage } from './ui/collisionMessages';
 import { DragController, type DragData } from './ui/DragController';
 import { PoolView } from './ui/PoolView';
@@ -34,6 +35,7 @@ export class App {
   private readonly timetableView: TimetableView;
   private readonly cardModal: CardModal;
   private readonly collisionModal: CollisionModal;
+  private readonly commentModal: CommentModal;
 
   constructor() {
     const persisted = this.storage.load();
@@ -43,9 +45,11 @@ export class App {
     this.saveBadge = new SaveBadge(byId('sbadge'));
     this.statsView = new StatsView(byId('stats'), this.state);
     this.collisionModal = new CollisionModal();
+    this.commentModal = new CommentModal();
 
     this.poolView = new PoolView(byId('pool'), this.state, this.drag, {
       onEdit: (id) => this.openEditCard(id),
+      onComment: (id) => this.openCardComment(id),
       onDragEnd: () => this.renderAll(),
     });
 
@@ -53,6 +57,7 @@ export class App {
       onDrop: (pos) => this.handleDrop(pos),
       onDragEnd: () => this.renderAll(),
       onRemovePlacement: (id) => this.handleRemovePlacement(id),
+      onCommentPlacement: (id) => this.openPlacementComment(id),
       onRenameClass: (idx, name, commit) => this.state.renameClass(idx, name, { render: commit }),
       onDeleteClass: (idx) => this.handleDeleteClass(idx),
       onAddClass: () => this.handleAddClass(),
@@ -90,6 +95,7 @@ export class App {
       if (e.key === 'Escape') {
         this.cardModal.close();
         this.collisionModal.close();
+        this.commentModal.close();
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
     });
@@ -161,6 +167,28 @@ export class App {
     if (!confirm(`Klasse „${name}" löschen?${warning}`)) return;
     this.state.deleteClass(idx);
     this.toast.show(`${name} entfernt`, 'inf');
+  }
+
+  // ── Kommentare ──────────────────────────────────────────────────────────
+
+  private openCardComment(id: string): void {
+    const card = this.state.pool.findById(id);
+    if (!card) return;
+    const label = card.fach ? `${card.abbr} – ${card.fach}` : card.abbr;
+    this.commentModal.open(label, card.comment, (text) => {
+      this.state.setCardComment(id, text);
+      this.toast.show(text ? '💬 Kommentar gespeichert' : 'Kommentar entfernt', text ? 'ok' : 'inf');
+    });
+  }
+
+  private openPlacementComment(id: string): void {
+    const placement = this.state.schedule.findById(id);
+    if (!placement) return;
+    const label = placement.fach ? `${placement.abbr} – ${placement.fach}` : placement.abbr;
+    this.commentModal.open(label, placement.comment, (text) => {
+      this.state.setPlacementComment(id, text);
+      this.toast.show(text ? '💬 Kommentar gespeichert' : 'Kommentar entfernt', text ? 'ok' : 'inf');
+    });
   }
 
   // ── Karten-Modal ────────────────────────────────────────────────────────
