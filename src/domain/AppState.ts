@@ -1,0 +1,183 @@
+import { Card } from './Card';
+import { CardPool } from './CardPool';
+import { ClassList } from './ClassList';
+import { PALETTE } from './constants';
+import { Placement } from './Placement';
+import { Schedule } from './Schedule';
+import type { CardProps, PersistedState, PlacementPosition, StatRow } from './types';
+
+export interface ChangeEvent {
+  /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
+  render: boolean;
+}
+
+type ChangeListener = (e: ChangeEvent) => void;
+
+/**
+ * Aggregat-Wurzel: bündelt Pool, Klassenliste und Stundenplan und bietet
+ * alle fachlichen Operationen an. Jede Änderung benachrichtigt die Listener
+ * (App-Schicht: speichern + rendern).
+ */
+export class AppState {
+  readonly pool: CardPool;
+  readonly classes: ClassList;
+  readonly schedule: Schedule;
+  private nid: number;
+  private listeners: ChangeListener[] = [];
+
+  constructor(pool: CardPool, classes: ClassList, schedule: Schedule, nid = 1) {
+    this.pool = pool;
+    this.classes = classes;
+    this.schedule = schedule;
+    this.nid = nid;
+  }
+
+  static createDefault(): AppState {
+    return new AppState(new CardPool(), ClassList.withDefaults(), new Schedule());
+  }
+
+  // ── Beobachter ──────────────────────────────────────────────────────────
+
+  onChange(listener: ChangeListener): void {
+    this.listeners.push(listener);
+  }
+
+  private emit(render = true): void {
+    for (const fn of this.listeners) fn({ render });
+  }
+
+  private nextId(): string {
+    return `x${this.nid++}_${Math.random().toString(36).slice(2, 5)}`;
+  }
+
+  // ── Karten (Pool) ───────────────────────────────────────────────────────
+
+  createCard(props: CardProps): Card {
+    const card = new Card(this.nextId(), props);
+    this.pool.add(card);
+    this.emit();
+    return card;
+  }
+
+  updateCard(id: string, props: CardProps): void {
+    this.pool.findById(id)?.update(props);
+    this.emit();
+  }
+
+  deleteCard(id: string): void {
+    this.pool.remove(id);
+    this.emit();
+  }
+
+  // ── Platzierungen ───────────────────────────────────────────────────────
+
+  /** Pool-Karte in den Plan legen; die Pool-Karte wird verbraucht. */
+  placeFromPool(cardId: string, pos: PlacementPosition): Placement | null {
+    const card = this.pool.remove(cardId);
+    if (!card) return null;
+    const placement = new Placement(this.nextId(), card.snapshot(), pos);
+    this.schedule.add(placement);
+    this.emit();
+    return placement;
+  }
+
+  /** Platzierung innerhalb des Plans verschieben. */
+  movePlacement(placementId: string, pos: PlacementPosition): Placement | null {
+    const old = this.schedule.remove(placementId);
+    if (!old) return null;
+    const placement = new Placement(this.nextId(), old.cardSnapshot(), pos);
+    this.schedule.add(placement);
+    this.emit();
+    return placement;
+  }
+
+  /** Platzierung entfernen und als Karte zurück in den Pool legen. */
+  returnToPool(placementId: string): Placement | null {
+    const placement = this.schedule.remove(placementId);
+    if (!placement) return null;
+    this.pool.add(new Card(this.nextId(), placement.cardSnapshot()));
+    this.emit();
+    return placement;
+  }
+
+  // ── Klassen ─────────────────────────────────────────────────────────────
+
+  addClass(): number {
+    const idx = this.classes.add();
+    this.emit();
+    return idx;
+  }
+
+  /** Umbenennen rendert nicht neu, damit der Fokus im Eingabefeld bleibt. */
+  renameClass(idx: number, name: string, opts: { render?: boolean } = {}): void {
+    this.classes.rename(idx, name);
+    this.emit(opts.render ?? false);
+  }
+
+  hasPlacementsForClass(idx: number): boolean {
+    return this.schedule.all.some((p) => p.classIdx === idx);
+  }
+
+  deleteClass(idx: number): void {
+    this.schedule.removeClass(idx);
+    this.classes.removeAt(idx);
+    this.emit();
+  }
+
+  // ── Abfragen ────────────────────────────────────────────────────────────
+
+  /** Sucht Karte oder Platzierung mit dem Kürzel (für Auto-Vervollständigung). */
+  findByAbbr(abbr: string): CardProps | null {
+    const card = this.pool.all.find((c) => c.abbr === abbr);
+    if (card) return card.snapshot();
+    const placement = this.schedule.all.find((p) => p.abbr === abbr);
+    return placement ? placement.cardSnapshot() : null;
+  }
+
+  /** Erste noch unbenutzte Palettenfarbe (für neue Karten). */
+  suggestFreeColor(): string {
+    const used = new Set<string>([
+      ...this.pool.all.map((c) => c.color),
+      ...this.schedule.all.map((p) => p.color),
+    ]);
+    return PALETTE.find((c) => !used.has(c)) ?? PALETTE[0];
+  }
+
+  /** Stunden-Übersicht: verplante Stunden je Kürzel, Pool-Karten mit 0h. */
+  stats(): StatRow[] {
+    const map = new Map<string, StatRow>();
+    for (const p of this.schedule.all) {
+      const row = map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hours: 0 };
+      row.hours += p.duration;
+      map.set(p.abbr, row);
+    }
+    for (const c of this.pool.all) {
+      if (!map.has(c.abbr)) {
+        map.set(c.abbr, { abbr: c.abbr, fach: c.fach, name: c.name, color: c.color, hours: 0 });
+      }
+    }
+    return [...map.values()].sort((a, b) => a.abbr.localeCompare(b.abbr));
+  }
+
+  // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────
+
+  toJSON(): PersistedState {
+    return {
+      classes: [...this.classes.all],
+      cards: this.pool.all.map((c) => c.toJSON()),
+      placed: this.schedule.all.map((p) => p.toJSON()),
+      nid: this.nid,
+    };
+  }
+
+  static fromJSON(raw: PersistedState): AppState {
+    const pool = new CardPool();
+    pool.replaceAll((raw.cards ?? []).map(Card.fromJSON));
+    const schedule = new Schedule();
+    schedule.replaceAll((raw.placed ?? []).map(Placement.fromJSON));
+    const classes = Array.isArray(raw.classes) && raw.classes.length
+      ? new ClassList(raw.classes)
+      : ClassList.withDefaults();
+    return new AppState(pool, classes, schedule, raw.nid ?? 1);
+  }
+}
