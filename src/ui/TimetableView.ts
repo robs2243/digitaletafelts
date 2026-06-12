@@ -105,9 +105,11 @@ export class TimetableView {
         cell.classList.add('dv');
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
       } else if (collision.type === 'class') {
-        // Grün bei Labor-Karte (stapelt automatisch), sonst orange
+        // Grün bei Labor-Karte (stapelt automatisch), sonst orange.
+        // dropEffect muss zu effectAllowed ('move') passen, sonst
+        // blockiert der Browser den Drop (🚫-Cursor).
         cell.classList.add(dragData.card.isLabor ? 'dv' : 'ds');
-        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
       } else {
         cell.classList.add('di');
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
