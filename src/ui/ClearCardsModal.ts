@@ -48,11 +48,27 @@ export class ClearCardsModal {
 
   private submit(): void {
     const value = this.select.value;
-    const isAll = value === ALL;
-    const count = isAll ? this.total : (this.options.find((o) => o.abbr === value)?.count ?? 0);
-    const label = isAll ? `ALLE ${count} Karten` : `${count} Karte(n) mit Kürzel „${value}“`;
-    if (!confirm(`Wirklich ${label} löschen?\n\nDas kann nicht rückgängig gemacht werden.`)) return;
-    this.onConfirm?.(isAll ? null : value);
+
+    if (value === ALL) {
+      // „Alle löschen“ erfordert die ausdrückliche Eingabe von „Ja“.
+      const answer = prompt(
+        `ALLE ${this.total} Karten werden unwiderruflich gelöscht.\n\nZum Bestätigen „Ja“ eingeben:`,
+      );
+      if (answer === null) return; // abgebrochen
+      if (answer.trim().toLowerCase() !== 'ja') {
+        alert('Abgebrochen – es wurde nicht „Ja“ eingegeben.');
+        return;
+      }
+      this.onConfirm?.(null);
+      this.close();
+      return;
+    }
+
+    const count = this.options.find((o) => o.abbr === value)?.count ?? 0;
+    if (!confirm(`Wirklich ${count} Karte(n) mit Kürzel „${value}“ löschen?\n\nDas kann nicht rückgängig gemacht werden.`)) {
+      return;
+    }
+    this.onConfirm?.(value);
     this.close();
   }
 
