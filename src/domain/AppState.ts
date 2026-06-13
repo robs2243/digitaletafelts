@@ -4,7 +4,7 @@ import { ClassList } from './ClassList';
 import { PALETTE } from './constants';
 import { Placement } from './Placement';
 import { Schedule } from './Schedule';
-import type { CardProps, DayLabel, PersistedState, PlacementPosition, StatRow } from './types';
+import type { CardProps, LabelField, PersistedState, PlacementPosition, StatRow } from './types';
 
 export interface ChangeEvent {
   /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
@@ -175,9 +175,15 @@ export class AppState {
   }
 
   /** Beschriftung setzen; rendert nicht neu, damit der Fokus im Feld bleibt. */
-  setClassLabel(classIdx: number, day: number, field: keyof DayLabel, value: string): void {
+  setClassLabel(classIdx: number, day: number, field: LabelField, value: string): void {
     this.classes.setLabel(classIdx, day, field, value);
     this.emit(false);
+  }
+
+  /** Feldfarbe setzen (leer = keine); rendert neu, damit die Farbe erscheint. */
+  setClassLabelColor(classIdx: number, day: number, field: LabelField, color: string): void {
+    this.classes.setColor(classIdx, day, field, color);
+    this.emit();
   }
 
   hasPlacementsForClass(idx: number): boolean {

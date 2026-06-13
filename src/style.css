@@ -520,5 +520,23 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .stat-row.search-hit { background: #fff8e1; border-radius: 5px; }
 
+/* ── FARB-POPOVER (Feldfarbe der Tagesbeschriftung) ── */
+.color-pop {
+  position: fixed; z-index: 4000;
+  display: none; flex-wrap: wrap; gap: 5px;
+  width: 170px; padding: 8px;
+  background: #fff; border-radius: 8px; box-shadow: 0 6px 22px rgba(0,0,0,.28);
+}
+.color-pop-sw, .color-pop-none {
+  width: 22px; height: 22px; border-radius: 50%; cursor: pointer; padding: 0;
+  border: 2px solid transparent; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.color-pop-none {
+  background: #fff; color: #c62828; font-size: 12px; font-weight: 800;
+  border: 1.5px solid #e0e0e0;
+  display: flex; align-items: center; justify-content: center;
+}
+.color-pop-sw.on, .color-pop-none.on { border-color: #222; transform: scale(1.12); }
+
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }

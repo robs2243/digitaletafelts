@@ -2,9 +2,10 @@ import type { AppState } from '../domain/AppState';
 import { DAYS, PERIODS, WEEKS } from '../domain/constants';
 import type { Placement } from '../domain/Placement';
 import { coversFirstHalf, coversSecondHalf, semesterLabel } from '../domain/semester';
-import type { PlacementPosition, Week } from '../domain/types';
+import type { LabelField, PlacementPosition, Week } from '../domain/types';
 import { ink } from '../utils/color';
 import { esc } from '../utils/html';
+import { ColorPopover } from './ColorPopover';
 import { DragController } from './DragController';
 
 /** Gruppe sich überlappender Platzierungen in einer Klassen-/Wochenspalte. */
@@ -24,7 +25,8 @@ export interface TimetableHandlers {
   onToggleLock: (placementId: string) => void;
   /** Aufruf, wenn eine fixierte Karte verschoben/entfernt werden sollte. */
   onLockedBlocked: () => void;
-  onSetClassLabel: (classIdx: number, day: number, field: 'combined' | 'u' | 'g', value: string) => void;
+  onSetClassLabel: (classIdx: number, day: number, field: LabelField, value: string) => void;
+  onSetLabelColor: (classIdx: number, day: number, field: LabelField, color: string) => void;
   onDeleteClass: (classIdx: number) => void;
   onAddClass: () => void;
 }
@@ -43,6 +45,7 @@ export class TimetableView {
   /** Anzeigefilter je Halbjahr (rein visuell; Daten/Kollision unberührt). */
   private filterFirst = true;
   private filterSecond = true;
+  private readonly colorPopover = new ColorPopover();
 
   constructor(el: HTMLTableElement, state: AppState, drag: DragController, handlers: TimetableHandlers) {
     this.el = el;
@@ -84,6 +87,19 @@ export class TimetableView {
 
     this.el.addEventListener('dblclick', (e) => {
       const target = e.target as HTMLElement;
+
+      // Doppelklick auf ein Beschriftungsfeld: Farb-Auswahl öffnen.
+      const inp = target.closest<HTMLInputElement>('.dh-inp');
+      if (inp?.dataset.c && inp.dataset.d && inp.dataset.f) {
+        e.preventDefault();
+        const c = Number(inp.dataset.c);
+        const d = Number(inp.dataset.d);
+        const field = inp.dataset.f as LabelField;
+        const current = this.state.classes.color(c, d, field);
+        this.colorPopover.open(inp, current, (color) => this.handlers.onSetLabelColor(c, d, field, color));
+        return;
+      }
+
       if (target.closest('.p-rm') || target.closest('.p-lock')) return;
       const plEl = target.closest<HTMLElement>('.placed, .placed-mini');
       if (plEl?.dataset.id) this.handlers.onCommentPlacement(plEl.dataset.id);
@@ -230,18 +246,19 @@ export class TimetableView {
 
   /** Beschriftungsblock einer Spalte für einen Wochentag (Zeile 1: u+g, Zeile 2: u | g). */
   private renderDayLabel(c: number, day: number): string {
-    const comb = this.state.classes.label(c, day, 'combined');
-    const u = this.state.classes.label(c, day, 'u');
-    const g = this.state.classes.label(c, day, 'g');
+    const field = (f: LabelField, cls: string, placeholder: string, title: string): string => {
+      const value = this.state.classes.label(c, day, f);
+      const color = this.state.classes.color(c, day, f);
+      const style = color ? ` style="background:${color};color:${ink(color)}"` : '';
+      return `<input class="dh-inp ${cls}" data-c="${c}" data-d="${day}" data-f="${f}"
+                value="${esc(value)}" placeholder="${placeholder}" title="${title} – Doppelklick: Farbe"${style}>`;
+    };
     return `<td class="dh-cls" colspan="2">
         <div class="dh-labels">
-          <input class="dh-inp dh-comb" data-c="${c}" data-d="${day}" data-f="combined"
-                 value="${esc(comb)}" placeholder="u + g" title="Name für u- und g-Woche gemeinsam">
+          ${field('combined', 'dh-comb', 'u + g', 'Name für u- und g-Woche gemeinsam')}
           <div class="dh-ug">
-            <input class="dh-inp dh-u" data-c="${c}" data-d="${day}" data-f="u"
-                   value="${esc(u)}" placeholder="u" title="Nur ungerade Woche">
-            <input class="dh-inp dh-g" data-c="${c}" data-d="${day}" data-f="g"
-                   value="${esc(g)}" placeholder="g" title="Nur gerade Woche">
+            ${field('u', 'dh-u', 'u', 'Nur ungerade Woche')}
+            ${field('g', 'dh-g', 'g', 'Nur gerade Woche')}
           </div>
         </div>
       </td>`;

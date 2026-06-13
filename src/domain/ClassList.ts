@@ -1,9 +1,16 @@
 import { DAYS } from './constants';
-import type { ClassColumn, DayLabel, Week } from './types';
+import type { ClassColumn, DayLabel, LabelField, Week } from './types';
+
+/** Ordnet jedem Textfeld sein Farbfeld zu. */
+const COLOR_KEY: Record<LabelField, 'combinedColor' | 'uColor' | 'gColor'> = {
+  combined: 'combinedColor',
+  u: 'uColor',
+  g: 'gColor',
+};
 
 /** Spalte mit gegebenem gemeinsamen Namen an allen Wochentagen. */
 function columnWith(combined: string): ClassColumn {
-  return DAYS.map(() => ({ combined, u: '', g: '' }));
+  return DAYS.map(() => ({ combined, u: '', g: '', combinedColor: '', uColor: '', gColor: '' }));
 }
 
 /** Stellt sicher, dass eine Spalte genau DAYS.length vollständige Einträge hat. */
@@ -12,6 +19,9 @@ function normalizeColumn(col: readonly Partial<DayLabel>[]): ClassColumn {
     combined: col[d]?.combined ?? '',
     u: col[d]?.u ?? '',
     g: col[d]?.g ?? '',
+    combinedColor: col[d]?.combinedColor ?? '',
+    uColor: col[d]?.uColor ?? '',
+    gColor: col[d]?.gColor ?? '',
   }));
 }
 
@@ -46,9 +56,14 @@ export class ClassList {
     return this.columns.length;
   }
 
-  /** Wert eines Beschriftungsfeldes. */
-  label(classIdx: number, day: number, field: keyof DayLabel): string {
+  /** Text eines Beschriftungsfeldes. */
+  label(classIdx: number, day: number, field: LabelField): string {
     return this.columns[classIdx]?.[day]?.[field] ?? '';
+  }
+
+  /** Hintergrundfarbe eines Beschriftungsfeldes (leer = keine). */
+  color(classIdx: number, day: number, field: LabelField): string {
+    return this.columns[classIdx]?.[day]?.[COLOR_KEY[field]] ?? '';
   }
 
   /**
@@ -80,10 +95,16 @@ export class ClassList {
     return this.columns.length - 1;
   }
 
-  /** Setzt ein Beschriftungsfeld (leer erlaubt). */
-  setLabel(classIdx: number, day: number, field: keyof DayLabel, value: string): void {
+  /** Setzt den Text eines Beschriftungsfeldes (leer erlaubt). */
+  setLabel(classIdx: number, day: number, field: LabelField, value: string): void {
     const dl = this.columns[classIdx]?.[day];
     if (dl) dl[field] = value;
+  }
+
+  /** Setzt die Hintergrundfarbe eines Beschriftungsfeldes (leer = keine). */
+  setColor(classIdx: number, day: number, field: LabelField, color: string): void {
+    const dl = this.columns[classIdx]?.[day];
+    if (dl) dl[COLOR_KEY[field]] = color;
   }
 
   removeAt(idx: number): void {

@@ -71,6 +71,7 @@ export class App {
       onLockedBlocked: () =>
         this.toast.show('🔒 Karte ist fixiert – zum Verschieben erst die Fixierung aufheben.', 'inf'),
       onSetClassLabel: (c, d, field, value) => this.state.setClassLabel(c, d, field, value),
+      onSetLabelColor: (c, d, field, color) => this.state.setClassLabelColor(c, d, field, color),
       onDeleteClass: (idx) => this.handleDeleteClass(idx),
       onAddClass: () => this.handleAddClass(),
     });

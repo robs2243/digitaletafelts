@@ -37,7 +37,10 @@ export interface PlacementPosition {
   week: Week;
 }
 
-/** Beschriftung einer Spalte an einem Wochentag. */
+/** Beschriftbares Feld eines Tages-Labels. */
+export type LabelField = 'combined' | 'u' | 'g';
+
+/** Beschriftung einer Spalte an einem Wochentag (Texte + optionale Farben). */
 export interface DayLabel {
   /** Zeile 1: gemeinsamer Name für u- und g-Woche. */
   combined: string;
@@ -45,6 +48,10 @@ export interface DayLabel {
   u: string;
   /** Zeile 2: nur gerade Woche. */
   g: string;
+  /** Hintergrundfarbe der Felder (leer = keine), zur visuellen Gruppierung. */
+  combinedColor: string;
+  uColor: string;
+  gColor: string;
 }
 
 /** Eine Spalte (Klasse): je Wochentag eine Beschriftung (genau DAYS.length). */
