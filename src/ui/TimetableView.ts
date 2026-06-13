@@ -301,15 +301,17 @@ export class TimetableView {
     /** Zellen, die durch ein rowspan darüber bereits abgedeckt sind. */
     const blocked = new Set<string>();
 
-    // Tages-Zwischenkopf: pro Spalte zwei Beschriftungszeilen (u+g / u | g)
+    // Tageskopf: senkrechter Wochentag in Spalte 1 (über Kopf + alle Stunden),
+    // dann Stunden-Kopfzelle und die Klassen-Beschriftungen (u+g / u | g).
     let h = '<tr class="day-hdr-row">';
-    h += `<td class="dh-day" colspan="2">${DAYS[day]}</td>`;
+    h += `<td class="dh-day-vert" rowspan="${PERIODS + 1}"><span>${DAYS[day]}</span></td>`;
+    h += '<td class="dh-perhead"></td>';
     for (let c = 0; c < count; c++) h += this.renderDayLabel(c, day);
     h += '<td class="dh-add"></td></tr>';
 
     for (let p = 1; p <= PERIODS; p++) {
       h += '<tr>';
-      h += '<td class="td-per-stub"></td>';
+      // Spalte 1 ist durch das rowspan des Wochentags abgedeckt.
       h += `<td class="td-per">${p}</td>`;
 
       for (let c = 0; c < count; c++) {

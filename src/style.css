@@ -238,10 +238,9 @@ thead tr:nth-child(2) th { top: 29px; }
 /* ── FIXSPALTEN LINKS (Tag + Stunde bleiben beim Horizontal-Scrollen stehen) ── */
 .th-stub { left: 0; z-index: 30; }            /* Ecke oben links: über allem */
 .th-per  { left: var(--day-w); z-index: 30; } /* Ecke Stunden-Spalte */
-.td-per-stub, .td-per { position: sticky; z-index: 15; }
-.td-per-stub { left: 0; }
-.td-per { left: var(--day-w); }
-.dh-day { position: sticky; left: 0; z-index: 16; }
+.dh-day-vert { position: sticky; left: 0; z-index: 16; }        /* Spalte 1: Wochentag */
+.dh-perhead { position: sticky; left: var(--day-w); z-index: 16; }
+.td-per { position: sticky; left: var(--day-w); z-index: 15; }  /* Spalte 2: Stunde */
 
 /* ── THEAD CELLS ── */
 .th-stub { background: var(--hdr); width: var(--day-w); }
@@ -290,11 +289,17 @@ thead tr:nth-child(2) th { top: 29px; }
 .day-hdr-row td {
   border-top: 2px solid var(--accent);
 }
-.dh-day {
+/* Senkrechter Wochentag in Spalte 1, über Kopf + alle Stunden */
+.dh-day-vert {
   background: var(--hdr-2); color: #fff;
-  font-weight: 700; font-size: 11px; letter-spacing: .6px;
-  padding: 4px 8px; vertical-align: middle;
+  width: var(--day-w); text-align: center; vertical-align: middle; padding: 0;
 }
+.dh-day-vert span {
+  display: inline-block; white-space: nowrap;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-weight: 800; font-size: 13px; letter-spacing: 3px;
+}
+.dh-perhead { background: var(--hdr-2); width: var(--per-w); }
 .dh-cls {
   background: var(--hdr-3); color: #cbd5e1;
   padding: 2px 3px; vertical-align: middle;
@@ -327,9 +332,6 @@ thead tr:nth-child(2) th { top: 29px; }
 .dh-inp.dh-comb-muted::placeholder { color: transparent; }
 
 /* ── PERIOD CELLS ── */
-.td-per-stub {
-  background: #f4f5f8; width: var(--day-w);
-}
 .td-per {
   background: #f8f9fa; text-align: center;
   font-size: 11px; font-weight: 700; color: #c0c0c0;
