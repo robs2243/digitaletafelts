@@ -180,10 +180,10 @@ export class AppState {
     this.emit(false);
   }
 
-  /** Feldfarbe setzen (leer = keine); rendert neu, damit die Farbe erscheint. */
-  setClassLabelColor(classIdx: number, day: number, field: LabelField, color: string): void {
+  /** Feldfarbe setzen (leer = keine). render=false z. B. bei Auto-Farbe (Fokus halten). */
+  setClassLabelColor(classIdx: number, day: number, field: LabelField, color: string, render = true): void {
     this.classes.setColor(classIdx, day, field, color);
-    this.emit();
+    this.emit(render);
   }
 
   hasPlacementsForClass(idx: number): boolean {

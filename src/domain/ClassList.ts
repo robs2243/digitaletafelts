@@ -77,6 +77,23 @@ export class ClassList {
     return specific || dl.combined || `Spalte ${classIdx + 1}`;
   }
 
+  /**
+   * Erste vergebene Farbe für einen Beschriftungstext (über alle Felder),
+   * für die automatische Farbübernahme bei gleichem Klassennamen. '' = keine.
+   */
+  colorForName(name: string): string {
+    const key = name.trim().toLowerCase();
+    if (!key) return '';
+    for (const col of this.columns) {
+      for (const dl of col) {
+        if (dl.combinedColor && dl.combined.trim().toLowerCase() === key) return dl.combinedColor;
+        if (dl.uColor && dl.u.trim().toLowerCase() === key) return dl.uColor;
+        if (dl.gColor && dl.g.trim().toLowerCase() === key) return dl.gColor;
+      }
+    }
+    return '';
+  }
+
   /** Repräsentative Bezeichnung einer Spalte (z. B. für Lösch-Rückfragen). */
   columnLabel(classIdx: number): string {
     const col = this.columns[classIdx];

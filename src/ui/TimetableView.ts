@@ -25,7 +25,8 @@ export interface TimetableHandlers {
   onToggleLock: (placementId: string) => void;
   /** Aufruf, wenn eine fixierte Karte verschoben/entfernt werden sollte. */
   onLockedBlocked: () => void;
-  onSetClassLabel: (classIdx: number, day: number, field: LabelField, value: string) => void;
+  /** Setzt den Text; Rückgabe = automatisch übernommene Feldfarbe (oder null). */
+  onSetClassLabel: (classIdx: number, day: number, field: LabelField, value: string) => string | null;
   onSetLabelColor: (classIdx: number, day: number, field: LabelField, color: string) => void;
   onDeleteClass: (classIdx: number) => void;
   onAddClass: () => void;
@@ -109,12 +110,17 @@ export class TimetableView {
     this.el.addEventListener('input', (e) => {
       const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.dh-inp');
       if (inp?.dataset.c && inp.dataset.d && inp.dataset.f) {
-        this.handlers.onSetClassLabel(
+        const color = this.handlers.onSetClassLabel(
           Number(inp.dataset.c),
           Number(inp.dataset.d),
-          inp.dataset.f as 'combined' | 'u' | 'g',
+          inp.dataset.f as LabelField,
           inp.value,
         );
+        // Automatisch übernommene Farbe sofort anzeigen (ohne Re-Render).
+        if (color) {
+          inp.style.background = color;
+          inp.style.color = ink(color);
+        }
       }
     });
 

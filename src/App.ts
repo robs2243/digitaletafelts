@@ -1,6 +1,6 @@
 import { AppState } from './domain/AppState';
 import { DAYS } from './domain/constants';
-import type { CardProps, PlacementPosition } from './domain/types';
+import type { CardProps, LabelField, PlacementPosition } from './domain/types';
 import { FileService } from './services/FileService';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
@@ -70,7 +70,7 @@ export class App {
       onToggleLock: (id) => this.handleToggleLock(id),
       onLockedBlocked: () =>
         this.toast.show('🔒 Karte ist fixiert – zum Verschieben erst die Fixierung aufheben.', 'inf'),
-      onSetClassLabel: (c, d, field, value) => this.state.setClassLabel(c, d, field, value),
+      onSetClassLabel: (c, d, field, value) => this.handleSetClassLabel(c, d, field, value),
       onSetLabelColor: (c, d, field, color) => this.state.setClassLabelColor(c, d, field, color),
       onDeleteClass: (idx) => this.handleDeleteClass(idx),
       onAddClass: () => this.handleAddClass(),
@@ -211,6 +211,20 @@ export class App {
   }
 
   // ── Klassen ─────────────────────────────────────────────────────────────
+
+  /**
+   * Setzt den Beschriftungstext und übernimmt – falls der Name woanders schon
+   * eine Farbe hat und das Feld noch keine eigene – automatisch diese Farbe.
+   * Gibt die ggf. übernommene Farbe zurück (für sofortige Anzeige ohne Re-Render).
+   */
+  private handleSetClassLabel(classIdx: number, day: number, field: LabelField, value: string): string | null {
+    this.state.setClassLabel(classIdx, day, field, value);
+    if (!value.trim() || this.state.classes.color(classIdx, day, field)) return null;
+    const color = this.state.classes.colorForName(value);
+    if (!color) return null;
+    this.state.setClassLabelColor(classIdx, day, field, color, false);
+    return color;
+  }
 
   private handleAddClass(): void {
     const idx = this.state.addClass();
