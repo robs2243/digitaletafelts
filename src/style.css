@@ -98,15 +98,18 @@ header h1 { font-size: 17px; font-weight: 700; }
 .tc-abbr { font-weight: 800; font-size: 16px; line-height: 1.2; }
 .tc-sub  { font-size: 11px; opacity: .82; margin-top: 1px; }
 .tc-sub2 { font-size: 9px; opacity: .62; }
-.tc-editbtn {
-  position: absolute; bottom: 4px; right: 6px;
+.tc-editbtn, .tc-delbtn {
+  position: absolute; bottom: 4px;
   width: 17px; height: 17px;
   background: rgba(0,0,0,.18); border: none; border-radius: 3px;
   cursor: pointer; font-size: 10px; color: inherit;
   display: none; align-items: center; justify-content: center;
 }
-.tc:hover .tc-editbtn { display: flex; }
+.tc-editbtn { right: 27px; }
+.tc-delbtn  { right: 6px; }
+.tc:hover .tc-editbtn, .tc:hover .tc-delbtn { display: flex; }
 .tc-editbtn:hover { background: rgba(0,0,0,.35); }
+.tc-delbtn:hover { background: rgba(200,0,0,.85); }
 .tc-comment {
   position: absolute; bottom: 4px; left: 6px;
   font-size: 10px; line-height: 1; cursor: help;

@@ -7,6 +7,7 @@ import { DragController } from './DragController';
 export interface PoolViewHandlers {
   onEdit: (cardId: string) => void;
   onComment: (cardId: string) => void;
+  onDelete: (cardId: string) => void;
   onDragEnd: () => void;
 }
 
@@ -27,14 +28,21 @@ export class PoolView {
 
   private bindEvents(): void {
     this.el.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest<HTMLElement>('.tc-editbtn');
-      const cardEl = btn?.closest<HTMLElement>('.tc');
-      if (btn && cardEl?.dataset.id) this.handlers.onEdit(cardEl.dataset.id);
+      const target = e.target as HTMLElement;
+      const delBtn = target.closest<HTMLElement>('.tc-delbtn');
+      const delCard = delBtn?.closest<HTMLElement>('.tc');
+      if (delBtn && delCard?.dataset.id) {
+        this.handlers.onDelete(delCard.dataset.id);
+        return;
+      }
+      const editBtn = target.closest<HTMLElement>('.tc-editbtn');
+      const editCard = editBtn?.closest<HTMLElement>('.tc');
+      if (editBtn && editCard?.dataset.id) this.handlers.onEdit(editCard.dataset.id);
     });
 
     this.el.addEventListener('dblclick', (e) => {
       const target = e.target as HTMLElement;
-      if (target.closest('.tc-editbtn')) return;
+      if (target.closest('.tc-editbtn') || target.closest('.tc-delbtn')) return;
       const cardEl = target.closest<HTMLElement>('.tc');
       if (cardEl?.dataset.id) this.handlers.onComment(cardEl.dataset.id);
     });
@@ -78,6 +86,7 @@ export class PoolView {
             ${c.name && c.fach ? `<div class="tc-sub2">${esc(c.name)}</div>` : ''}
             ${c.comment ? `<span class="tc-comment" title="${esc(c.comment)}">💬</span>` : ''}
             <button class="tc-editbtn" title="Bearbeiten">✎</button>
+            <button class="tc-delbtn" title="Karte löschen">✕</button>
           </div>`;
       })
       .join('');

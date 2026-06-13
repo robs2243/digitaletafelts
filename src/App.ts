@@ -50,6 +50,7 @@ export class App {
     this.poolView = new PoolView(byId('pool'), this.state, this.drag, {
       onEdit: (id) => this.openEditCard(id),
       onComment: (id) => this.openCardComment(id),
+      onDelete: (id) => this.handleDeleteCard(id),
       onDragEnd: () => this.renderAll(),
     });
 
