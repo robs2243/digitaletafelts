@@ -309,7 +309,7 @@ export class TimetableView {
   private renderSingle(pl: Placement): string {
     const fg = ink(pl.color);
     const half = semesterLabel(pl);
-    return `<div class="placed${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}"
+    return `<div class="placed${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}"
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
         <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
@@ -338,7 +338,7 @@ export class TimetableView {
       const top = ((pl.startPeriod - cluster.start) / span) * 100;
       const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
       h += `<div class="stack-col">
-          <div class="placed-mini${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}"
+          <div class="placed-mini${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}"
                style="background:${pl.color};color:${fg};top:${top}%;height:${height}%" draggable="true">
             <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
             <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>

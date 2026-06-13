@@ -75,7 +75,7 @@ export class PoolView {
       .map((c) => {
         const fg = ink(c.color);
         const half = semesterLabel(c);
-        return `<div class="tc${c.isLabor ? ' labor-card' : ''}" data-id="${c.id}"
+        return `<div class="tc${c.isLabor ? ' labor-card' : ''}" data-id="${c.id}" data-abbr="${esc(c.abbr)}"
               style="background:${c.color};color:${fg}" draggable="true">
             <span class="tc-dur">${c.duration}h</span>
             ${c.isLabor ? '<span class="labor-badge">⚗</span>' : ''}

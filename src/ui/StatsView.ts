@@ -19,7 +19,7 @@ export class StatsView {
     }
     this.el.innerHTML = rows
       .map(
-        (r) => `<div class="stat-row">
+        (r) => `<div class="stat-row" data-abbr="${esc(r.abbr)}">
           <div class="stat-dot" style="background:${r.color}"></div>
           <div class="stat-abbr">${esc(r.abbr)}</div>
           <div class="stat-lbl">${esc(r.fach || r.name || '–')}</div>

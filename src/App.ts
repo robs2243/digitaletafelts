@@ -37,6 +37,9 @@ export class App {
   private readonly collisionModal: CollisionModal;
   private readonly commentModal: CommentModal;
 
+  /** Aktueller Kürzel-Suchbegriff (hebt passende Lehrer hervor, graut Rest aus). */
+  private searchTerm = '';
+
   constructor() {
     const persisted = this.storage.load();
     this.state = persisted ? AppState.fromJSON(persisted) : AppState.createDefault();
@@ -89,11 +92,39 @@ export class App {
     this.poolView.render();
     this.timetableView.render();
     this.statsView.render();
+    this.applySearch();
+  }
+
+  /**
+   * Hebt bei aktiver Kürzel-Suche passende Lehrer hervor und graut den Rest
+   * aus – über Pool, Stundenplan und Stunden-Übersicht hinweg. Arbeitet direkt
+   * auf dem DOM (kein Re-Render), daher auch nach jedem renderAll erneut nötig.
+   */
+  private applySearch(): void {
+    const term = this.searchTerm.trim().toUpperCase();
+    const active = term.length > 0;
+    for (const el of document.querySelectorAll<HTMLElement>('[data-abbr]')) {
+      const match = active && (el.dataset.abbr ?? '').toUpperCase().includes(term);
+      el.classList.toggle('search-hit', match);
+      el.classList.toggle('search-dim', active && !match);
+    }
   }
 
   private bindGlobalControls(): void {
     byId('btn-add-class').addEventListener('click', () => this.handleAddClass());
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
+
+    const searchInput = byId<HTMLInputElement>('search');
+    searchInput.addEventListener('input', () => {
+      this.searchTerm = searchInput.value;
+      this.applySearch();
+    });
+    byId('search-clear').addEventListener('click', () => {
+      searchInput.value = '';
+      this.searchTerm = '';
+      this.applySearch();
+      searchInput.focus();
+    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
