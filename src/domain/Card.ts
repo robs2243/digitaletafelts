@@ -9,6 +9,7 @@ export class Card {
   abbr: string;
   fach: string;
   name: string;
+  room: string;
   duration: number;
   color: string;
   isLabor: boolean;
@@ -21,6 +22,7 @@ export class Card {
     this.abbr = props.abbr;
     this.fach = props.fach;
     this.name = props.name;
+    this.room = props.room;
     this.duration = props.duration;
     this.color = props.color;
     this.isLabor = props.isLabor;
@@ -33,6 +35,7 @@ export class Card {
     this.abbr = props.abbr;
     this.fach = props.fach;
     this.name = props.name;
+    this.room = props.room;
     this.duration = props.duration;
     this.color = props.color;
     this.isLabor = props.isLabor;
@@ -43,8 +46,8 @@ export class Card {
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { abbr, fach, name, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
-    return { abbr, fach, name, duration, color, isLabor, firstHalf, secondHalf, comment };
+    const { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
+    return { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment };
   }
 
   toJSON(): PersistedCard {
@@ -56,6 +59,7 @@ export class Card {
       abbr: raw.abbr ?? '',
       fach: raw.fach ?? '',
       name: raw.name ?? '',
+      room: raw.room ?? '',
       duration: raw.duration ?? 1,
       color: raw.color ?? '#3f51b5',
       isLabor: !!raw.isLabor,

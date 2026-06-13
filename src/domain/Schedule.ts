@@ -10,7 +10,9 @@ export type Collision =
   /** Slot der Klasse ist belegt – Stapeln möglich. */
   | { type: 'class'; conflict: Placement }
   /** Lehrer unterrichtet zeitgleich in einer anderen Klasse – harte Sperre. */
-  | { type: 'teacher'; conflict: Placement };
+  | { type: 'teacher'; conflict: Placement }
+  /** Raum ist zeitgleich in einer anderen Klasse belegt – harte Sperre. */
+  | { type: 'room'; conflict: Placement };
 
 /** Der Stundenplan: verwaltet alle Platzierungen und prüft Kollisionen. */
 export class Schedule {
@@ -59,6 +61,7 @@ export class Schedule {
 
         if (pl.classIdx === pos.classIdx) return { type: 'class', conflict: pl };
         if (pl.abbr === card.abbr) return { type: 'teacher', conflict: pl };
+        if (card.room && pl.room === card.room) return { type: 'room', conflict: pl };
       }
     }
     return null;

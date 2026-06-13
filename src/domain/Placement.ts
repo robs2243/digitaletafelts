@@ -10,6 +10,7 @@ export class Placement {
   readonly abbr: string;
   readonly fach: string;
   readonly name: string;
+  readonly room: string;
   readonly duration: number;
   readonly color: string;
   readonly isLabor: boolean;
@@ -31,6 +32,7 @@ export class Placement {
     this.abbr = card.abbr;
     this.fach = card.fach;
     this.name = card.name;
+    this.room = card.room;
     this.duration = card.duration;
     this.color = card.color;
     this.isLabor = card.isLabor;
@@ -56,8 +58,8 @@ export class Placement {
 
   /** Kopie der Karten-Eigenschaften (z. B. für Rückgabe in den Pool). */
   cardSnapshot(): CardProps {
-    const { abbr, fach, name, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
-    return { abbr, fach, name, duration, color, isLabor, firstHalf, secondHalf, comment };
+    const { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
+    return { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment };
   }
 
   toJSON(): PersistedPlacement {
@@ -79,6 +81,7 @@ export class Placement {
         abbr: raw.abbr ?? '',
         fach: raw.fach ?? '',
         name: raw.name ?? '',
+        room: raw.room ?? '',
         duration: raw.duration ?? 1,
         color: raw.color ?? '#3f51b5',
         isLabor: !!raw.isLabor,

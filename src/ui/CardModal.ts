@@ -19,6 +19,7 @@ export class CardModal {
   private readonly title: HTMLElement;
   private readonly abbrInput: HTMLInputElement;
   private readonly fachInput: HTMLInputElement;
+  private readonly roomInput: HTMLInputElement;
   private readonly durSelect: HTMLSelectElement;
   private readonly laborCheckbox: HTMLInputElement;
   private readonly half1Checkbox: HTMLInputElement;
@@ -39,6 +40,7 @@ export class CardModal {
     this.title = document.getElementById('am-title')!;
     this.abbrInput = document.getElementById('am-abbr') as HTMLInputElement;
     this.fachInput = document.getElementById('am-fach') as HTMLInputElement;
+    this.roomInput = document.getElementById('am-room') as HTMLInputElement;
     this.durSelect = document.getElementById('am-dur') as HTMLSelectElement;
     this.laborCheckbox = document.getElementById('am-labor') as HTMLInputElement;
     this.half1Checkbox = document.getElementById('am-half1') as HTMLInputElement;
@@ -88,6 +90,7 @@ export class CardModal {
     this.deleteBtn.style.display = 'none';
     this.abbrInput.value = '';
     this.fachInput.value = '';
+    this.roomInput.value = '';
     this.durSelect.value = '2';
     this.laborCheckbox.checked = false;
     this.half1Checkbox.checked = false;
@@ -104,6 +107,7 @@ export class CardModal {
     this.deleteBtn.style.display = 'inline-flex';
     this.abbrInput.value = card.abbr;
     this.fachInput.value = card.fach;
+    this.roomInput.value = card.room;
     this.durSelect.value = String(card.duration);
     this.laborCheckbox.checked = card.isLabor;
     this.half1Checkbox.checked = card.firstHalf;
@@ -117,6 +121,7 @@ export class CardModal {
       abbr: this.abbrInput.value.trim().toUpperCase(),
       fach: this.fachInput.value.trim(),
       name: this.existingName,
+      room: this.roomInput.value.trim(),
       duration: parseInt(this.durSelect.value, 10),
       color: this.pickedColor,
       isLabor: this.laborCheckbox.checked,
@@ -149,6 +154,7 @@ export class CardModal {
     if (!entry) return;
     this.renderSwatches(entry.color);
     if (!this.fachInput.value && entry.fach) this.fachInput.value = entry.fach;
+    if (!this.roomInput.value && entry.room) this.roomInput.value = entry.room;
     if (!this.existingName && entry.name) this.existingName = entry.name;
     if (entry.isLabor) this.laborCheckbox.checked = true;
   }

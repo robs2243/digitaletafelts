@@ -52,6 +52,7 @@ Die Views lesen den Zustand direkt (nur lesend), schreiben aber nie selbst.
 **Kollisionsregeln** (in `Schedule.checkSlot`):
 - *Überlauf*: Karte ragt über die letzte Stunde hinaus → blockiert
 - *Lehrer-Kollision*: gleiches Kürzel zeitgleich in anderer Klasse (gleiche Woche) → blockiert
+- *Raum-Kollision*: gleicher Raum (sofern gesetzt) zeitgleich in anderer Klasse → blockiert
 - *Klassen-Kollision*: Slot belegt → Stapeln nach Rückfrage; Labor-Karten (⚗) stapeln automatisch
 - *Halbjahr*: Karten in disjunkten Halbjahren (1. vs. 2. HJ) überschneiden sich zeitlich
   nicht und kollidieren nie – sie liegen frei nebeneinander (wie Labor-Karten). Kein

@@ -35,5 +35,15 @@ export function collisionMessage(
         <em>${esc(labelFor(pl.classIdx, pl.day, pl.week))}</em> –
         ein Lehrer kann nicht gleichzeitig zwei Klassen unterrichten.`;
     }
+
+    case 'room': {
+      const pl = collision.conflict;
+      const range = pl.duration > 1 ? `${pl.startPeriod}–${pl.endPeriod}` : `${pl.startPeriod}`;
+      return `<strong>Raum-Kollision:</strong><br>
+        Raum <em>${esc(pl.room)}</em> ist am ${DAYS[pos.day]} in Std.&nbsp;${range}
+        (${pos.week.toUpperCase()}-Wochen) bereits in
+        <em>${esc(labelFor(pl.classIdx, pl.day, pl.week))}</em> belegt –
+        ein Raum kann nicht gleichzeitig doppelt belegt werden.`;
+    }
   }
 }

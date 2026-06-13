@@ -316,6 +316,7 @@ export class TimetableView {
         <div class="p-abbr">${esc(pl.abbr)}</div>
         ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
         ${pl.name && !pl.fach ? `<div class="p-name">${esc(pl.name)}</div>` : ''}
+        ${pl.room ? `<div class="p-range">📍 ${esc(pl.room)}</div>` : ''}
         ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
         ${half ? `<div class="p-range p-half">${half}</div>` : ''}
         ${pl.isLabor ? '<div class="p-range">⚗ Labor</div>' : ''}
@@ -344,6 +345,7 @@ export class TimetableView {
             <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
             <div class="p-abbr">${esc(pl.abbr)}</div>
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
+            ${pl.room ? `<div class="p-range">📍 ${esc(pl.room)}</div>` : ''}
             ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
             ${half ? `<div class="p-range p-half">${half}</div>` : ''}
             ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}

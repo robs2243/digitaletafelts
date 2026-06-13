@@ -9,6 +9,8 @@ export interface CardProps {
   fach: string;
   /** Lehrername (optional, leer = ''). */
   name: string;
+  /** Raum (optional, leer = ''). Wird wie das Kürzel auf Kollision geprüft. */
+  room: string;
   /** Dauer in Stunden am Stück (1–9). */
   duration: number;
   /** Hex-Farbe der Karte. */
