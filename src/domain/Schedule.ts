@@ -43,12 +43,19 @@ export class Schedule {
 
   /**
    * Prüft, ob eine Karte an der Position platziert werden kann.
-   * Liefert null (frei) oder die erste gefundene Kollision.
-   * Lehrer-Kollisionen gelten nur innerhalb desselben Wochentyps.
-   * Karten in disjunkten Halbjahren (1. vs. 2.) überschneiden sich zeitlich
-   * nicht und kollidieren daher nie – sie dürfen frei nebeneinander liegen.
+   * Liefert null (frei) oder die gefundene Kollision.
+   *
+   * Harte Sperren haben Vorrang vor der stapelbaren Klassen-Kollision und
+   * werden über ALLE überlappenden Karten geprüft (auch bei Stapelung in
+   * derselben Klasse):
+   * - *Raum*: derselbe (gesetzte) Raum zeitgleich – zwei Gruppen können nicht
+   *   im selben Raum sein, daher harte Sperre, egal ob gleiche oder andere Klasse.
+   * - *Lehrer*: dasselbe Kürzel zeitgleich in einer anderen Klasse.
+   * Kollisionen gelten nur im selben Wochentyp; disjunkte Halbjahre (1. vs. 2.)
+   * überschneiden sich zeitlich nicht und kollidieren daher nie.
    */
   checkSlot(card: CardProps, pos: PlacementPosition, excludeId?: string): Collision | null {
+    let classConflict: Placement | null = null;
     for (let i = 0; i < card.duration; i++) {
       const period = pos.startPeriod + i;
       if (period > PERIODS) return { type: 'overflow', period };
@@ -59,12 +66,15 @@ export class Schedule {
         if (!pl.covers(period)) continue;
         if (!sharesSemester(card, pl)) continue;
 
-        if (pl.classIdx === pos.classIdx) return { type: 'class', conflict: pl };
-        if (pl.abbr === card.abbr) return { type: 'teacher', conflict: pl };
+        // Harte Sperren zuerst – auch innerhalb derselben Klasse.
         if (card.room && pl.room === card.room) return { type: 'room', conflict: pl };
+        if (pl.classIdx !== pos.classIdx && pl.abbr === card.abbr) return { type: 'teacher', conflict: pl };
+        // Stapelbare Klassen-Kollision nur merken und weitersuchen,
+        // damit eine harte Sperre an einer anderen Karte nicht übersehen wird.
+        if (pl.classIdx === pos.classIdx && !classConflict) classConflict = pl;
       }
     }
-    return null;
+    return classConflict ? { type: 'class', conflict: classConflict } : null;
   }
 
   /** Entfernt alle Platzierungen einer Klasse und zieht höhere Indizes nach. */
