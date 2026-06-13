@@ -22,6 +22,8 @@ export class CardModal {
   private readonly nameInput: HTMLInputElement;
   private readonly durSelect: HTMLSelectElement;
   private readonly laborCheckbox: HTMLInputElement;
+  private readonly half1Checkbox: HTMLInputElement;
+  private readonly half2Checkbox: HTMLInputElement;
   private readonly swatchesEl: HTMLElement;
   private readonly deleteBtn: HTMLButtonElement;
   private readonly handlers: CardModalHandlers;
@@ -40,6 +42,8 @@ export class CardModal {
     this.nameInput = document.getElementById('am-name') as HTMLInputElement;
     this.durSelect = document.getElementById('am-dur') as HTMLSelectElement;
     this.laborCheckbox = document.getElementById('am-labor') as HTMLInputElement;
+    this.half1Checkbox = document.getElementById('am-half1') as HTMLInputElement;
+    this.half2Checkbox = document.getElementById('am-half2') as HTMLInputElement;
     this.swatchesEl = document.getElementById('am-swatches')!;
     this.deleteBtn = document.getElementById('am-delbtn') as HTMLButtonElement;
 
@@ -87,6 +91,8 @@ export class CardModal {
     this.nameInput.value = '';
     this.durSelect.value = '2';
     this.laborCheckbox.checked = false;
+    this.half1Checkbox.checked = false;
+    this.half2Checkbox.checked = false;
     this.renderSwatches(suggestedColor);
     this.open();
   }
@@ -101,6 +107,8 @@ export class CardModal {
     this.nameInput.value = card.name;
     this.durSelect.value = String(card.duration);
     this.laborCheckbox.checked = card.isLabor;
+    this.half1Checkbox.checked = card.firstHalf;
+    this.half2Checkbox.checked = card.secondHalf;
     this.renderSwatches(card.color);
     this.open();
   }
@@ -113,6 +121,8 @@ export class CardModal {
       duration: parseInt(this.durSelect.value, 10),
       color: this.pickedColor,
       isLabor: this.laborCheckbox.checked,
+      firstHalf: this.half1Checkbox.checked,
+      secondHalf: this.half2Checkbox.checked,
       comment: this.existingComment,
     };
     if (this.handlers.onSave(this.editingId, props)) this.close();

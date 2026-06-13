@@ -1,6 +1,7 @@
 import { PERIODS } from './constants';
 import { Placement } from './Placement';
-import type { PlacementPosition } from './types';
+import { sharesSemester } from './semester';
+import type { CardProps, PlacementPosition } from './types';
 
 /** Ergebnis der Kollisionsprüfung – strukturiert, die UI formatiert die Meldung. */
 export type Collision =
@@ -42,9 +43,11 @@ export class Schedule {
    * Prüft, ob eine Karte an der Position platziert werden kann.
    * Liefert null (frei) oder die erste gefundene Kollision.
    * Lehrer-Kollisionen gelten nur innerhalb desselben Wochentyps.
+   * Karten in disjunkten Halbjahren (1. vs. 2.) überschneiden sich zeitlich
+   * nicht und kollidieren daher nie – sie dürfen frei nebeneinander liegen.
    */
-  checkSlot(abbr: string, pos: PlacementPosition, duration: number, excludeId?: string): Collision | null {
-    for (let i = 0; i < duration; i++) {
+  checkSlot(card: CardProps, pos: PlacementPosition, excludeId?: string): Collision | null {
+    for (let i = 0; i < card.duration; i++) {
       const period = pos.startPeriod + i;
       if (period > PERIODS) return { type: 'overflow', period };
 
@@ -52,9 +55,10 @@ export class Schedule {
         if (pl.id === excludeId) continue;
         if (pl.day !== pos.day || pl.week !== pos.week) continue;
         if (!pl.covers(period)) continue;
+        if (!sharesSemester(card, pl)) continue;
 
         if (pl.classIdx === pos.classIdx) return { type: 'class', conflict: pl };
-        if (pl.abbr === abbr) return { type: 'teacher', conflict: pl };
+        if (pl.abbr === card.abbr) return { type: 'teacher', conflict: pl };
       }
     }
     return null;

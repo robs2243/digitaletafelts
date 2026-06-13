@@ -15,6 +15,10 @@ export interface CardProps {
   color: string;
   /** Labor-/Gruppenkarte: darf ohne Rückfrage gestapelt werden. */
   isLabor: boolean;
+  /** Findet im 1. Halbjahr statt. Beide Flags false = ganzes Jahr. */
+  firstHalf: boolean;
+  /** Findet im 2. Halbjahr statt. Beide Flags false = ganzes Jahr. */
+  secondHalf: boolean;
   /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
   comment: string;
 }

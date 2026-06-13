@@ -27,6 +27,7 @@ src/
 │   ├── CardPool.ts    Verwaltung der unplatzierten Karten
 │   ├── ClassList.ts   Klassennamen (Referenz über Index)
 │   ├── Schedule.ts    Stundenplan + Kollisionsprüfung
+│   ├── semester.ts    Halbjahr-Logik (1./2. HJ, Überschneidungsprüfung)
 │   └── AppState.ts    Aggregat-Wurzel: alle Operationen, Observer, (De-)Serialisierung
 ├── services/
 │   └── StorageService.ts   localStorage-Persistenz (Format kompatibel zur Alt-App)
@@ -52,3 +53,6 @@ Die Views lesen den Zustand direkt (nur lesend), schreiben aber nie selbst.
 - *Überlauf*: Karte ragt über die letzte Stunde hinaus → blockiert
 - *Lehrer-Kollision*: gleiches Kürzel zeitgleich in anderer Klasse (gleiche Woche) → blockiert
 - *Klassen-Kollision*: Slot belegt → Stapeln nach Rückfrage; Labor-Karten (⚗) stapeln automatisch
+- *Halbjahr*: Karten in disjunkten Halbjahren (1. vs. 2. HJ) überschneiden sich zeitlich
+  nicht und kollidieren nie – sie liegen frei nebeneinander (wie Labor-Karten). Kein
+  Häkchen = ganzes Jahr.

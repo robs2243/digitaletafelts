@@ -108,7 +108,7 @@ export class App {
     if (!dragData) return;
 
     const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
-    const collision = this.state.schedule.checkSlot(dragData.card.abbr, pos, dragData.card.duration, excludeId);
+    const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
 
     if (!collision) {
       this.placeDrag(dragData, pos);

@@ -1,6 +1,7 @@
 import type { AppState } from '../domain/AppState';
 import { DAYS, PERIODS, WEEKS } from '../domain/constants';
 import type { Placement } from '../domain/Placement';
+import { semesterLabel } from '../domain/semester';
 import type { PlacementPosition, Week } from '../domain/types';
 import { ink } from '../utils/color';
 import { esc } from '../utils/html';
@@ -106,7 +107,7 @@ export class TimetableView {
       if (!dragData) return;
       const pos = this.posFromCell(cell);
       const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
-      const collision = this.state.schedule.checkSlot(dragData.card.abbr, pos, dragData.card.duration, excludeId);
+      const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
 
       cell.classList.remove('dv', 'ds', 'di');
       if (!collision) {
@@ -267,6 +268,7 @@ export class TimetableView {
 
   private renderSingle(pl: Placement): string {
     const fg = ink(pl.color);
+    const half = semesterLabel(pl);
     return `<div class="placed${pl.isLabor ? ' labor-card' : ''}" data-id="${pl.id}"
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
@@ -274,6 +276,7 @@ export class TimetableView {
         ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
         ${pl.name && !pl.fach ? `<div class="p-name">${esc(pl.name)}</div>` : ''}
         ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
+        ${half ? `<div class="p-range p-half">${half}</div>` : ''}
         ${pl.isLabor ? '<div class="p-range">⚗ Labor</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
       </div>`;
@@ -289,6 +292,7 @@ export class TimetableView {
     let h = '<div class="stack-wrap">';
     for (const pl of cluster.cards) {
       const fg = ink(pl.color);
+      const half = semesterLabel(pl);
       const visibleEnd = Math.min(pl.endPeriod, cluster.end);
       const top = ((pl.startPeriod - cluster.start) / span) * 100;
       const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
@@ -299,6 +303,7 @@ export class TimetableView {
             <div class="p-abbr">${esc(pl.abbr)}</div>
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
             ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
+            ${half ? `<div class="p-range p-half">${half}</div>` : ''}
             ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
           </div>
         </div>`;

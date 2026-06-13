@@ -1,4 +1,5 @@
 import type { AppState } from '../domain/AppState';
+import { semesterLabel } from '../domain/semester';
 import { ink } from '../utils/color';
 import { esc } from '../utils/html';
 import { DragController } from './DragController';
@@ -65,10 +66,12 @@ export class PoolView {
     this.el.innerHTML = this.state.pool.all
       .map((c) => {
         const fg = ink(c.color);
+        const half = semesterLabel(c);
         return `<div class="tc${c.isLabor ? ' labor-card' : ''}" data-id="${c.id}"
               style="background:${c.color};color:${fg}" draggable="true">
             <span class="tc-dur">${c.duration}h</span>
             ${c.isLabor ? '<span class="labor-badge">⚗</span>' : ''}
+            ${half ? `<span class="tc-half">${half}</span>` : ''}
             <div class="tc-abbr" style="${c.isLabor ? 'margin-top:10px' : ''}">${esc(c.abbr)}</div>
             ${c.fach ? `<div class="tc-sub">${esc(c.fach)}</div>` : ''}
             ${c.name && !c.fach ? `<div class="tc-sub">${esc(c.name)}</div>` : ''}
