@@ -1,7 +1,7 @@
 import type { AppState } from '../domain/AppState';
 import { DAYS, PERIODS, WEEKS } from '../domain/constants';
 import type { Placement } from '../domain/Placement';
-import { semesterLabel } from '../domain/semester';
+import { coversFirstHalf, coversSecondHalf, semesterLabel } from '../domain/semester';
 import type { PlacementPosition, Week } from '../domain/types';
 import { ink } from '../utils/color';
 import { esc } from '../utils/html';
@@ -39,6 +39,10 @@ export class TimetableView {
   private readonly state: AppState;
   private readonly drag: DragController;
   private readonly handlers: TimetableHandlers;
+
+  /** Anzeigefilter je Halbjahr (rein visuell; Daten/Kollision unberührt). */
+  private filterFirst = true;
+  private filterSecond = true;
 
   constructor(el: HTMLTableElement, state: AppState, drag: DragController, handlers: TimetableHandlers) {
     this.el = el;
@@ -174,6 +178,19 @@ export class TimetableView {
 
   // ── Rendering ───────────────────────────────────────────────────────────
 
+  /**
+   * Setzt den Halbjahr-Anzeigefilter. Wirkt erst beim nächsten render().
+   * Eine Platzierung ist sichtbar, wenn sie zu einem aktiven Halbjahr gehört.
+   */
+  setSemesterFilter(showFirst: boolean, showSecond: boolean): void {
+    this.filterFirst = showFirst;
+    this.filterSecond = showSecond;
+  }
+
+  private passesFilter(pl: Placement): boolean {
+    return (this.filterFirst && coversFirstHalf(pl)) || (this.filterSecond && coversSecondHalf(pl));
+  }
+
   render(): void {
     const count = this.state.classes.count;
     let h = this.renderHead(count);
@@ -282,6 +299,7 @@ export class TimetableView {
   private buildClusters(day: number): Map<string, PlacementCluster> {
     const byColumn = new Map<string, Placement[]>();
     for (const pl of this.state.schedule.forDay(day)) {
+      if (!this.passesFilter(pl)) continue;
       const key = `${pl.classIdx}_${pl.week}`;
       const list = byColumn.get(key) ?? [];
       list.push(pl);

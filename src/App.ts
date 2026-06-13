@@ -118,6 +118,15 @@ export class App {
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
     byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
 
+    const filter1 = byId<HTMLInputElement>('filter-hj1');
+    const filter2 = byId<HTMLInputElement>('filter-hj2');
+    const applyFilter = () => {
+      this.timetableView.setSemesterFilter(filter1.checked, filter2.checked);
+      this.renderAll();
+    };
+    filter1.addEventListener('change', applyFilter);
+    filter2.addEventListener('change', applyFilter);
+
     const searchInput = byId<HTMLInputElement>('search');
     searchInput.addEventListener('input', () => {
       this.searchTerm = searchInput.value;
