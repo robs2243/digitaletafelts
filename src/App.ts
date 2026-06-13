@@ -1,6 +1,7 @@
 import { AppState } from './domain/AppState';
 import { DAYS } from './domain/constants';
 import type { CardProps, PlacementPosition } from './domain/types';
+import { FileService } from './services/FileService';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
 import { ClearCardsModal } from './ui/ClearCardsModal';
@@ -27,6 +28,7 @@ function byId<T extends HTMLElement>(id: string): T {
 export class App {
   private readonly state: AppState;
   private readonly storage = new StorageService();
+  private readonly fileService = new FileService();
   private readonly drag = new DragController();
 
   private readonly toast: Toast;
@@ -117,6 +119,8 @@ export class App {
     byId('btn-add-class').addEventListener('click', () => this.handleAddClass());
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
     byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
+    byId('btn-save').addEventListener('click', () => void this.handleSave(false));
+    byId('btn-save-as').addEventListener('click', () => void this.handleSave(true));
 
     const filter1 = byId<HTMLInputElement>('filter-hj1');
     const filter2 = byId<HTMLInputElement>('filter-hj2');
@@ -267,6 +271,18 @@ export class App {
     const fach = props.fach ? ` – ${props.fach}` : '';
     this.toast.show(`✓ ${props.abbr}${fach}${labor} gespeichert`);
     return true;
+  }
+
+  /** Speichert den Plan in eine Datei. forceNew = true → „Speichern unter“. */
+  private async handleSave(forceNew: boolean): Promise<void> {
+    try {
+      const state = this.state.toJSON();
+      const res = forceNew ? await this.fileService.saveAs(state) : await this.fileService.save(state);
+      if (res.cancelled) return;
+      this.toast.show(res.name ? `✓ Gespeichert: ${res.name}` : '✓ Datei gespeichert');
+    } catch {
+      this.toast.show('Speichern fehlgeschlagen.', 'inf');
+    }
   }
 
   private openClearCards(): void {
