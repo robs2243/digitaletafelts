@@ -35,6 +35,19 @@ export interface PlacementPosition {
   week: Week;
 }
 
+/** Beschriftung einer Spalte an einem Wochentag. */
+export interface DayLabel {
+  /** Zeile 1: gemeinsamer Name für u- und g-Woche. */
+  combined: string;
+  /** Zeile 2: nur ungerade Woche. */
+  u: string;
+  /** Zeile 2: nur gerade Woche. */
+  g: string;
+}
+
+/** Eine Spalte (Klasse): je Wochentag eine Beschriftung (genau DAYS.length). */
+export type ClassColumn = DayLabel[];
+
 /** Serialisierte Karte (Persistenzformat, kompatibel zum Alt-Format). */
 export interface PersistedCard extends CardProps {
   id: string;
@@ -46,9 +59,10 @@ export interface PersistedPlacement extends PersistedCard, PlacementPosition {
   locked?: boolean;
 }
 
-/** Gesamtzustand im Persistenzformat (kompatibel zur Vorgänger-App). */
+/** Gesamtzustand im Persistenzformat. */
 export interface PersistedState {
-  classes: string[];
+  /** Neu: Spalten mit Tagesbeschriftungen. Alt: string[] (wird migriert). */
+  classes: (string | ClassColumn)[];
   cards: PersistedCard[];
   placed: PersistedPlacement[];
   nid: number;

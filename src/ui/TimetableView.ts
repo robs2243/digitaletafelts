@@ -24,7 +24,7 @@ export interface TimetableHandlers {
   onToggleLock: (placementId: string) => void;
   /** Aufruf, wenn eine fixierte Karte verschoben/entfernt werden sollte. */
   onLockedBlocked: () => void;
-  onRenameClass: (classIdx: number, name: string, commit: boolean) => void;
+  onSetClassLabel: (classIdx: number, day: number, field: 'combined' | 'u' | 'g', value: string) => void;
   onDeleteClass: (classIdx: number) => void;
   onAddClass: () => void;
 }
@@ -85,14 +85,17 @@ export class TimetableView {
       if (plEl?.dataset.id) this.handlers.onCommentPlacement(plEl.dataset.id);
     });
 
-    // Tippen: nur speichern (Fokus behalten); Verlassen des Felds: neu rendern
+    // Tagesbeschriftung tippen: nur speichern, nicht neu rendern (Fokus behalten)
     this.el.addEventListener('input', (e) => {
-      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.cls-inp');
-      if (inp?.dataset.c) this.handlers.onRenameClass(Number(inp.dataset.c), inp.value, false);
-    });
-    this.el.addEventListener('change', (e) => {
-      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.cls-inp');
-      if (inp?.dataset.c) this.handlers.onRenameClass(Number(inp.dataset.c), inp.value, true);
+      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.dh-inp');
+      if (inp?.dataset.c && inp.dataset.d && inp.dataset.f) {
+        this.handlers.onSetClassLabel(
+          Number(inp.dataset.c),
+          Number(inp.dataset.d),
+          inp.dataset.f as 'combined' | 'u' | 'g',
+          inp.value,
+        );
+      }
     });
 
     this.el.addEventListener('dragstart', (e) => {
@@ -172,51 +175,70 @@ export class TimetableView {
   // ── Rendering ───────────────────────────────────────────────────────────
 
   render(): void {
-    const classes = this.state.classes.all;
-    let h = this.renderHead(classes);
+    const count = this.state.classes.count;
+    let h = this.renderHead(count);
     h += '<tbody>';
     for (let d = 0; d < DAYS.length; d++) {
-      h += this.renderDay(d, classes);
+      h += this.renderDay(d, count);
       if (d < DAYS.length - 1) {
-        h += `<tr class="day-sep"><td colspan="${2 + classes.length * 2 + 1}"></td></tr>`;
+        h += `<tr class="day-sep"><td colspan="${2 + count * 2 + 1}"></td></tr>`;
       }
     }
     h += '</tbody>';
     this.el.innerHTML = h;
   }
 
-  private renderHead(classes: readonly string[]): string {
+  private renderHead(count: number): string {
     let h = '<thead><tr>';
     h += '<th class="th-stub" rowspan="2"></th>';
     h += '<th class="th-per" rowspan="2"></th>';
-    classes.forEach((name, c) => {
+    for (let c = 0; c < count; c++) {
       h += `<th class="th-cls" colspan="2">
               <div class="cls-cell">
-                <input class="cls-inp" value="${esc(name)}" data-c="${c}" title="Klicken zum Umbenennen">
-                <button class="cls-del" data-c="${c}" title="Klasse löschen">×</button>
+                <span class="cls-num">${c + 1}</span>
+                <button class="cls-del" data-c="${c}" title="Spalte löschen">×</button>
               </div>
             </th>`;
-    });
+    }
     h += `<th class="th-addcls" rowspan="2">
-            <button class="btn-addcls-col" title="Klasse hinzufügen">+</button>
+            <button class="btn-addcls-col" title="Spalte hinzufügen">+</button>
           </th>`;
     h += '</tr><tr>';
-    classes.forEach(() => {
+    for (let c = 0; c < count; c++) {
       h += '<th class="th-wk u">u</th><th class="th-wk g">g</th>';
-    });
+    }
     h += '</tr></thead>';
     return h;
   }
 
-  private renderDay(day: number, classes: readonly string[]): string {
+  /** Beschriftungsblock einer Spalte für einen Wochentag (Zeile 1: u+g, Zeile 2: u | g). */
+  private renderDayLabel(c: number, day: number): string {
+    const comb = this.state.classes.label(c, day, 'combined');
+    const u = this.state.classes.label(c, day, 'u');
+    const g = this.state.classes.label(c, day, 'g');
+    return `<td class="dh-cls" colspan="2">
+        <div class="dh-labels">
+          <input class="dh-inp dh-comb" data-c="${c}" data-d="${day}" data-f="combined"
+                 value="${esc(comb)}" placeholder="u + g" title="Name für u- und g-Woche gemeinsam">
+          <div class="dh-ug">
+            <input class="dh-inp dh-u" data-c="${c}" data-d="${day}" data-f="u"
+                   value="${esc(u)}" placeholder="u" title="Nur ungerade Woche">
+            <input class="dh-inp dh-g" data-c="${c}" data-d="${day}" data-f="g"
+                   value="${esc(g)}" placeholder="g" title="Nur gerade Woche">
+          </div>
+        </div>
+      </td>`;
+  }
+
+  private renderDay(day: number, count: number): string {
     const clusterAt = this.buildClusters(day);
     /** Zellen, die durch ein rowspan darüber bereits abgedeckt sind. */
     const blocked = new Set<string>();
 
-    // Tages-Zwischenkopf mit wiederholten Klassennamen
+    // Tages-Zwischenkopf: pro Spalte zwei Beschriftungszeilen (u+g / u | g)
     let h = '<tr class="day-hdr-row">';
     h += `<td class="dh-day" colspan="2">${DAYS[day]}</td>`;
-    for (const name of classes) h += `<td class="dh-cls" colspan="2">${esc(name)}</td>`;
+    for (let c = 0; c < count; c++) h += this.renderDayLabel(c, day);
     h += '<td class="dh-add"></td></tr>';
 
     for (let p = 1; p <= PERIODS; p++) {
@@ -224,7 +246,7 @@ export class TimetableView {
       h += '<td class="td-per-stub"></td>';
       h += `<td class="td-per">${p}</td>`;
 
-      for (let c = 0; c < classes.length; c++) {
+      for (let c = 0; c < count; c++) {
         for (const w of WEEKS) {
           const key = `${p}_${c}_${w}`;
           if (blocked.has(key)) continue;

@@ -25,7 +25,7 @@ src/
 │   ├── Card.ts        Pool-Karte (Lehrer/Fach-Einheit)
 │   ├── Placement.ts   Platzierte Karte mit Position im Raster
 │   ├── CardPool.ts    Verwaltung der unplatzierten Karten
-│   ├── ClassList.ts   Klassennamen (Referenz über Index)
+│   ├── ClassList.ts   Spalten mit Beschriftung je Wochentag (u+g / u | g), Referenz über Index
 │   ├── Schedule.ts    Stundenplan + Kollisionsprüfung
 │   ├── semester.ts    Halbjahr-Logik (1./2. HJ, Überschneidungsprüfung)
 │   └── AppState.ts    Aggregat-Wurzel: alle Operationen, Observer, (De-)Serialisierung

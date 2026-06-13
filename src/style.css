@@ -177,14 +177,9 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .cls-cell {
   position: relative; display: flex; align-items: center; justify-content: center;
-  padding: 0 16px 0 4px;
+  padding: 7px 16px 7px 4px;
 }
-.cls-inp {
-  background: transparent; border: none; color: #fff;
-  font-size: 11px; font-weight: 700; text-align: center;
-  width: 100%; cursor: text; outline: none; padding: 8px 2px; min-width: 0;
-}
-.cls-inp:focus { background: rgba(255,255,255,.18); border-radius: 4px; }
+.cls-num { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5); }
 .cls-del {
   position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
   width: 14px; height: 14px; border-radius: 3px;
@@ -223,10 +218,25 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .dh-cls {
   background: #1e3a6e; color: #90caf9;
-  font-size: 10px; font-weight: 600; text-align: center;
-  padding: 3px 2px; vertical-align: middle;
+  padding: 2px 3px; vertical-align: middle;
 }
 .dh-add { background: #1e3a6e; }
+/* Tagesbeschriftung: Zeile 1 (u+g) über Zeile 2 (u | g) */
+.dh-labels { display: flex; flex-direction: column; gap: 2px; }
+.dh-ug { display: flex; gap: 2px; }
+.dh-ug .dh-inp { flex: 1; min-width: 0; }
+.dh-inp {
+  width: 100%; min-width: 0; box-sizing: border-box;
+  background: rgba(255,255,255,.08); border: 1px solid transparent; border-radius: 3px;
+  color: #fff; font-size: 10px; font-weight: 600; text-align: center;
+  padding: 2px 2px; outline: none; transition: background .1s, border-color .1s;
+}
+.dh-inp::placeholder { color: rgba(255,255,255,.3); font-weight: 400; }
+.dh-inp:hover { background: rgba(255,255,255,.15); }
+.dh-inp:focus { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.55); }
+.dh-u::placeholder, .dh-u { color: #bbdefb; }
+.dh-g::placeholder, .dh-g { color: #c8e6c9; }
+.dh-u:focus, .dh-g:focus { color: #fff; }
 
 /* ── PERIOD CELLS ── */
 .td-per-stub {

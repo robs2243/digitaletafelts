@@ -1,14 +1,17 @@
 import { DAYS, PERIODS } from '../domain/constants';
 import type { Collision } from '../domain/Schedule';
-import type { PlacementPosition } from '../domain/types';
+import type { PlacementPosition, Week } from '../domain/types';
 import { esc } from '../utils/html';
+
+/** Liefert den Anzeigenamen einer Spalte für (Tag, Woche). */
+type LabelFor = (classIdx: number, day: number, week: Week) => string;
 
 /** Formatiert eine Kollision als deutsche HTML-Meldung für das Warn-Modal. */
 export function collisionMessage(
   collision: Collision,
   pos: PlacementPosition,
   abbr: string,
-  classNames: readonly string[],
+  labelFor: LabelFor,
 ): string {
   switch (collision.type) {
     case 'overflow':
@@ -19,7 +22,7 @@ export function collisionMessage(
       const label = pl.fach ? `${esc(pl.abbr)} – ${esc(pl.fach)}` : esc(pl.abbr);
       const range = pl.duration > 1 ? `${pl.startPeriod}–${pl.endPeriod}` : `${pl.startPeriod}`;
       return `<strong>Klassen-Kollision:</strong><br>
-        ${esc(classNames[pos.classIdx])} (${pos.week.toUpperCase()}-Wochen) hat in
+        ${esc(labelFor(pos.classIdx, pos.day, pos.week))} (${pos.week.toUpperCase()}-Wochen) hat in
         Std.&nbsp;${range} bereits <em>${label}</em> eingetragen.`;
     }
 
@@ -29,7 +32,7 @@ export function collisionMessage(
       return `<strong>Lehrer-Kollision:</strong><br>
         <em>${esc(abbr)}</em> unterrichtet am ${DAYS[pos.day]}
         in Std.&nbsp;${range} (${pos.week.toUpperCase()}-Wochen) bereits in
-        <em>${esc(classNames[pl.classIdx])}</em> –
+        <em>${esc(labelFor(pl.classIdx, pl.day, pl.week))}</em> –
         ein Lehrer kann nicht gleichzeitig zwei Klassen unterrichten.`;
     }
   }

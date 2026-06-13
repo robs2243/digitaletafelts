@@ -61,7 +61,7 @@ export class App {
       onToggleLock: (id) => this.handleToggleLock(id),
       onLockedBlocked: () =>
         this.toast.show('🔒 Karte ist fixiert – zum Verschieben erst die Fixierung aufheben.', 'inf'),
-      onRenameClass: (idx, name, commit) => this.state.renameClass(idx, name, { render: commit }),
+      onSetClassLabel: (c, d, field, value) => this.state.setClassLabel(c, d, field, value),
       onDeleteClass: (idx) => this.handleDeleteClass(idx),
       onAddClass: () => this.handleAddClass(),
     });
@@ -122,13 +122,17 @@ export class App {
         // Labor-Karten stapeln ohne Rückfrage
         this.placeDrag(dragData, pos);
       } else {
-        const msg = collisionMessage(collision, pos, dragData.card.abbr, this.state.classes.all);
+        const msg = collisionMessage(collision, pos, dragData.card.abbr, (c, d, w) =>
+          this.state.classes.displayLabel(c, d, w),
+        );
         // dragData ist ein Snapshot und bleibt bis zur Bestätigung gültig
         this.collisionModal.show({ messageHtml: msg, canStack: true, onStack: () => this.placeDrag(dragData, pos) });
       }
       return;
     }
-    const msg = collisionMessage(collision, pos, dragData.card.abbr, this.state.classes.all);
+    const msg = collisionMessage(collision, pos, dragData.card.abbr, (c, d, w) =>
+      this.state.classes.displayLabel(c, d, w),
+    );
     this.collisionModal.show({ messageHtml: msg, canStack: false });
   }
 
@@ -157,23 +161,22 @@ export class App {
   // ── Klassen ─────────────────────────────────────────────────────────────
 
   private handleAddClass(): void {
-    this.state.addClass();
-    // Frisch angelegte Klasse direkt zum Umbenennen fokussieren
+    const idx = this.state.addClass();
+    // Frisch angelegte Spalte: erstes Beschriftungsfeld (Montag, u+g) fokussieren
     setTimeout(() => {
-      const inputs = document.querySelectorAll<HTMLInputElement>('.cls-inp');
-      const last = inputs[inputs.length - 1];
-      if (last) {
-        last.focus();
-        last.select();
+      const first = document.querySelector<HTMLInputElement>(`.dh-comb[data-c="${idx}"][data-d="0"]`);
+      if (first) {
+        first.focus();
+        first.select();
       }
     }, 60);
   }
 
   private handleDeleteClass(idx: number): void {
-    const name = this.state.classes.nameAt(idx);
+    const name = this.state.classes.columnLabel(idx);
     const hasEntries = this.state.hasPlacementsForClass(idx);
     const warning = hasEntries ? '\n\n⚠️ Bestehende Einträge werden mitgelöscht!' : '';
-    if (!confirm(`Klasse „${name}" löschen?${warning}`)) return;
+    if (!confirm(`Spalte „${name}" löschen?${warning}`)) return;
     this.state.deleteClass(idx);
     this.toast.show(`${name} entfernt`, 'inf');
   }

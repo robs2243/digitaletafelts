@@ -4,7 +4,7 @@ import { ClassList } from './ClassList';
 import { PALETTE } from './constants';
 import { Placement } from './Placement';
 import { Schedule } from './Schedule';
-import type { CardProps, PersistedState, PlacementPosition, StatRow } from './types';
+import type { CardProps, DayLabel, PersistedState, PlacementPosition, StatRow } from './types';
 
 export interface ChangeEvent {
   /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
@@ -133,10 +133,10 @@ export class AppState {
     return idx;
   }
 
-  /** Umbenennen rendert nicht neu, damit der Fokus im Eingabefeld bleibt. */
-  renameClass(idx: number, name: string, opts: { render?: boolean } = {}): void {
-    this.classes.rename(idx, name);
-    this.emit(opts.render ?? false);
+  /** Beschriftung setzen; rendert nicht neu, damit der Fokus im Feld bleibt. */
+  setClassLabel(classIdx: number, day: number, field: keyof DayLabel, value: string): void {
+    this.classes.setLabel(classIdx, day, field, value);
+    this.emit(false);
   }
 
   hasPlacementsForClass(idx: number): boolean {
@@ -188,7 +188,7 @@ export class AppState {
 
   toJSON(): PersistedState {
     return {
-      classes: [...this.classes.all],
+      classes: this.classes.toPersisted(),
       cards: this.pool.all.map((c) => c.toJSON()),
       placed: this.schedule.all.map((p) => p.toJSON()),
       nid: this.nid,
@@ -200,9 +200,7 @@ export class AppState {
     pool.replaceAll((raw.cards ?? []).map(Card.fromJSON));
     const schedule = new Schedule();
     schedule.replaceAll((raw.placed ?? []).map(Placement.fromJSON));
-    const classes = Array.isArray(raw.classes) && raw.classes.length
-      ? new ClassList(raw.classes)
-      : ClassList.withDefaults();
+    const classes = ClassList.fromPersisted(raw.classes);
     return new AppState(pool, classes, schedule, raw.nid ?? 1);
   }
 }
