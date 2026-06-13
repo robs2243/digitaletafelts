@@ -109,19 +109,16 @@ export class TimetableView {
     // Tagesbeschriftung tippen: nur speichern, nicht neu rendern (Fokus behalten)
     this.el.addEventListener('input', (e) => {
       const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.dh-inp');
-      if (inp?.dataset.c && inp.dataset.d && inp.dataset.f) {
-        const color = this.handlers.onSetClassLabel(
-          Number(inp.dataset.c),
-          Number(inp.dataset.d),
-          inp.dataset.f as LabelField,
-          inp.value,
-        );
-        // Automatisch übernommene Farbe sofort anzeigen (ohne Re-Render).
-        if (color) {
-          inp.style.background = color;
-          inp.style.color = ink(color);
-        }
+      if (!inp?.dataset.c || !inp.dataset.d || !inp.dataset.f) return;
+      const c = Number(inp.dataset.c);
+      const d = Number(inp.dataset.d);
+      const color = this.handlers.onSetClassLabel(c, d, inp.dataset.f as LabelField, inp.value);
+      // Automatisch übernommene Farbe sofort anzeigen (ohne Re-Render) – außer Zeile 1 ist „muted“.
+      if (color && !inp.classList.contains('dh-comb-muted')) {
+        inp.style.background = color;
+        inp.style.color = ink(color);
       }
+      this.refreshCombinedMuted(c, d, inp);
     });
 
     this.el.addEventListener('dragstart', (e) => {
@@ -252,22 +249,51 @@ export class TimetableView {
 
   /** Beschriftungsblock einer Spalte für einen Wochentag (Zeile 1: u+g, Zeile 2: u | g). */
   private renderDayLabel(c: number, day: number): string {
-    const field = (f: LabelField, cls: string, placeholder: string, title: string): string => {
-      const value = this.state.classes.label(c, day, f);
-      const color = this.state.classes.color(c, day, f);
-      const style = color ? ` style="background:${color};color:${ink(color)}"` : '';
-      return `<input class="dh-inp ${cls}" data-c="${c}" data-d="${day}" data-f="${f}"
-                value="${esc(value)}" placeholder="${placeholder}" title="${title} – Doppelklick: Farbe"${style}>`;
-    };
+    const comb = this.state.classes.label(c, day, 'combined');
+    const u = this.state.classes.label(c, day, 'u');
+    const g = this.state.classes.label(c, day, 'g');
+    const ugUsed = !!(u.trim() || g.trim());
+
+    const styleFor = (color: string): string =>
+      color ? ` style="background:${color};color:${ink(color)}"` : '';
+    // Zeile 1 wird zurückgenommen, wenn u/g belegt sind – dann auch ohne eigene Farbe.
+    const combCls = 'dh-inp dh-comb' + (ugUsed ? ' dh-comb-muted' : '');
+    const combStyle = ugUsed ? '' : styleFor(this.state.classes.color(c, day, 'combined'));
+
     return `<td class="dh-cls" colspan="2">
         <div class="dh-labels">
-          ${field('combined', 'dh-comb', 'u + g', 'Name für u- und g-Woche gemeinsam')}
+          <input class="${combCls}" data-c="${c}" data-d="${day}" data-f="combined"
+                 value="${esc(comb)}" placeholder="u + g" title="Name für u- und g-Woche gemeinsam – Doppelklick: Farbe"${combStyle}>
           <div class="dh-ug">
-            ${field('u', 'dh-u', 'u', 'Nur ungerade Woche')}
-            ${field('g', 'dh-g', 'g', 'Nur gerade Woche')}
+            <input class="dh-inp dh-u" data-c="${c}" data-d="${day}" data-f="u"
+                   value="${esc(u)}" placeholder="u" title="Nur ungerade Woche – Doppelklick: Farbe"${styleFor(this.state.classes.color(c, day, 'u'))}>
+            <input class="dh-inp dh-g" data-c="${c}" data-d="${day}" data-f="g"
+                   value="${esc(g)}" placeholder="g" title="Nur gerade Woche – Doppelklick: Farbe"${styleFor(this.state.classes.color(c, day, 'g'))}>
           </div>
         </div>
       </td>`;
+  }
+
+  /**
+   * Schaltet Zeile 1 (u+g) je nach Belegung von u/g live „muted“ – ohne
+   * Re-Render, damit der Fokus beim Tippen erhalten bleibt.
+   */
+  private refreshCombinedMuted(c: number, day: number, within: HTMLElement): void {
+    const labels = within.closest('.dh-labels');
+    const comb = labels?.querySelector<HTMLInputElement>('.dh-comb');
+    const u = labels?.querySelector<HTMLInputElement>('.dh-u');
+    const g = labels?.querySelector<HTMLInputElement>('.dh-g');
+    if (!comb || !u || !g) return;
+    const muted = !!(u.value.trim() || g.value.trim());
+    comb.classList.toggle('dh-comb-muted', muted);
+    if (muted) {
+      comb.style.background = '';
+      comb.style.color = '';
+    } else {
+      const cc = this.state.classes.color(c, day, 'combined');
+      comb.style.background = cc || '';
+      comb.style.color = cc ? ink(cc) : '';
+    }
   }
 
   private renderDay(day: number, count: number): string {

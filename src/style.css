@@ -296,6 +296,13 @@ thead tr:nth-child(2) th { top: 29px; }
 .dh-u::placeholder, .dh-u { color: #bbdefb; }
 .dh-g::placeholder, .dh-g { color: #c8e6c9; }
 .dh-u:focus, .dh-g:focus { color: #fff; }
+/* Zeile 1 (u+g) wird zurückgenommen/„weiß“, sobald u oder g belegt ist. */
+.dh-inp.dh-comb-muted,
+.dh-inp.dh-comb-muted:hover,
+.dh-inp.dh-comb-muted:focus {
+  background: #fff; color: #9aa0ac; opacity: .5; border-color: transparent;
+}
+.dh-inp.dh-comb-muted::placeholder { color: #c4c8d0; }
 
 /* ── PERIOD CELLS ── */
 .td-per-stub {
