@@ -19,9 +19,9 @@ type ChangeListener = (e: ChangeEvent) => void;
  * (App-Schicht: speichern + rendern).
  */
 export class AppState {
-  readonly pool: CardPool;
-  readonly classes: ClassList;
-  readonly schedule: Schedule;
+  pool: CardPool;
+  classes: ClassList;
+  schedule: Schedule;
   private nid: number;
   private listeners: ChangeListener[] = [];
 
@@ -34,6 +34,16 @@ export class AppState {
 
   static createDefault(): AppState {
     return new AppState(new CardPool(), ClassList.withDefaults(), new Schedule());
+  }
+
+  /** Ersetzt den gesamten Zustand durch geladene Daten (Datei öffnen). */
+  loadFrom(raw: PersistedState): void {
+    const fresh = AppState.fromJSON(raw);
+    this.pool = fresh.pool;
+    this.classes = fresh.classes;
+    this.schedule = fresh.schedule;
+    this.nid = fresh.nid;
+    this.emit();
   }
 
   // ── Beobachter ──────────────────────────────────────────────────────────

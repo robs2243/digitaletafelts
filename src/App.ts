@@ -119,6 +119,7 @@ export class App {
     byId('btn-add-class').addEventListener('click', () => this.handleAddClass());
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
     byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
+    byId('btn-open').addEventListener('click', () => void this.handleOpen());
     byId('btn-save').addEventListener('click', () => void this.handleSave(false));
     byId('btn-save-as').addEventListener('click', () => void this.handleSave(true));
 
@@ -271,6 +272,22 @@ export class App {
     const fach = props.fach ? ` – ${props.fach}` : '';
     this.toast.show(`✓ ${props.abbr}${fach}${labor} gespeichert`);
     return true;
+  }
+
+  /** Lädt einen Plan aus einer Datei und ersetzt den aktuellen Zustand. */
+  private async handleOpen(): Promise<void> {
+    if (this.state.totalCardCount > 0 &&
+        !confirm('Beim Öffnen wird der aktuelle Plan ersetzt. Fortfahren?')) {
+      return;
+    }
+    try {
+      const result = await this.fileService.open();
+      if (!result) return; // abgebrochen
+      this.state.loadFrom(result.data);
+      this.toast.show(`✓ Geladen: ${result.name}`);
+    } catch {
+      this.toast.show('Datei konnte nicht geladen werden (ungültiges Format?).', 'inf');
+    }
   }
 
   /** Speichert den Plan in eine Datei. forceNew = true → „Speichern unter“. */
