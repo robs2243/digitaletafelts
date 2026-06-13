@@ -69,6 +69,37 @@ export class AppState {
     this.emit();
   }
 
+  // ── Massen-Löschung ─────────────────────────────────────────────────────
+
+  /** Gesamtzahl der Karten (Pool + Plan). */
+  get totalCardCount(): number {
+    return this.pool.all.length + this.schedule.all.length;
+  }
+
+  /** Verschiedene Kürzel mit Anzahl Karten (Pool + Plan), alphabetisch. */
+  cardCountsByAbbr(): { abbr: string; count: number }[] {
+    const map = new Map<string, number>();
+    for (const c of this.pool.all) map.set(c.abbr, (map.get(c.abbr) ?? 0) + 1);
+    for (const p of this.schedule.all) map.set(p.abbr, (map.get(p.abbr) ?? 0) + 1);
+    return [...map.entries()]
+      .map(([abbr, count]) => ({ abbr, count }))
+      .sort((a, b) => a.abbr.localeCompare(b.abbr));
+  }
+
+  /** Löscht alle Karten eines Kürzels – im Pool und im Plan. */
+  deleteCardsByAbbr(abbr: string): void {
+    this.pool.replaceAll(this.pool.all.filter((c) => c.abbr !== abbr));
+    this.schedule.replaceAll(this.schedule.all.filter((p) => p.abbr !== abbr));
+    this.emit();
+  }
+
+  /** Löscht alle Karten (Pool und Plan); Klassen-Spalten bleiben erhalten. */
+  deleteAllCards(): void {
+    this.pool.replaceAll([]);
+    this.schedule.replaceAll([]);
+    this.emit();
+  }
+
   // ── Kommentare ──────────────────────────────────────────────────────────
 
   setCardComment(id: string, comment: string): void {

@@ -3,6 +3,7 @@ import { DAYS } from './domain/constants';
 import type { CardProps, PlacementPosition } from './domain/types';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
+import { ClearCardsModal } from './ui/ClearCardsModal';
 import { CollisionModal } from './ui/CollisionModal';
 import { CommentModal } from './ui/CommentModal';
 import { collisionMessage } from './ui/collisionMessages';
@@ -36,6 +37,7 @@ export class App {
   private readonly cardModal: CardModal;
   private readonly collisionModal: CollisionModal;
   private readonly commentModal: CommentModal;
+  private readonly clearModal: ClearCardsModal;
 
   /** Aktueller Kürzel-Suchbegriff (hebt passende Lehrer hervor, graut Rest aus). */
   private searchTerm = '';
@@ -49,6 +51,7 @@ export class App {
     this.statsView = new StatsView(byId('stats'), this.state);
     this.collisionModal = new CollisionModal();
     this.commentModal = new CommentModal();
+    this.clearModal = new ClearCardsModal();
 
     this.poolView = new PoolView(byId('pool'), this.state, this.drag, {
       onEdit: (id) => this.openEditCard(id),
@@ -113,6 +116,7 @@ export class App {
   private bindGlobalControls(): void {
     byId('btn-add-class').addEventListener('click', () => this.handleAddClass());
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
+    byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
 
     const searchInput = byId<HTMLInputElement>('search');
     searchInput.addEventListener('input', () => {
@@ -131,6 +135,7 @@ export class App {
         this.cardModal.close();
         this.collisionModal.close();
         this.commentModal.close();
+        this.clearModal.close();
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
     });
@@ -253,6 +258,22 @@ export class App {
     const fach = props.fach ? ` – ${props.fach}` : '';
     this.toast.show(`✓ ${props.abbr}${fach}${labor} gespeichert`);
     return true;
+  }
+
+  private openClearCards(): void {
+    if (this.state.totalCardCount === 0) {
+      this.toast.show('Keine Karten zum Löschen vorhanden.', 'inf');
+      return;
+    }
+    this.clearModal.open(this.state.cardCountsByAbbr(), this.state.totalCardCount, (abbr) => {
+      if (abbr === null) {
+        this.state.deleteAllCards();
+        this.toast.show('Alle Karten gelöscht', 'inf');
+      } else {
+        this.state.deleteCardsByAbbr(abbr);
+        this.toast.show(`Karten „${abbr}“ gelöscht`, 'inf');
+      }
+    });
   }
 
   private handleDeleteCard(id: string): void {

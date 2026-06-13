@@ -71,6 +71,15 @@ header h1 { font-size: 17px; font-weight: 700; }
   transition: background .14s, transform .1s;
 }
 .btn-plus:hover { background: var(--hdr); transform: scale(1.1); }
+.sb-actions { display: flex; align-items: center; gap: 6px; }
+.btn-icon {
+  width: 24px; height: 24px; border-radius: 50%;
+  border: none; background: #eee; color: #888;
+  font-size: 12px; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .14s, transform .1s;
+}
+.btn-icon:hover { background: #e53935; color: #fff; transform: scale(1.1); }
 /* ── KÜRZEL-SUCHE ── */
 .pool-search {
   display: flex; align-items: center; gap: 4px;

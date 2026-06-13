@@ -21,7 +21,10 @@
       <aside class="sidebar">
         <div class="sb-sec">
           <h2>Lehrer-Pool</h2>
-          <button class="btn-plus" id="btn-new-card" title="Neue Karte erstellen">+</button>
+          <div class="sb-actions">
+            <button class="btn-icon" id="btn-clear-cards" title="Karten löschen">🗑</button>
+            <button class="btn-plus" id="btn-new-card" title="Neue Karte erstellen">+</button>
+          </div>
         </div>
         <div class="pool-search">
           <input id="search" type="text" placeholder="🔍 Kürzel suchen…" autocomplete="off" />
@@ -89,6 +92,21 @@
           <button class="btn btn-sec" id="am-cancel">Abbrechen</button>
           <button class="btn btn-del" id="am-delbtn" style="display: none">Löschen</button>
           <button class="btn btn-ok" id="am-save">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KARTEN-LÖSCHEN-MODAL ═══ -->
+    <div class="overlay" id="clear-modal">
+      <div class="modal">
+        <h2 style="color: #c62828">🗑 Karten löschen</h2>
+        <div class="fg" style="margin-bottom: 0">
+          <label>Welche Karten sollen gelöscht werden?</label>
+          <select id="clear-select"></select>
+        </div>
+        <div class="mbtns">
+          <button class="btn btn-sec" id="clear-cancel">Abbrechen</button>
+          <button class="btn btn-del" id="clear-confirm">Löschen…</button>
         </div>
       </div>
     </div>
