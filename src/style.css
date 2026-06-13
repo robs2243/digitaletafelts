@@ -1,19 +1,19 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  /* Dunkle Struktur (Slate) */
-  --hdr:     #1e293b;   /* Tabellen-/Strukturkopf */
-  --hdr-2:   #334155;   /* Tages-Zwischenkopf */
-  --hdr-3:   #3e4b60;   /* wiederholte Klassen-Beschriftung */
-  /* Akzent (Indigo) */
-  --accent:    #4f46e5;
-  --accent-d:  #4338ca;
-  --accent-sft:#eef2ff;
+  /* Dunkle Struktur (neutrales Grau) – Titelleiste hervorgehoben */
+  --hdr:     #111827;   /* Titelleiste / Strukturkopf (fast schwarz) */
+  --hdr-2:   #374151;   /* Tages-Zwischenkopf (Gray-700) */
+  --hdr-3:   #4b5563;   /* wiederholte Klassen-Beschriftung (Gray-600) */
+  /* „Akzent“ bewusst neutral (Anthrazit statt Farbe) */
+  --accent:    #1f2937;
+  --accent-d:  #111827;
+  --accent-sft:#f1f3f5;
   /* Flächen & Text */
-  --bg:      #eef1f6;
+  --bg:      #f4f5f7;
   --surface: #ffffff;
-  --border:  #e2e8f0;
-  --muted:   #64748b;
-  --text:    #1e293b;
+  --border:  #e5e7eb;
+  --muted:   #6b7280;
+  --text:    #1f2937;
   /* Maße */
   --cell-h: 58px;
   --day-w:  68px;
@@ -38,11 +38,10 @@ body {
 
 /* ── HEADER ── */
 header {
-  background: linear-gradient(135deg, var(--accent), var(--accent-d));
-  color: #fff;
+  background: var(--hdr); color: #fff;
   padding: 0 18px; height: 52px;
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 4px 16px rgba(79,70,229,.28);
+  box-shadow: 0 2px 14px rgba(17,24,39,.22);
   flex-shrink: 0; z-index: 200;
 }
 header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
@@ -67,7 +66,7 @@ header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
   display: flex; align-items: center; gap: 4px; cursor: pointer; color: #fff;
 }
 .hdr-filter input[type=checkbox] {
-  width: 14px; height: 14px; accent-color: #90caf9; cursor: pointer;
+  width: 14px; height: 14px; accent-color: #e5e7eb; cursor: pointer;
 }
 .hsp { flex: 1; }
 .sbadge { font-size: 11px; opacity: .55; transition: opacity .5s, color .3s; }
@@ -102,7 +101,7 @@ header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
   display: flex; align-items: center; justify-content: center;
   transition: background .14s, transform .1s;
 }
-.btn-plus { box-shadow: 0 2px 6px rgba(79,70,229,.35); }
+.btn-plus { box-shadow: 0 2px 6px rgba(17,24,39,.25); }
 .btn-plus:hover { background: var(--accent-d); transform: scale(1.1); }
 .sb-actions { display: flex; align-items: center; gap: 6px; }
 .btn-icon {
@@ -273,8 +272,8 @@ thead tr:nth-child(2) th { top: 29px; }
   width: var(--col-w); text-align: center;
   font-size: 10px; font-weight: 800; padding: 4px 0; letter-spacing: .5px;
 }
-.th-wk.u { background: #3730a3; color: #c7d2fe; }
-.th-wk.g { background: #0f766e; color: #99f6e4; }
+.th-wk.u { background: #374151; color: #d1d5db; }
+.th-wk.g { background: #4b5563; color: #e5e7eb; }
 .th-addcls {
   background: var(--hdr); width: var(--add-w); text-align: center; vertical-align: middle;
 }
@@ -317,13 +316,15 @@ thead tr:nth-child(2) th { top: 29px; }
 .dh-u::placeholder, .dh-u { color: #bbdefb; }
 .dh-g::placeholder, .dh-g { color: #c8e6c9; }
 .dh-u:focus, .dh-g:focus { color: #fff; }
-/* Zeile 1 (u+g) wird zurückgenommen/„weiß“, sobald u oder g belegt ist. */
+/* Zeile 1 (u+g) wird „weiß“ und ohne Text, sobald u oder g belegt ist –
+   ein neutrales, leeres Feld im neuen Design. */
 .dh-inp.dh-comb-muted,
 .dh-inp.dh-comb-muted:hover,
 .dh-inp.dh-comb-muted:focus {
-  background: #fff; color: #9aa0ac; opacity: .5; border-color: transparent;
+  background: #eceef2; color: transparent; caret-color: transparent;
+  opacity: 1; border-color: transparent;
 }
-.dh-inp.dh-comb-muted::placeholder { color: #c4c8d0; }
+.dh-inp.dh-comb-muted::placeholder { color: transparent; }
 
 /* ── PERIOD CELLS ── */
 .td-per-stub {
@@ -343,8 +344,8 @@ thead tr:nth-child(2) th { top: 29px; }
   position: relative; vertical-align: top;
   transition: background .08s;
 }
-.cell.cu { background: #f6f7fd; }
-.cell.cg { background: #f4fbf9; }
+.cell.cu { background: #ffffff; }
+.cell.cg { background: #f7f8fa; }
 /* Drop-Hervorhebungen */
 .cell.dv { background: #e8f5e9 !important; outline: 2px dashed #43a047; outline-offset: -2px; }
 .cell.ds { background: #fff8e1 !important; outline: 2px dashed #fb8c00; outline-offset: -2px; }
@@ -523,7 +524,7 @@ thead tr:nth-child(2) th { top: 29px; }
 .btn:active { transform: scale(.97); }
 .btn-sec { background: #eef1f6; color: #475569; }
 .btn-sec:hover { background: #e2e8f0; }
-.btn-ok  { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,.32); }
+.btn-ok  { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(17,24,39,.25); }
 .btn-ok:hover { background: var(--accent-d); }
 .btn-del { background: #e53935; color: #fff; }
 .btn-del:hover { background: #b71c1c; }
@@ -558,7 +559,7 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .toast.show { transform: translateX(-50%) translateY(0); }
 .toast.ok  { background: #059669; color: #fff; }
-.toast.inf { background: var(--accent); color: #fff; }
+.toast.inf { background: var(--hdr-2); color: #fff; }
 
 /* ── KÜRZEL-SUCHE: Treffer behalten Farbe, Rest ausgegraut ── */
 .search-dim { opacity: .18; filter: grayscale(1); }
