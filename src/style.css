@@ -181,10 +181,14 @@ header h1 { font-size: 17px; font-weight: 700; }
 .stat-empty { font-size: 11px; color: var(--muted); padding: 6px 0; text-align: center; }
 
 /* ── MAIN ── */
-.main { flex: 1; overflow: auto; padding: 14px; }
+/* .main gibt nur den Abstand (scrollt selbst nicht); gescrollt wird in
+   .tt-wrap – ohne Innenabstand, damit beim Scrollen nichts am linken Rand
+   durchscheint und die Fixspalten sauber an der Kante stehen. */
+.main { flex: 1; display: flex; padding: 14px; min-width: 0; overflow: hidden; }
 .tt-wrap {
+  flex: 1; min-width: 0; overflow: auto;
   background: #fff; border-radius: 10px; box-shadow: var(--sh);
-  display: inline-block; min-width: 100%;
+  scrollbar-width: thin;
 }
 table.tt {
   border-collapse: separate;
@@ -553,5 +557,3 @@ thead tr:nth-child(2) th { top: 29px; }
 ::-webkit-scrollbar { width: 8px; height: 14px; }
 ::-webkit-scrollbar-thumb { background: #b0b6c2; border-radius: 7px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background: #868d9b; background-clip: padding-box; }
-/* Der waagerechte Scrollbalken im Plan ist der „Slider“ für viele Klassen. */
-.main { scrollbar-width: thin; }
