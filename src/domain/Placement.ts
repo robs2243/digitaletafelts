@@ -17,6 +17,8 @@ export class Placement {
   readonly secondHalf: boolean;
   /** Freitext-Kommentar; per Doppelklick auf die platzierte Karte änderbar. */
   comment: string;
+  /** Gegen versehentliches Verschieben/Entfernen fixiert. */
+  locked: boolean;
 
   readonly day: number;
   readonly startPeriod: number;
@@ -24,7 +26,7 @@ export class Placement {
   /** Klassen-Index; wird beim Löschen einer Klasse nachgezogen. */
   classIdx: number;
 
-  constructor(id: string, card: CardProps, pos: PlacementPosition) {
+  constructor(id: string, card: CardProps, pos: PlacementPosition, locked = false) {
     this.id = id;
     this.abbr = card.abbr;
     this.fach = card.fach;
@@ -35,6 +37,7 @@ export class Placement {
     this.firstHalf = card.firstHalf;
     this.secondHalf = card.secondHalf;
     this.comment = card.comment;
+    this.locked = locked;
     this.day = pos.day;
     this.startPeriod = pos.startPeriod;
     this.classIdx = pos.classIdx;
@@ -65,6 +68,7 @@ export class Placement {
       startPeriod: this.startPeriod,
       classIdx: this.classIdx,
       week: this.week,
+      locked: this.locked,
     };
   }
 
@@ -88,6 +92,7 @@ export class Placement {
         classIdx: raw.classIdx,
         week: raw.week,
       },
+      !!raw.locked,
     );
   }
 }

@@ -21,6 +21,9 @@ export interface TimetableHandlers {
   onDragEnd: () => void;
   onRemovePlacement: (placementId: string) => void;
   onCommentPlacement: (placementId: string) => void;
+  onToggleLock: (placementId: string) => void;
+  /** Aufruf, wenn eine fixierte Karte verschoben/entfernt werden sollte. */
+  onLockedBlocked: () => void;
   onRenameClass: (classIdx: number, name: string, commit: boolean) => void;
   onDeleteClass: (classIdx: number) => void;
   onAddClass: () => void;
@@ -51,9 +54,19 @@ export class TimetableView {
     this.el.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
 
+      const lockBtn = target.closest<HTMLElement>('.p-lock');
+      if (lockBtn?.dataset.id) {
+        e.stopPropagation();
+        this.handlers.onToggleLock(lockBtn.dataset.id);
+        return;
+      }
       const rmBtn = target.closest<HTMLElement>('.p-rm');
       if (rmBtn?.dataset.id) {
         e.stopPropagation();
+        if (this.state.schedule.findById(rmBtn.dataset.id)?.locked) {
+          this.handlers.onLockedBlocked();
+          return;
+        }
         this.handlers.onRemovePlacement(rmBtn.dataset.id);
         return;
       }
@@ -67,7 +80,7 @@ export class TimetableView {
 
     this.el.addEventListener('dblclick', (e) => {
       const target = e.target as HTMLElement;
-      if (target.closest('.p-rm')) return;
+      if (target.closest('.p-rm') || target.closest('.p-lock')) return;
       const plEl = target.closest<HTMLElement>('.placed, .placed-mini');
       if (plEl?.dataset.id) this.handlers.onCommentPlacement(plEl.dataset.id);
     });
@@ -88,6 +101,11 @@ export class TimetableView {
       if (!plEl || !id) return;
       const placement = this.state.schedule.findById(id);
       if (!placement) return;
+      if (placement.locked) {
+        e.preventDefault();
+        this.handlers.onLockedBlocked();
+        return;
+      }
       this.drag.start({ source: 'grid', id, card: placement.cardSnapshot() });
       e.dataTransfer?.setData('text/plain', id);
       if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
@@ -269,9 +287,10 @@ export class TimetableView {
   private renderSingle(pl: Placement): string {
     const fg = ink(pl.color);
     const half = semesterLabel(pl);
-    return `<div class="placed${pl.isLabor ? ' labor-card' : ''}" data-id="${pl.id}"
+    return `<div class="placed${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}"
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
+        <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
         <div class="p-abbr">${esc(pl.abbr)}</div>
         ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
         ${pl.name && !pl.fach ? `<div class="p-name">${esc(pl.name)}</div>` : ''}
@@ -297,9 +316,10 @@ export class TimetableView {
       const top = ((pl.startPeriod - cluster.start) / span) * 100;
       const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
       h += `<div class="stack-col">
-          <div class="placed-mini${pl.isLabor ? ' labor-card' : ''}" data-id="${pl.id}"
+          <div class="placed-mini${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}"
                style="background:${pl.color};color:${fg};top:${top}%;height:${height}%" draggable="true">
             <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
+            <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
             <div class="p-abbr">${esc(pl.abbr)}</div>
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
             ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}

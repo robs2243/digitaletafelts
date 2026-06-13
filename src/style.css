@@ -281,6 +281,20 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .placed:hover .p-rm { display: flex; }
 .p-rm:hover { background: rgba(0,0,0,.45); }
+/* Fixier-/Schloss-Button: bei Fixierung dauerhaft sichtbar, sonst nur bei Hover */
+.p-lock {
+  position: absolute; top: 2px; left: 3px;
+  width: 15px; height: 15px;
+  background: rgba(0,0,0,.22); border: none; border-radius: 3px;
+  cursor: pointer; font-size: 10px;
+  display: none; align-items: center; justify-content: center; line-height: 1; z-index: 11;
+}
+.placed:hover .p-lock { display: flex; }
+.p-lock:hover { background: rgba(0,0,0,.45); }
+.placed.locked .p-lock, .placed-mini.locked .p-lock { display: flex; background: rgba(0,0,0,.4); }
+.placed.locked, .placed-mini.locked {
+  outline: 2px solid rgba(0,0,0,.4); outline-offset: -2px; cursor: default;
+}
 .p-comment {
   position: absolute; bottom: 2px; right: 3px;
   font-size: 10px; line-height: 1; cursor: help; z-index: 8;
@@ -315,6 +329,10 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .placed-mini:hover .p-rm { display: flex; }
 .placed-mini .p-comment { font-size: 8px; bottom: 1px; right: 2px; }
+.placed-mini .p-lock {
+  top: 1px; left: 2px; width: 13px; height: 13px; font-size: 8px;
+}
+.placed-mini:hover .p-lock { display: flex; }
 
 /* ── LABOR ── */
 .labor-badge {

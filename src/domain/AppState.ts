@@ -107,6 +107,15 @@ export class AppState {
     return placement;
   }
 
+  /** Fixierung umschalten; gibt den neuen Zustand zurück (null = nicht gefunden). */
+  toggleLock(placementId: string): boolean | null {
+    const placement = this.schedule.findById(placementId);
+    if (!placement) return null;
+    placement.locked = !placement.locked;
+    this.emit();
+    return placement.locked;
+  }
+
   /** Platzierung entfernen und als Karte zurück in den Pool legen. */
   returnToPool(placementId: string): Placement | null {
     const placement = this.schedule.remove(placementId);

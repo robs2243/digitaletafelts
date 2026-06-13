@@ -58,6 +58,9 @@ export class App {
       onDragEnd: () => this.renderAll(),
       onRemovePlacement: (id) => this.handleRemovePlacement(id),
       onCommentPlacement: (id) => this.openPlacementComment(id),
+      onToggleLock: (id) => this.handleToggleLock(id),
+      onLockedBlocked: () =>
+        this.toast.show('🔒 Karte ist fixiert – zum Verschieben erst die Fixierung aufheben.', 'inf'),
       onRenameClass: (idx, name, commit) => this.state.renameClass(idx, name, { render: commit }),
       onDeleteClass: (idx) => this.handleDeleteClass(idx),
       onAddClass: () => this.handleAddClass(),
@@ -143,6 +146,12 @@ export class App {
   private handleRemovePlacement(id: string): void {
     const placement = this.state.returnToPool(id);
     if (placement) this.toast.show(`${placement.abbr} zurück in den Pool`, 'inf');
+  }
+
+  private handleToggleLock(id: string): void {
+    const locked = this.state.toggleLock(id);
+    if (locked === null) return;
+    this.toast.show(locked ? '🔒 Karte fixiert' : '🔓 Fixierung aufgehoben', 'inf');
   }
 
   // ── Klassen ─────────────────────────────────────────────────────────────

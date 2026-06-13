@@ -41,7 +41,10 @@ export interface PersistedCard extends CardProps {
 }
 
 /** Serialisierte Platzierung (Persistenzformat). */
-export interface PersistedPlacement extends PersistedCard, PlacementPosition {}
+export interface PersistedPlacement extends PersistedCard, PlacementPosition {
+  /** Gegen versehentliches Verschieben/Entfernen fixiert (fehlt = false). */
+  locked?: boolean;
+}
 
 /** Gesamtzustand im Persistenzformat (kompatibel zur Vorgänger-App). */
 export interface PersistedState {
