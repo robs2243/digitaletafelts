@@ -382,6 +382,9 @@ thead tr:nth-child(2) th { top: 29px; }
   text-align: center;
   cursor: grab; user-select: none; overflow: hidden;
   box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  /* Eigener Stapelkontext, damit die Buttons (hoher z-index) nicht über die
+     fixierten Spalten hinausragen, sondern sauber darunter verschwinden. */
+  z-index: 5;
 }
 .placed-mini:active { cursor: grabbing; }
 .placed-mini.moving { opacity: .2; }
@@ -532,7 +535,7 @@ thead tr:nth-child(2) th { top: 29px; }
 /* ── KÜRZEL-SUCHE: Treffer behalten Farbe, Rest ausgegraut ── */
 .search-dim { opacity: .18; filter: grayscale(1); }
 .tc.search-hit, .placed.search-hit, .placed-mini.search-hit {
-  outline: 2px solid #ffca28; outline-offset: 1px; z-index: 40;
+  outline: 2px solid #ffca28; outline-offset: 1px;
 }
 .stat-row.search-hit { background: #fff8e1; border-radius: 5px; }
 
