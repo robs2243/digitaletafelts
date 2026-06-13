@@ -184,12 +184,16 @@ header h1 { font-size: 17px; font-weight: 700; }
 .main { flex: 1; overflow: auto; padding: 14px; }
 .tt-wrap {
   background: #fff; border-radius: 10px; box-shadow: var(--sh);
-  overflow: hidden; display: inline-block; min-width: 100%;
+  display: inline-block; min-width: 100%;
 }
 table.tt {
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
+  /* Spalten behalten ihre Breite; bei vielen Klassen wird die Tabelle breiter
+     als der Bereich → horizontaler Scrollbalken, statt die Spalten zu stauchen. */
+  width: max-content;
+  min-width: 100%;
 }
 table.tt th, table.tt td {
   border-right: 1px solid var(--border);
@@ -206,6 +210,14 @@ thead th {
 }
 thead tr:nth-child(1) th { top: 0; }
 thead tr:nth-child(2) th { top: 29px; }
+
+/* ── FIXSPALTEN LINKS (Tag + Stunde bleiben beim Horizontal-Scrollen stehen) ── */
+.th-stub { left: 0; z-index: 30; }            /* Ecke oben links: über allem */
+.th-per  { left: var(--day-w); z-index: 30; } /* Ecke Stunden-Spalte */
+.td-per-stub, .td-per { position: sticky; z-index: 15; }
+.td-per-stub { left: 0; }
+.td-per { left: var(--day-w); }
+.dh-day { position: sticky; left: 0; z-index: 16; }
 
 /* ── THEAD CELLS ── */
 .th-stub { background: var(--hdr); width: var(--day-w); }
@@ -538,5 +550,8 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .color-pop-sw.on, .color-pop-none.on { border-color: #222; transform: scale(1.12); }
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+::-webkit-scrollbar { width: 8px; height: 14px; }
+::-webkit-scrollbar-thumb { background: #b0b6c2; border-radius: 7px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: #868d9b; background-clip: padding-box; }
+/* Der waagerechte Scrollbalken im Plan ist der „Slider“ für viele Klassen. */
+.main { scrollbar-width: thin; }
