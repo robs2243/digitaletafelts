@@ -3,13 +3,36 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "description": "Digitale Tafel – Stundenplan-Software",
+  "author": "Heinrich-Schickhardt-Schule",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron": "electron .",
+    "app": "bun run build && electron .",
+    "dist:win": "bun run build && electron-builder --win"
   },
   "devDependencies": {
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
+  },
+  "trustedDependencies": ["electron", "electron-builder"],
+  "build": {
+    "appId": "de.hsschickhardt.digitaletafel",
+    "productName": "Digitale Tafel",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "electron/**/*"],
+    "win": { "target": ["nsis"] },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Digitale Tafel"
+    }
   }
 }
