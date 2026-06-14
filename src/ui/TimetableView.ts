@@ -150,10 +150,18 @@ export class TimetableView {
       const dragData = this.drag.active;
       if (!dragData) return;
       const pos = this.posFromCell(cell);
+      cell.classList.remove('dv', 'ds', 'di');
+
+      // Klassenbindung: Karte darf nur in die passende Klassen-Spalte.
+      if (!this.state.cardFitsColumn(dragData.card, pos)) {
+        cell.classList.add('di');
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+
       const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
       const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
 
-      cell.classList.remove('dv', 'ds', 'di');
       if (!collision) {
         cell.classList.add('dv');
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
@@ -382,6 +390,7 @@ export class TimetableView {
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
         <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
+        ${pl.klasse ? `<div class="p-klasse">${esc(pl.klasse)}</div>` : ''}
         <div class="p-abbr">${esc(pl.abbr)}</div>
         ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
         ${pl.name && !pl.fach ? `<div class="p-name">${esc(pl.name)}</div>` : ''}
@@ -412,6 +421,7 @@ export class TimetableView {
                style="background:${pl.color};color:${fg};top:${top}%;height:${height}%" draggable="true">
             <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
             <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
+            ${pl.klasse ? `<div class="p-klasse">${esc(pl.klasse)}</div>` : ''}
             <div class="p-abbr">${esc(pl.abbr)}</div>
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
             ${pl.room ? `<div class="p-range">${esc(pl.room)}</div>` : ''}

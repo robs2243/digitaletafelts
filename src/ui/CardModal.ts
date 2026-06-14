@@ -17,6 +17,7 @@ export interface CardModalHandlers {
 export class CardModal {
   private readonly overlay: HTMLElement;
   private readonly title: HTMLElement;
+  private readonly klasseInput: HTMLInputElement;
   private readonly abbrInput: HTMLInputElement;
   private readonly fachInput: HTMLInputElement;
   private readonly roomInput: HTMLInputElement;
@@ -38,6 +39,7 @@ export class CardModal {
     this.handlers = handlers;
     this.overlay = document.getElementById('add-modal')!;
     this.title = document.getElementById('am-title')!;
+    this.klasseInput = document.getElementById('am-klasse') as HTMLInputElement;
     this.abbrInput = document.getElementById('am-abbr') as HTMLInputElement;
     this.fachInput = document.getElementById('am-fach') as HTMLInputElement;
     this.roomInput = document.getElementById('am-room') as HTMLInputElement;
@@ -88,6 +90,7 @@ export class CardModal {
     this.existingName = '';
     this.title.textContent = 'Karte erstellen';
     this.deleteBtn.style.display = 'none';
+    this.klasseInput.value = '';
     this.abbrInput.value = '';
     this.fachInput.value = '';
     this.roomInput.value = '';
@@ -105,6 +108,7 @@ export class CardModal {
     this.existingName = card.name;
     this.title.textContent = 'Karte bearbeiten';
     this.deleteBtn.style.display = 'inline-flex';
+    this.klasseInput.value = card.klasse;
     this.abbrInput.value = card.abbr;
     this.fachInput.value = card.fach;
     this.roomInput.value = card.room;
@@ -118,6 +122,7 @@ export class CardModal {
 
   submit(): void {
     const props: CardProps = {
+      klasse: this.klasseInput.value.trim(),
       abbr: this.abbrInput.value.trim().toUpperCase(),
       fach: this.fachInput.value.trim(),
       name: this.existingName,

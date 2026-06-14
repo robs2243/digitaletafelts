@@ -3,6 +3,9 @@ export type Week = 'u' | 'g';
 
 /** Fachliche Eigenschaften einer Karte (Lehrer/Fach-Einheit). */
 export interface CardProps {
+  /** Klassenbindung (optional, leer = ''): Karte darf nur in eine Spalte mit
+   *  identischem Klassennamen (am jeweiligen Tag/Woche) gelegt werden. */
+  klasse: string;
   /** Lehrerkürzel, max. 5 Zeichen, immer Großbuchstaben. */
   abbr: string;
   /** Fachbezeichnung (optional, leer = ''). */

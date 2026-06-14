@@ -94,6 +94,14 @@ export class ClassList {
     return '';
   }
 
+  /** Tatsächlicher Klassenname an (Spalte, Tag, Woche) ohne Platzhalter ('' = keiner). */
+  classNameAt(classIdx: number, day: number, week: Week): string {
+    const dl = this.columns[classIdx]?.[day];
+    if (!dl) return '';
+    const specific = week === 'u' ? dl.u : dl.g;
+    return (specific || dl.combined || '').trim();
+  }
+
   /** Repräsentative Bezeichnung einer Spalte (z. B. für Lösch-Rückfragen). */
   columnLabel(classIdx: number): string {
     const col = this.columns[classIdx];

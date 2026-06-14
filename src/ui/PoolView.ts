@@ -80,6 +80,7 @@ export class PoolView {
             <span class="tc-dur">${c.duration}h</span>
             ${c.isLabor ? '<span class="labor-badge">⚗</span>' : ''}
             ${half ? `<span class="tc-half">${half}</span>` : ''}
+            ${c.klasse ? `<div class="tc-klasse">${esc(c.klasse)}</div>` : ''}
             <div class="tc-abbr" style="${c.isLabor ? 'margin-top:10px' : ''}">${esc(c.abbr)}</div>
             ${c.fach ? `<div class="tc-sub">${esc(c.fach)}</div>` : ''}
             ${c.name && !c.fach ? `<div class="tc-sub">${esc(c.name)}</div>` : ''}

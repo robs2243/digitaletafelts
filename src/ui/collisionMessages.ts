@@ -6,6 +6,13 @@ import { esc } from '../utils/html';
 /** Liefert den Anzeigenamen einer Spalte für (Tag, Woche). */
 type LabelFor = (classIdx: number, day: number, week: Week) => string;
 
+/** Meldung, wenn die Klassenbindung der Karte nicht zur Spalte passt. */
+export function classMismatchMessage(klasse: string): string {
+  return `<strong>Falsche Klasse:</strong><br>
+    Diese Karte gehört zur Klasse <em>${esc(klasse)}</em> und kann nur in eine Spalte
+    mit identischem Klassennamen (am jeweiligen Tag / in der jeweiligen Woche) gelegt werden.`;
+}
+
 /** Formatiert eine Kollision als deutsche HTML-Meldung für das Warn-Modal. */
 export function collisionMessage(
   collision: Collision,

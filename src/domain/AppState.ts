@@ -196,6 +196,16 @@ export class AppState {
     this.emit();
   }
 
+  /**
+   * Passt die Klassenbindung der Karte zur Spalte an dieser Position?
+   * Ohne gesetzte Klasse (leer) ist die Karte überall erlaubt.
+   */
+  cardFitsColumn(card: CardProps, pos: PlacementPosition): boolean {
+    const need = card.klasse.trim().toLowerCase();
+    if (!need) return true;
+    return this.classes.classNameAt(pos.classIdx, pos.day, pos.week).toLowerCase() === need;
+  }
+
   // ── Abfragen ────────────────────────────────────────────────────────────
 
   /** Sucht Karte oder Platzierung mit dem Kürzel (für Auto-Vervollständigung). */

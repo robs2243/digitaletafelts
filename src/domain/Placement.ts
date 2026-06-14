@@ -7,6 +7,7 @@ import type { CardProps, PersistedPlacement, PlacementPosition, Week } from './t
  */
 export class Placement {
   readonly id: string;
+  readonly klasse: string;
   readonly abbr: string;
   readonly fach: string;
   readonly name: string;
@@ -29,6 +30,7 @@ export class Placement {
 
   constructor(id: string, card: CardProps, pos: PlacementPosition, locked = false) {
     this.id = id;
+    this.klasse = card.klasse;
     this.abbr = card.abbr;
     this.fach = card.fach;
     this.name = card.name;
@@ -58,8 +60,8 @@ export class Placement {
 
   /** Kopie der Karten-Eigenschaften (z. B. für Rückgabe in den Pool). */
   cardSnapshot(): CardProps {
-    const { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
-    return { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment };
   }
 
   toJSON(): PersistedPlacement {
@@ -78,6 +80,7 @@ export class Placement {
     return new Placement(
       raw.id,
       {
+        klasse: raw.klasse ?? '',
         abbr: raw.abbr ?? '',
         fach: raw.fach ?? '',
         name: raw.name ?? '',

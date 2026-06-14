@@ -157,6 +157,7 @@ header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
   font-size: 9px; font-weight: 700;
   background: rgba(0,0,0,.18); border-radius: 8px; padding: 1px 5px;
 }
+.tc-klasse { font-size: 11px; font-weight: 700; opacity: .92; line-height: 1.1; }
 .tc-abbr { font-weight: 800; font-size: 16px; line-height: 1.2; }
 .tc-sub  { font-size: 11px; opacity: .82; margin-top: 1px; }
 .tc-sub2 { font-size: 9px; opacity: .62; }
@@ -369,6 +370,8 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .placed:active { cursor: grabbing; }
 .placed.moving { opacity: .2; }
+.p-klasse { font-weight: 700; font-size: 9px; opacity: .9; line-height: 1.1; }
+.placed-mini .p-klasse { font-size: 8px; }
 .p-abbr  { font-weight: 800; font-size: 13px; line-height: 1.2; }
 .p-name  { font-size: 9px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .p-range { font-size: 9px; opacity: .7; }

@@ -6,6 +6,7 @@ import type { CardProps, PersistedCard } from './types';
  */
 export class Card {
   readonly id: string;
+  klasse: string;
   abbr: string;
   fach: string;
   name: string;
@@ -19,6 +20,7 @@ export class Card {
 
   constructor(id: string, props: CardProps) {
     this.id = id;
+    this.klasse = props.klasse;
     this.abbr = props.abbr;
     this.fach = props.fach;
     this.name = props.name;
@@ -32,6 +34,7 @@ export class Card {
   }
 
   update(props: CardProps): void {
+    this.klasse = props.klasse;
     this.abbr = props.abbr;
     this.fach = props.fach;
     this.name = props.name;
@@ -46,8 +49,8 @@ export class Card {
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
-    return { abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, firstHalf, secondHalf, comment };
   }
 
   toJSON(): PersistedCard {
@@ -56,6 +59,7 @@ export class Card {
 
   static fromJSON(raw: PersistedCard): Card {
     return new Card(raw.id, {
+      klasse: raw.klasse ?? '',
       abbr: raw.abbr ?? '',
       fach: raw.fach ?? '',
       name: raw.name ?? '',

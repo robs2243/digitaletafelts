@@ -7,7 +7,7 @@ import { CardModal } from './ui/CardModal';
 import { ClearCardsModal } from './ui/ClearCardsModal';
 import { CollisionModal } from './ui/CollisionModal';
 import { CommentModal } from './ui/CommentModal';
-import { collisionMessage } from './ui/collisionMessages';
+import { classMismatchMessage, collisionMessage } from './ui/collisionMessages';
 import { DragController, type DragData } from './ui/DragController';
 import { PoolView } from './ui/PoolView';
 import { SaveBadge } from './ui/SaveBadge';
@@ -165,6 +165,12 @@ export class App {
   private handleDrop(pos: PlacementPosition): void {
     const dragData = this.drag.active;
     if (!dragData) return;
+
+    // Klassenbindung: Karte darf nur in eine Spalte mit passendem Klassennamen.
+    if (!this.state.cardFitsColumn(dragData.card, pos)) {
+      this.collisionModal.show({ messageHtml: classMismatchMessage(dragData.card.klasse), canStack: false });
+      return;
+    }
 
     const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
     const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
