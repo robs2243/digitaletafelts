@@ -114,6 +114,10 @@ export class App {
       el.classList.toggle('search-hit', match);
       el.classList.toggle('search-dim', active && !match);
     }
+    // Passenden Eintrag in der (scrollbaren) Stunden-Übersicht sichtbar machen.
+    if (active) {
+      document.querySelector('.stats .stat-row.search-hit')?.scrollIntoView({ block: 'nearest' });
+    }
   }
 
   private bindGlobalControls(): void {
