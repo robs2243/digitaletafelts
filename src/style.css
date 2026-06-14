@@ -29,7 +29,7 @@
 }
 html, body { height: 100%; overflow: hidden; }
 body {
-  font-family: 'Aptos', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  font-family: 'Calibri', 'Aptos', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
   background: var(--bg);
   display: flex; flex-direction: column;
   color: var(--text); font-size: 13px;
@@ -348,6 +348,9 @@ thead tr:nth-child(2) th { top: 29px; }
   height: var(--cell-h); width: var(--col-w);
   position: relative; vertical-align: top;
   transition: background .08s;
+  /* Eigener Stapelkontext: nichts aus der Zelle (Karten, Buttons, Badges)
+     kann über die fixierten Tag-/Stundenspalten oder den Kopf ragen. */
+  z-index: 0;
 }
 .cell.cu { background: #ffffff; }
 .cell.cg { background: #f7f8fa; }
