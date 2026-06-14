@@ -9,7 +9,7 @@
   --accent-d:  #111827;
   --accent-sft:#f1f3f5;
   /* Flächen & Text */
-  --bg:      #f4f5f7;
+  --bg:      #ffffff;
   --surface: #ffffff;
   --border:  #e5e7eb;
   --muted:   #6b7280;
@@ -40,10 +40,11 @@ input, button, select, textarea { font-family: inherit; }
 
 /* ── HEADER ── */
 header {
-  background: var(--hdr); color: #fff;
+  background: linear-gradient(180deg, #2a313d, var(--hdr));
+  color: #fff;
   padding: 0 18px; height: 52px;
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 2px 14px rgba(17,24,39,.22);
+  box-shadow: 0 2px 14px rgba(17,24,39,.22), inset 0 1px 0 rgba(255,255,255,.07);
   flex-shrink: 0; z-index: 200;
 }
 header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
@@ -257,9 +258,9 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .cls-cell {
   position: relative; display: flex; align-items: center; justify-content: center;
-  padding: 7px 16px 7px 4px;
+  padding: 7px 4px;
 }
-.cls-num { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.5); }
+.cls-num { font-size: 12px; font-weight: 700; color: #fff; }
 .cls-del {
   position: absolute; right: 3px; top: 50%; transform: translateY(-50%);
   width: 14px; height: 14px; border-radius: 3px;
@@ -361,7 +362,7 @@ thead tr:nth-child(2) th { top: 29px; }
   border-radius: 5px; padding: 3px 6px;
   display: flex; flex-direction: column; justify-content: center;
   cursor: grab; user-select: none;
-  box-shadow: 0 1px 5px rgba(0,0,0,.22);
+  box-shadow: 0 2px 6px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.22);
   z-index: 5; overflow: hidden;
 }
 .placed:active { cursor: grabbing; }
@@ -414,7 +415,7 @@ thead tr:nth-child(2) th { top: 29px; }
   display: flex; flex-direction: column; justify-content: center; align-items: center;
   text-align: center;
   cursor: grab; user-select: none; overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  box-shadow: 0 1px 4px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.2);
   /* Eigener Stapelkontext, damit die Buttons (hoher z-index) nicht über die
      fixierten Spalten hinausragen, sondern sauber darunter verschwinden. */
   z-index: 5;
@@ -488,13 +489,17 @@ thead tr:nth-child(2) th { top: 29px; }
 
 /* ── MODAL ── */
 .overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,.55);
+  position: fixed; inset: 0; background: rgba(17,24,39,.45);
+  backdrop-filter: blur(3px);
   z-index: 1000; display: none; align-items: center; justify-content: center;
 }
 .overlay.open { display: flex; }
 .modal {
-  background: var(--surface); border-radius: 16px; padding: 26px;
-  width: 350px; box-shadow: var(--sh-lg); border: 1px solid var(--border);
+  background: rgba(255,255,255,.82);
+  backdrop-filter: blur(22px) saturate(160%);
+  border-radius: 16px; padding: 26px; width: 350px;
+  border: 1px solid rgba(255,255,255,.7);
+  box-shadow: var(--sh-lg), inset 0 1px 0 rgba(255,255,255,.7);
   animation: pop .18s ease;
 }
 @keyframes pop { from { transform: scale(.88); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -507,7 +512,7 @@ thead tr:nth-child(2) th { top: 29px; }
 }
 .fg input, .fg select, .fg textarea {
   width: 100%; padding: 9px 10px;
-  border: 1.5px solid var(--border); border-radius: 7px;
+  border: 1.5px solid var(--border); border-radius: 7px; background: #fff;
   font-size: 14px; outline: none; transition: border-color .14s;
 }
 .fg textarea { font-family: inherit; resize: vertical; min-height: 70px; }
@@ -577,8 +582,9 @@ thead tr:nth-child(2) th { top: 29px; }
   position: fixed; z-index: 4000;
   display: none; flex-wrap: wrap; gap: 5px;
   width: 170px; padding: 8px;
-  background: var(--surface); border-radius: 10px; box-shadow: var(--sh-lg);
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,.8); backdrop-filter: blur(16px) saturate(150%);
+  border-radius: 10px; box-shadow: var(--sh-lg), inset 0 1px 0 rgba(255,255,255,.7);
+  border: 1px solid rgba(255,255,255,.7);
 }
 .color-pop-sw, .color-pop-none {
   width: 22px; height: 22px; border-radius: 50%; cursor: pointer; padding: 0;
