@@ -15,6 +15,9 @@ dist-ssr
 # Electron-Build-Ausgabe (Installer-Artefakte, groß – nicht versionieren)
 release
 
+# Generierte Icons (aus public/icon-app.png erzeugt)
+build/
+
 # Lokale Claude-Code-Konfiguration (Preview-Ports etc.)
 .claude/
 

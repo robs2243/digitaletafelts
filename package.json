@@ -12,11 +12,13 @@
     "preview": "vite preview",
     "electron": "electron .",
     "app": "bun run build && electron .",
-    "dist:win": "bun run build && electron-builder --win"
+    "icons": "bun scripts/gen-icons.mjs",
+    "dist:win": "bun scripts/gen-icons.mjs && bun run build && electron-builder --win"
   },
   "devDependencies": {
     "electron": "^30.5.1",
     "electron-builder": "^24.13.3",
+    "png2icons": "^2.0.1",
     "typescript": "~6.0.2",
     "vite": "^8.0.12"
   },
@@ -24,9 +26,13 @@
   "build": {
     "appId": "de.hsschickhardt.digitaletafel",
     "productName": "Digitale Tafel",
-    "directories": { "output": "release" },
+    "directories": {
+      "output": "release"
+    },
     "files": ["dist/**/*", "electron/**/*"],
-    "win": { "target": ["nsis"] },
+    "win": {
+      "target": ["nsis"]
+    },
     "nsis": {
       "oneClick": false,
       "perMachine": false,
