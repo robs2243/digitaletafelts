@@ -48,6 +48,8 @@ export class App {
   /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
   private filterLabor = false;
   private filterWerkstatt = false;
+  /** Zoomfaktor des Stundenplans (Strg+Mausrad / Buttons). */
+  private zoom = 1;
 
   constructor() {
     const persisted = this.storage.load();
@@ -196,6 +198,8 @@ export class App {
       roomInput.focus();
     });
 
+    this.bindZoom();
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.cardModal.close();
@@ -205,6 +209,64 @@ export class App {
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
     });
+  }
+
+  // ── Zoom (Strg+Mausrad / Buttons / Strg +,-,0) ──────────────────────────
+
+  private bindZoom(): void {
+    const saved = parseFloat(localStorage.getItem('dt-zoom') ?? '1');
+    if (Number.isFinite(saved)) this.zoom = this.clampZoom(saved);
+    this.applyZoom();
+
+    byId('zoom-in').addEventListener('click', () => this.setZoom(this.zoom + 0.1));
+    byId('zoom-out').addEventListener('click', () => this.setZoom(this.zoom - 0.1));
+    byId('zoom-reset').addEventListener('click', () => this.setZoom(1));
+
+    // Strg + Mausrad: hinein-/herauszoomen (verhindert den Standard-Browserzoom).
+    document.addEventListener(
+      'wheel',
+      (e) => {
+        if (!e.ctrlKey) return;
+        e.preventDefault();
+        this.setZoom(this.zoom + (e.deltaY < 0 ? 0.1 : -0.1));
+      },
+      { passive: false },
+    );
+
+    // Strg + / − / 0
+    document.addEventListener('keydown', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        this.setZoom(this.zoom + 0.1);
+      } else if (e.key === '-') {
+        e.preventDefault();
+        this.setZoom(this.zoom - 0.1);
+      } else if (e.key === '0') {
+        e.preventDefault();
+        this.setZoom(1);
+      }
+    });
+  }
+
+  private clampZoom(z: number): number {
+    return Math.min(3, Math.max(0.5, Math.round(z * 10) / 10));
+  }
+
+  private setZoom(z: number): void {
+    this.zoom = this.clampZoom(z);
+    this.applyZoom();
+    try {
+      localStorage.setItem('dt-zoom', String(this.zoom));
+    } catch {
+      // Speicher nicht verfügbar – Zoom wirkt dann nur in dieser Sitzung.
+    }
+  }
+
+  /** Zoomt den Stundenplan (Tabelle); der Scrollbereich fängt den Überlauf ab. */
+  private applyZoom(): void {
+    byId('tt').style.setProperty('zoom', String(this.zoom));
+    byId('zoom-reset').textContent = `${Math.round(this.zoom * 100)}%`;
   }
 
   // ── Drag & Drop ─────────────────────────────────────────────────────────
