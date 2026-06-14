@@ -75,13 +75,15 @@ export class PoolView {
       .map((c) => {
         const fg = ink(c.color);
         const half = semesterLabel(c);
-        return `<div class="tc${c.isLabor ? ' labor-card' : ''}" data-id="${c.id}" data-abbr="${esc(c.abbr)}"
+        const badge = c.isLabor ? '⚗' : c.isWerkstatt ? '🔧' : '';
+        const cardCls = c.isLabor ? ' labor-card' : c.isWerkstatt ? ' werkstatt-card' : '';
+        return `<div class="tc${cardCls}" data-id="${c.id}" data-abbr="${esc(c.abbr)}" data-room="${esc(c.room)}" data-labor="${c.isLabor ? '1' : '0'}" data-werkstatt="${c.isWerkstatt ? '1' : '0'}"
               style="background:${c.color};color:${fg}" draggable="true">
             <span class="tc-dur">${c.duration}h</span>
-            ${c.isLabor ? '<span class="labor-badge">⚗</span>' : ''}
+            ${badge ? `<span class="labor-badge">${badge}</span>` : ''}
             ${half ? `<span class="tc-half">${half}</span>` : ''}
             ${c.klasse ? `<div class="tc-klasse">${esc(c.klasse)}</div>` : ''}
-            <div class="tc-abbr" style="${c.isLabor ? 'margin-top:10px' : ''}">${esc(c.abbr)}</div>
+            <div class="tc-abbr" style="${badge ? 'margin-top:10px' : ''}">${esc(c.abbr)}</div>
             ${c.fach ? `<div class="tc-sub">${esc(c.fach)}</div>` : ''}
             ${c.name && !c.fach ? `<div class="tc-sub">${esc(c.name)}</div>` : ''}
             ${c.name && c.fach ? `<div class="tc-sub2">${esc(c.name)}</div>` : ''}

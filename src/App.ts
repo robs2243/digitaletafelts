@@ -43,6 +43,11 @@ export class App {
 
   /** Aktueller Kürzel-Suchbegriff (hebt passende Lehrer hervor, graut Rest aus). */
   private searchTerm = '';
+  /** Raum-Suchbegriff (hebt passenden Raum hervor, graut Rest aus). */
+  private roomTerm = '';
+  /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
+  private filterLabor = false;
+  private filterWerkstatt = false;
 
   constructor() {
     const persisted = this.storage.load();
@@ -102,20 +107,40 @@ export class App {
   }
 
   /**
-   * Hebt bei aktiver Kürzel-Suche passende Lehrer hervor und graut den Rest
-   * aus – über Pool, Stundenplan und Stunden-Übersicht hinweg. Arbeitet direkt
-   * auf dem DOM (kein Re-Render), daher auch nach jedem renderAll erneut nötig.
+   * Hervorheben/Ausgrauen über Pool, Stundenplan und Übersicht. Kombiniert
+   * Kürzel-Suche, Raum-Suche und die Kategorie-Filter (Labor/Werkstatt) für die
+   * Karten; die Stunden-Übersicht reagiert nur auf die Kürzel-Suche. Arbeitet
+   * direkt auf dem DOM (kein Re-Render), daher nach jedem renderAll erneut nötig.
    */
   private applySearch(): void {
-    const term = this.searchTerm.trim().toUpperCase();
-    const active = term.length > 0;
-    for (const el of document.querySelectorAll<HTMLElement>('[data-abbr]')) {
-      const match = active && (el.dataset.abbr ?? '').toUpperCase().includes(term);
-      el.classList.toggle('search-hit', match);
-      el.classList.toggle('search-dim', active && !match);
+    const abbrTerm = this.searchTerm.trim().toUpperCase();
+    const roomTerm = this.roomTerm.trim().toUpperCase();
+    const catActive = this.filterLabor || this.filterWerkstatt;
+    const textActive = abbrTerm.length > 0 || roomTerm.length > 0;
+    const cardFilterActive = textActive || catActive;
+
+    // Karten (Pool + Plan): Kürzel UND Raum UND Kategorie.
+    for (const el of document.querySelectorAll<HTMLElement>('.tc, .placed, .placed-mini')) {
+      const abbr = (el.dataset.abbr ?? '').toUpperCase();
+      const room = (el.dataset.room ?? '').toUpperCase();
+      const okAbbr = !abbrTerm || abbr.includes(abbrTerm);
+      const okRoom = !roomTerm || room.includes(roomTerm);
+      const okCat =
+        !catActive ||
+        (this.filterLabor && el.dataset.labor === '1') ||
+        (this.filterWerkstatt && el.dataset.werkstatt === '1');
+      const hit = okAbbr && okRoom && okCat;
+      el.classList.toggle('search-dim', cardFilterActive && !hit);
+      el.classList.toggle('search-hit', textActive && hit);
     }
-    // Passenden Eintrag in der (scrollbaren) Stunden-Übersicht sichtbar machen.
-    if (active) {
+
+    // Stunden-Übersicht: nur Kürzel-Suche.
+    for (const el of document.querySelectorAll<HTMLElement>('.stat-row')) {
+      const match = abbrTerm.length > 0 && (el.dataset.abbr ?? '').toUpperCase().includes(abbrTerm);
+      el.classList.toggle('search-hit', match);
+      el.classList.toggle('search-dim', abbrTerm.length > 0 && !match);
+    }
+    if (abbrTerm.length > 0) {
       document.querySelector('.stats .stat-row.search-hit')?.scrollIntoView({ block: 'nearest' });
     }
   }
@@ -137,6 +162,16 @@ export class App {
     filter1.addEventListener('change', applyFilter);
     filter2.addEventListener('change', applyFilter);
 
+    const labor = byId<HTMLInputElement>('filter-labor');
+    const werk = byId<HTMLInputElement>('filter-werkstatt');
+    const applyHighlight = () => {
+      this.filterLabor = labor.checked;
+      this.filterWerkstatt = werk.checked;
+      this.applySearch();
+    };
+    labor.addEventListener('change', applyHighlight);
+    werk.addEventListener('change', applyHighlight);
+
     const searchInput = byId<HTMLInputElement>('search');
     searchInput.addEventListener('input', () => {
       this.searchTerm = searchInput.value;
@@ -147,6 +182,18 @@ export class App {
       this.searchTerm = '';
       this.applySearch();
       searchInput.focus();
+    });
+
+    const roomInput = byId<HTMLInputElement>('search-room');
+    roomInput.addEventListener('input', () => {
+      this.roomTerm = roomInput.value;
+      this.applySearch();
+    });
+    byId('search-room-clear').addEventListener('click', () => {
+      roomInput.value = '';
+      this.roomTerm = '';
+      this.applySearch();
+      roomInput.focus();
     });
 
     document.addEventListener('keydown', (e) => {
@@ -180,8 +227,8 @@ export class App {
       return;
     }
     if (collision.type === 'class') {
-      if (dragData.card.isLabor) {
-        // Labor-Karten stapeln ohne Rückfrage
+      if (dragData.card.isLabor || dragData.card.isWerkstatt) {
+        // Labor-/Werkstatt-Karten stapeln ohne Rückfrage
         this.placeDrag(dragData, pos);
       } else {
         const msg = collisionMessage(collision, pos, dragData.card.abbr, (c, d, w) =>
@@ -293,9 +340,9 @@ export class App {
     }
     if (editingId) this.state.updateCard(editingId, props);
     else this.state.createCard(props);
-    const labor = props.isLabor ? ' ⚗' : '';
+    const tag = props.isLabor ? ' ⚗' : props.isWerkstatt ? ' 🔧' : '';
     const fach = props.fach ? ` – ${props.fach}` : '';
-    this.toast.show(`✓ ${props.abbr}${fach}${labor} gespeichert`);
+    this.toast.show(`✓ ${props.abbr}${fach}${tag} gespeichert`);
     return true;
   }
 

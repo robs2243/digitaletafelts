@@ -169,7 +169,7 @@ export class TimetableView {
         // Grün bei Labor-Karte (stapelt automatisch), sonst orange.
         // dropEffect muss zu effectAllowed ('move') passen, sonst
         // blockiert der Browser den Drop (🚫-Cursor).
-        cell.classList.add(dragData.card.isLabor ? 'dv' : 'ds');
+        cell.classList.add(dragData.card.isLabor || dragData.card.isWerkstatt ? 'dv' : 'ds');
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
       } else {
         cell.classList.add('di');
@@ -386,7 +386,8 @@ export class TimetableView {
   private renderSingle(pl: Placement): string {
     const fg = ink(pl.color);
     const half = semesterLabel(pl);
-    return `<div class="placed${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}"
+    const cardCls = pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : '';
+    return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
         <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
@@ -398,6 +399,7 @@ export class TimetableView {
         ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
         ${half ? `<div class="p-range p-half">${half}</div>` : ''}
         ${pl.isLabor ? '<div class="p-range">⚗ Labor</div>' : ''}
+        ${pl.isWerkstatt ? '<div class="p-range">🔧 Werkstatt</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
       </div>`;
   }
@@ -417,7 +419,7 @@ export class TimetableView {
       const top = ((pl.startPeriod - cluster.start) / span) * 100;
       const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
       h += `<div class="stack-col">
-          <div class="placed-mini${pl.isLabor ? ' labor-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}"
+          <div class="placed-mini${pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
                style="background:${pl.color};color:${fg};top:${top}%;height:${height}%" draggable="true">
             <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
             <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
@@ -433,6 +435,7 @@ export class TimetableView {
     }
     h += '</div>';
     if (cluster.cards.every((x) => x.isLabor)) h += '<div class="stack-labor">⚗</div>';
+    else if (cluster.cards.every((x) => x.isWerkstatt)) h += '<div class="stack-labor">🔧</div>';
     return h;
   }
 }

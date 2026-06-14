@@ -20,6 +20,8 @@ export interface CardProps {
   color: string;
   /** Labor-/Gruppenkarte: darf ohne Rückfrage gestapelt werden. */
   isLabor: boolean;
+  /** Werkstatt-Karte: darf – wie Labor – ohne Rückfrage gestapelt werden. */
+  isWerkstatt: boolean;
   /** Findet im 1. Halbjahr statt. Beide Flags false = ganzes Jahr. */
   firstHalf: boolean;
   /** Findet im 2. Halbjahr statt. Beide Flags false = ganzes Jahr. */
