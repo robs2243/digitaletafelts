@@ -691,6 +691,9 @@ export class AppState {
       imbalance: number;
       /** Summe der Hohlstunden über dem Limit (6) über alle Lehrkraft-Wochen. */
       gaps: number;
+      /** u/g-Abweichung: Slots, die bei gleicher Lehrkraft+Klasse+Fach nur in einer
+       *  Woche liegen (kleiner = u- und g-Woche ähnlicher). */
+      mirrorMismatch: number;
     }
 
     const baseStarts = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
@@ -903,9 +906,15 @@ export class AppState {
               reason = r;
               continue;
             }
+            // Hauptfach möglichst mit einem Tag Pause: Nachbartage mit gleichem Fach meiden.
+            const mainAdj =
+              main && ((subj.get(sK(card.klasse, d - 1, w, f)) ?? 0) > 0 || (subj.get(sK(card.klasse, d + 1, w, f)) ?? 0) > 0)
+                ? 1
+                : 0;
             const score = [
               hasMirror(card, d, w, start) ? 0 : 1,
               main && start > 6 ? 1 : 0,
+              mainAdj,
               subj.get(sK(card.klasse, d, w, f)) ?? 0,
               teacherWeekLoad(card.abbr, w),
               start,
@@ -996,13 +1005,29 @@ export class AppState {
       let gaps = 0;
       for (const g of weekGap.values()) gaps += Math.max(0, g - 6);
 
-      return { assigns, skipped, openMandatory, imbalance, gaps };
+      // u/g-Abweichung: je Lehrkraft+Klasse+Fach die Slots, die nur in einer Woche
+      // liegen (symmetrische Differenz der u-/g-Slots). Klein = u und g sehr ähnlich.
+      let mirrorMismatch = 0;
+      for (const slots of mirrorSlots.values()) {
+        const uSet = new Set<string>();
+        const gSet = new Set<string>();
+        for (const s of slots) {
+          const i = s.lastIndexOf('|');
+          (s.slice(i + 1) === 'u' ? uSet : gSet).add(s.slice(0, i));
+        }
+        for (const x of uSet) if (!gSet.has(x)) mirrorMismatch++;
+        for (const x of gSet) if (!uSet.has(x)) mirrorMismatch++;
+      }
+
+      return { assigns, skipped, openMandatory, imbalance, gaps, mirrorMismatch };
     };
 
-    // Auswahlkriterium: meiste platzierte Karten, dann beste u/g-Balance, dann
-    // wenigste Hohlstunden über Limit, dann wenigste offene Pflichtstunden.
+    // Auswahlkriterium (Priorität): meiste platzierte Karten → beste u/g-Konstanz
+    // (gleicher Slot in u/g) → u/g-Stunden-Balance → wenigste Hohlstunden → wenigste
+    // offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean => {
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
+      if (a.mirrorMismatch !== b.mirrorMismatch) return a.mirrorMismatch < b.mirrorMismatch;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
       if (a.gaps !== b.gaps) return a.gaps < b.gaps;
       return a.openMandatory < b.openMandatory;

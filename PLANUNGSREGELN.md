@@ -98,11 +98,14 @@ Quelle: Vorgaben des Anwenders.
 - **Fächer-Variation:** gleiche Fächer werden bevorzugt auf unterschiedliche Tage
   verteilt.
 - **Hauptfach:** Karten-Checkbox „⭐ Hauptfach" (oder Excel-Spalte „Hauptfach") bzw.
-  Fach D/M/E/Gk/Wk. Solche Karten werden **zuerst** verplant und bevorzugt in die
-  Stunden **1–6** gelegt (8. nur als Ausweichplatz).
-- **u/g-Konstanz:** Bei der Platzwahl bevorzugt der Planer Slots, an denen dieselbe
-  Lehrkraft+Klasse+Fach in der anderen Woche bereits liegt (gleicher Tag/Stunde in u
-  und g). Geht es nicht auf, bleibt eine Woche mit mehr Stunden.
+  Fach D/M/E/Gk/Wk. Solche Karten werden **zuerst** verplant, bevorzugt in die Stunden
+  **1–6** gelegt (8. nur als Ausweichplatz) und möglichst **mit einem Tag Pause** zum
+  selben Hauptfach (Nachbartage mit gleichem Fach werden gemieden).
+- **u/g-Konstanz (hohe Priorität):** Bei der Platzwahl bevorzugt der Planer Slots, an
+  denen dieselbe Lehrkraft+Klasse+Fach in der anderen Woche bereits liegt; zusätzlich
+  fließt die **u/g-Ähnlichkeit in die Bewertung des besten Durchlaufs** ein (direkt
+  nach „meiste Karten verplant"). Ziel: u- und g-Stundenplan möglichst gleich. Geht es
+  nicht auf, bleibt eine Woche mit mehr Stunden (z. B. u 6 / g 4).
 - **u/g-Ausgleich:** der Planer bevorzugt beim Verplanen die für die Lehrkraft
   „leichtere" Woche und **rechnet mehrere Zyklen, bis die u/g-Differenz aller
   Lehrkräfte ≤ 2 Stunden** ist (Teil der „vollständigen Lösung"). Bleibt die Differenz
