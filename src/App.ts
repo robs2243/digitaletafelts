@@ -1,7 +1,7 @@
 import { AppState } from './domain/AppState';
 import { DAYS } from './domain/constants';
 import { semesterFactor } from './domain/semester';
-import type { CardProps, LabelField, PlacementPosition } from './domain/types';
+import type { CardProps, LabelField, PlacementPosition, PlanProgress, PlanRunResult } from './domain/types';
 import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
 import { parseCardRows, TEMPLATE_AOA } from './services/cardImport';
@@ -53,6 +53,8 @@ export class App {
   private roomTerm = '';
   /** Klassen-Suchbegriff (hebt passende Klasse hervor, graut Rest aus). */
   private klasseTerm = '';
+  /** Steuerflag für den laufenden Planungslauf (Abbrechen / vorzeitig übernehmen). */
+  private planStop: 'continue' | 'accept' | 'cancel' = 'continue';
   /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
   private filterLabor = false;
   private filterWerkstatt = false;
@@ -263,6 +265,12 @@ export class App {
     byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     byId('plan-replan').addEventListener('click', () => this.handleReplan());
+    byId('pp-cancel').addEventListener('click', () => {
+      this.planStop = 'cancel';
+    });
+    byId('pp-accept').addEventListener('click', () => {
+      this.planStop = 'accept';
+    });
     byId('plan-rules').addEventListener('click', (e) => {
       e.preventDefault();
       void this.downloadPlanningRules();
@@ -880,7 +888,7 @@ export class App {
     }
     const free = this.state.pool.all.length;
     if (!confirm(`${free} freie Karten automatisch nach den Planungsregeln verplanen?`)) return;
-    this.runAutoPlan();
+    void this.runPlanning(false);
   }
 
   /**
@@ -895,26 +903,59 @@ export class App {
     const locked = this.state.lockedPlacedCount;
     const lockedNote = locked ? ` ${locked} fixierte Karte(n) bleiben liegen.` : '';
     if (!this.confirmJa(`Erneut planen? Alle nicht fixierten Karten werden neu verteilt.${lockedNote}`)) return;
-    this.state.unplaceUnlocked();
-    this.runAutoPlan();
+    void this.runPlanning(true);
   }
 
-  /** Führt das automatische Verplanen aus und meldet das Ergebnis (Toast + Hinweise). */
-  private runAutoPlan(): void {
-    const free = this.state.pool.all.length;
-    if (!free) {
-      this.closePlanning();
+  /**
+   * Führt einen (ggf. minutenlangen) Planungslauf aus: optional vorher alles außer
+   * fixierte entplanen, dann asynchron rechnen lassen (UI bleibt bedienbar über das
+   * Fortschritts-Fenster). Abbruch stellt den Ausgangszustand wieder her.
+   */
+  private async runPlanning(replan: boolean): Promise<void> {
+    this.closePlanning();
+    const snapshot = this.state.toJSON(); // für „Abbrechen"
+    if (replan) this.state.unplaceUnlocked();
+    if (this.state.pool.isEmpty) {
       this.toast.show('Keine freien Karten zum Verplanen.', 'inf');
       return;
     }
 
-    const res = this.state.autoPlan();
-    this.closePlanning();
+    this.planStop = 'continue';
+    byId('pp-status').textContent = 'Starte…';
+    byId('plan-progress').classList.add('open');
 
-    const parts = [`✓ ${res.placed} von ${free} verplant`];
+    const budgetMs = 10 * 60 * 1000; // bis zu 10 Minuten suchen
+    let res: PlanRunResult;
+    try {
+      res = await this.state.planBest({
+        budgetMs,
+        shouldStop: () => this.planStop,
+        onProgress: (p) => this.updatePlanProgress(p),
+      });
+    } finally {
+      byId('plan-progress').classList.remove('open');
+    }
+
+    if (res.cancelled) {
+      this.state.loadFrom(snapshot); // Ausgangszustand wiederherstellen
+      this.toast.show('Planung abgebrochen.', 'inf');
+      return;
+    }
+
+    const total = res.placed + res.skipped.length;
+    const parts = [`✓ ${res.placed} von ${total} verplant`];
     if (res.skipped.length) parts.push(`${res.skipped.length} nicht platzierbar`);
     if (res.openMandatory) parts.push(`${res.openMandatory} Pflichtstunden offen`);
-    this.toast.show(parts.join(' · '), res.skipped.length || res.openMandatory ? 'inf' : 'ok');
+    this.toast.show(parts.join(' · '), res.solved ? 'ok' : 'inf');
+
+    if (!res.solved) {
+      const mins = Math.round(res.elapsedMs / 60000);
+      alert(
+        `⚠️ Es wurde keine Lösung gefunden, die alle Bedingungen erfüllt` +
+          (mins >= 1 ? ` (Suche ${mins} Min)` : '') +
+          `.\nDas beste gefundene Ergebnis wurde übernommen – siehe folgende Hinweise.`,
+      );
+    }
 
     if (res.skipped.length) {
       // Gründe gebündelt ausgeben, damit der Nutzer nachbessern kann.
@@ -937,6 +978,17 @@ export class App {
           'Bitte diese Lehrkräfte von Hand ausgleichen.',
       );
     }
+  }
+
+  /** Aktualisiert das Fortschritts-Fenster während der Planung. */
+  private updatePlanProgress(p: PlanProgress): void {
+    const sec = Math.floor(p.elapsedMs / 1000);
+    const time = sec >= 60 ? `${Math.floor(sec / 60)} Min ${sec % 60} s` : `${sec} s`;
+    byId('pp-status').textContent =
+      `Zeit: ${time} · Versuche: ${p.attempts.toLocaleString('de-DE')}\n` +
+      `Beste Lösung: ${p.placed}/${p.total} Karten verplant` +
+      (p.skipped ? `, ${p.skipped} noch offen` : '') +
+      `\nu/g-Differenz über Limit: ${p.imbalance} Std`;
   }
 
   private openClearCards(): void {

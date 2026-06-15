@@ -248,6 +248,22 @@
       </div>
     </div>
 
+    <!-- ═══ PLANUNGS-FORTSCHRITT (läuft ggf. mehrere Minuten) ═══ -->
+    <div class="overlay" id="plan-progress">
+      <div class="modal" style="width: 440px; max-width: 92vw">
+        <h2 style="color: #1a237e">⏳ Planung läuft…</h2>
+        <div id="pp-status" class="tm-sub" style="white-space: pre-line; margin-bottom: 14px">Starte…</div>
+        <div style="font-size: 12px; color: #555; margin-bottom: 6px">
+          Der Planer sucht nach einer Lösung, bei der alle Stunden verplant sind und die
+          u/g-Differenz jeder Lehrkraft höchstens 2 Stunden beträgt. Das kann einige Minuten dauern.
+        </div>
+        <div class="mbtns">
+          <button class="btn btn-del" id="pp-cancel">Abbrechen</button>
+          <button class="btn btn-ok" id="pp-accept">Bestes Ergebnis übernehmen</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ ALLE-KOMMENTARE-MODAL (Button in der Kopfzeile) ═══ -->
     <div class="overlay" id="comments-modal">
       <div class="modal teacher-modal-box">

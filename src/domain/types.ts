@@ -97,6 +97,30 @@ export interface AutoPlanResult {
   weekImbalance: { abbr: string; u: number; g: number }[];
 }
 
+/** Fortschritt während des (langen) Planungslaufs. */
+export interface PlanProgress {
+  elapsedMs: number;
+  attempts: number;
+  /** Beste Lösung bisher: platzierte Karten. */
+  placed: number;
+  /** Karten gesamt, die verplant werden sollen. */
+  total: number;
+  /** Beste Lösung bisher: noch nicht platzierbare Karten. */
+  skipped: number;
+  /** Summe der u/g-Überschreitungen (über alle Lehrkräfte). */
+  imbalance: number;
+}
+
+/** Ergebnis eines kompletten Planungslaufs (mit Mehrfach-Zyklen). */
+export interface PlanRunResult extends AutoPlanResult {
+  /** Alle Karten verplant UND u/g-Differenz überall ≤ 2. */
+  solved: boolean;
+  /** Vom Anwender abgebrochen – es wurde nichts angewendet. */
+  cancelled: boolean;
+  attempts: number;
+  elapsedMs: number;
+}
+
 /** Zeile der Stunden-Übersicht. */
 export interface StatRow {
   abbr: string;

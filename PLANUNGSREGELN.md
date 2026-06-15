@@ -61,11 +61,16 @@ Quelle: Vorgaben des Anwenders.
   (Werkstatt a auf Werkstatt b, gleicher Slot).
 - **Wenn 1–6 nicht voll füllbar:** so weit wie möglich verplanen, offene Slots frei
   lassen und am Ende auflisten, was unbelegt blieb (Lehrer >6 Std → Hinweis/fragen).
-- **Mehrere Durchläufe:** Der Planer probiert **sehr viele Durchläufe** mit
-  variierter Reihenfolge und variierten Startstunden (der erste Durchlauf nutzt
-  eine Heuristik: längere Blöcke zuerst). Er läuft so lange, **bis alle Karten
-  verplant sind** oder ein Zeitbudget (einige Sekunden) erreicht ist, und behält
-  das beste Ergebnis (meiste platzierte Karten, dann wenigste offene Pflichtstunden).
+- **Mehrere Durchläufe (Zyklen):** Der Planer probiert **sehr viele Durchläufe** mit
+  variierter Reihenfolge und variierten Startstunden (der erste Durchlauf nutzt eine
+  Heuristik: längere Blöcke zuerst). Er läuft so lange, **bis eine vollständige Lösung
+  gefunden ist** – alle Karten verplant **und** u/g-Differenz jeder Lehrkraft ≤ 2 –
+  oder das **Zeitbudget (bis zu 10 Minuten)** erreicht ist. Die Suche läuft asynchron;
+  ein Fortschritts-Fenster zeigt Zeit/Versuche/beste Lösung und erlaubt **Abbrechen**
+  oder **bestes Ergebnis vorzeitig übernehmen**.
+- **Keine Lösung gefunden:** Wird im Zeitbudget keine vollständige Lösung gefunden,
+  wird das **beste** Ergebnis übernommen und eine **Meldung** mit den offenen Punkten
+  (nicht platzierbare Karten, u/g-Differenzen) ausgegeben.
 - **Fixierte Karten:** werden nie verschoben; der Planer plant nur die freien
   Pool-Karten um sie herum.
 - **4 Stunden am Stück:** zusammenhängende Stunden derselben Lehrkraft in einer
@@ -73,8 +78,9 @@ Quelle: Vorgaben des Anwenders.
 - **Fächer-Variation:** gleiche Fächer werden bevorzugt auf unterschiedliche Tage
   verteilt.
 - **u/g-Ausgleich:** der Planer bevorzugt beim Verplanen die für die Lehrkraft
-  „leichtere" Woche und optimiert über die Durchläufe auf geringe u/g-Differenz.
-  Bleibt die Differenz am Ende > 2 Stunden, wird die Lehrkraft in einer Meldung
-  aufgeführt (harte Sperre wäre zu streng, daher Hinweis statt Verbot).
+  „leichtere" Woche und **rechnet mehrere Zyklen, bis die u/g-Differenz aller
+  Lehrkräfte ≤ 2 Stunden** ist (Teil der „vollständigen Lösung"). Bleibt die Differenz
+  am Ende des Zeitbudgets > 2 Stunden, wird die Lehrkraft in einer Meldung aufgeführt
+  (harte Sperre wäre zu streng, daher Hinweis statt Verbot).
 - **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
   D, M, E, Gk, Wk). **LBT** wird ebenfalls über das Feld „Fach" erkannt (max. 6/Tag).

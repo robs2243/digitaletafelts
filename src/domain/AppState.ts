@@ -5,7 +5,7 @@ import { DAYS, PALETTE, PERIODS, WEEKS } from './constants';
 import { Placement } from './Placement';
 import { Schedule } from './Schedule';
 import { semesterFactor } from './semester';
-import type { AutoPlanResult, CardProps, LabelField, PersistedState, PlacementPosition, StatRow, Week } from './types';
+import type { CardProps, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, StatRow, Week } from './types';
 
 export interface ChangeEvent {
   /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
@@ -365,11 +365,17 @@ export class AppState {
    * – Hauptfächer (D/M/E/Gk/Wk) max. 2 Std/Tag, LBT max. 6 Std/Tag, Fächer variieren.
    * – Werkstatt als Block, Stunde 5 bleibt Pause, 7. Stunde erlaubt.
    * – Gruppe a wird auf eine bereits liegende Gruppe b gelegt (Labor und Werkstatt).
-   * Es werden mehrere Durchläufe mit variierter Reihenfolge probiert; das beste
-   * Ergebnis wird übernommen. Bereits platzierte (auch fixierte) Karten bleiben
-   * unangetastet.
+   * Es werden sehr viele Durchläufe (Zyklen) mit variierter Reihenfolge probiert,
+   * bis alle Karten verplant sind UND die u/g-Differenz aller Lehrkräfte ≤ 2 ist
+   * oder das Zeitbudget erreicht ist. Läuft asynchron in Zeitscheiben, damit die
+   * UI nicht einfriert; per shouldStop abbrechbar/vorzeitig übernehmbar.
+   * Bereits platzierte (auch fixierte) Karten bleiben unangetastet.
    */
-  autoPlan(): AutoPlanResult {
+  async planBest(opts: {
+    budgetMs: number;
+    shouldStop: () => 'continue' | 'accept' | 'cancel';
+    onProgress?: (p: PlanProgress) => void;
+  }): Promise<PlanRunResult> {
     const MAIN = new Set(['d', 'm', 'e', 'gk', 'wk']);
     const MAX_STREAK = 4; // max. Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt)
     const LBT_MAX = 6; // max. Stunden „LBT" je Klasse und Tag
@@ -607,23 +613,46 @@ export class AppState {
       return { assigns, skipped, openMandatory, imbalance };
     };
 
-    // Mehrere Durchläufe: ersten deterministisch (Heuristik), weitere mit variierter
-    // Reihenfolge/Startstunden. Es wird so lange probiert, bis alle Karten verplant
-    // sind ODER das Zeit-/Versuchsbudget erschöpft ist. Bestes Ergebnis = meiste
-    // platzierte Karten, dann beste u/g-Balance, dann wenigste offene Pflichtstunden.
+    // Auswahlkriterium: meiste platzierte Karten, dann beste u/g-Balance, dann
+    // wenigste offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean => {
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
       return a.openMandatory < b.openMandatory;
     };
+    // „Perfekt": alle Karten verplant UND u/g-Differenz überall ≤ 2.
+    const perfect = (o: Outcome): boolean => o.skipped.length === 0 && o.imbalance === 0;
+
     const rng = Math.random;
-    let best = runOnce(false, rng);
-    const MAX_ATTEMPTS = 20000;
-    const deadline = Date.now() + 4000; // hartes Zeitbudget, damit die UI nicht hängt
-    for (let i = 1; i < MAX_ATTEMPTS && best.skipped.length > 0; i++) {
-      const cand = runOnce(true, rng);
-      if (better(cand, best)) best = cand;
-      if (i % 64 === 0 && Date.now() > deadline) break;
+    const total = this.pool.all.length;
+    const start = Date.now();
+    let best = runOnce(false, rng); // 1. Durchlauf: Heuristik
+    let attempts = 1;
+    let stop: 'continue' | 'accept' | 'cancel' = 'continue';
+
+    // Zyklen in Zeitscheiben (je ~40 ms), dazwischen ans Event-Loop abgeben.
+    while (!perfect(best) && Date.now() - start < opts.budgetMs) {
+      stop = opts.shouldStop();
+      if (stop !== 'continue') break;
+      const sliceStart = Date.now();
+      while (Date.now() - sliceStart < 40 && !perfect(best) && Date.now() - start < opts.budgetMs) {
+        const cand = runOnce(true, rng);
+        attempts++;
+        if (better(cand, best)) best = cand;
+      }
+      opts.onProgress?.({
+        elapsedMs: Date.now() - start,
+        attempts,
+        placed: best.assigns.length,
+        total,
+        skipped: best.skipped.length,
+        imbalance: best.imbalance,
+      });
+      await new Promise((r) => setTimeout(r));
+    }
+
+    if (stop === 'cancel') {
+      return { placed: 0, skipped: [], openMandatory: 0, weekImbalance: [], solved: false, cancelled: true, attempts, elapsedMs: Date.now() - start };
     }
 
     // Bestes Ergebnis anwenden: Karten aus dem Pool in den Plan übernehmen.
@@ -634,9 +663,17 @@ export class AppState {
     }
     this.emit();
 
-    // u/g-Ausgleich prüfen: Lehrkräfte mit Differenz > 2 Stunden melden.
     const weekImbalance = this.teacherWeekImbalance();
-    return { placed: best.assigns.length, skipped: best.skipped, openMandatory: best.openMandatory, weekImbalance };
+    return {
+      placed: best.assigns.length,
+      skipped: best.skipped,
+      openMandatory: best.openMandatory,
+      weekImbalance,
+      solved: perfect(best),
+      cancelled: false,
+      attempts,
+      elapsedMs: Date.now() - start,
+    };
   }
 
   /** Lehrkräfte, deren u-/g-Stunden um mehr als 2 auseinanderliegen (für die Warnung). */
