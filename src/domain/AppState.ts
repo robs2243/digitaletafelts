@@ -23,14 +23,17 @@ export class AppState {
   pool: CardPool;
   classes: ClassList;
   schedule: Schedule;
+  /** Manuell gepflegte Raumliste (zentrale Quelle für Vorschläge & Raumplan). */
+  rooms: string[];
   private nid: number;
   private listeners: ChangeListener[] = [];
 
-  constructor(pool: CardPool, classes: ClassList, schedule: Schedule, nid = 1) {
+  constructor(pool: CardPool, classes: ClassList, schedule: Schedule, nid = 1, rooms: string[] = []) {
     this.pool = pool;
     this.classes = classes;
     this.schedule = schedule;
     this.nid = nid;
+    this.rooms = rooms;
   }
 
   static createDefault(): AppState {
@@ -44,6 +47,7 @@ export class AppState {
     this.classes = fresh.classes;
     this.schedule = fresh.schedule;
     this.nid = fresh.nid;
+    this.rooms = fresh.rooms;
     this.emit();
   }
 
@@ -282,12 +286,42 @@ export class AppState {
     return { ok: true, conflictAbbr };
   }
 
-  /** Alle bekannten (irgendwo verwendeten) Raumnamen. */
-  private knownRooms(): string[] {
+  // ── Raumliste (zentral gepflegt) ─────────────────────────────────────────
+
+  /** Sortierte Raumliste (manuell gepflegt + tatsächlich verwendete Räume). */
+  roomList(): string[] {
+    return [...new Set([...this.rooms, ...this.usedRooms()])].sort((a, b) => a.localeCompare(b, 'de'));
+  }
+
+  /** Fügt einen Raum zur Liste hinzu (Duplikate ignoriert). Gibt true bei Erfolg. */
+  addRoom(name: string): boolean {
+    const room = name.trim();
+    if (!room) return false;
+    if (this.rooms.some((r) => r.toLowerCase() === room.toLowerCase())) return false;
+    this.rooms.push(room);
+    this.emit();
+    return true;
+  }
+
+  /** Entfernt einen Raum aus der manuell gepflegten Liste. */
+  removeRoom(name: string): void {
+    const key = name.trim().toLowerCase();
+    const before = this.rooms.length;
+    this.rooms = this.rooms.filter((r) => r.toLowerCase() !== key);
+    if (this.rooms.length !== before) this.emit();
+  }
+
+  /** Tatsächlich auf Karten verwendete Räume. */
+  private usedRooms(): string[] {
     const set = new Set<string>();
     for (const c of this.pool.all) if (c.room.trim()) set.add(c.room.trim());
     for (const p of this.schedule.all) if (p.room.trim()) set.add(p.room.trim());
     return [...set];
+  }
+
+  /** Alle bekannten Raumnamen (gepflegte Liste + verwendete). */
+  private knownRooms(): string[] {
+    return [...new Set([...this.rooms, ...this.usedRooms()])];
   }
 
   /**
@@ -1049,6 +1083,7 @@ export class AppState {
       cards: this.pool.all.map((c) => c.toJSON()),
       placed: this.schedule.all.map((p) => p.toJSON()),
       nid: this.nid,
+      rooms: [...this.rooms],
     };
   }
 
@@ -1058,6 +1093,7 @@ export class AppState {
     const schedule = new Schedule();
     schedule.replaceAll((raw.placed ?? []).map(Placement.fromJSON));
     const classes = ClassList.fromPersisted(raw.classes);
-    return new AppState(pool, classes, schedule, raw.nid ?? 1);
+    const rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
+    return new AppState(pool, classes, schedule, raw.nid ?? 1, rooms);
   }
 }

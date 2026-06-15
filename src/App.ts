@@ -293,6 +293,36 @@ export class App {
     byId('plan-export').addEventListener('click', () => this.downloadCardsExport());
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
+
+    byId('plan-roomlist').addEventListener('click', () => this.openRoomList());
+    const roomlistOverlay = byId('roomlist-modal');
+    byId('rl-close').addEventListener('click', () => roomlistOverlay.classList.remove('open'));
+    roomlistOverlay.addEventListener('click', (e) => {
+      if (e.target === roomlistOverlay) roomlistOverlay.classList.remove('open');
+    });
+    const rlInput = byId<HTMLInputElement>('rl-input');
+    const addRoom = (): void => {
+      const name = rlInput.value.trim();
+      if (!name) return;
+      if (this.state.addRoom(name)) {
+        this.toast.show(`✓ Raum „${name}" hinzugefügt`);
+      } else {
+        this.toast.show(`Raum „${name}" gibt es schon.`, 'inf');
+      }
+      rlInput.value = '';
+      rlInput.focus();
+      this.renderRoomList();
+    };
+    byId('rl-add').addEventListener('click', addRoom);
+    rlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') addRoom();
+    });
+    byId('rl-list').addEventListener('click', (e) => {
+      const del = (e.target as HTMLElement).closest<HTMLElement>('.rl-del');
+      if (!del?.dataset.room) return;
+      this.state.removeRoom(del.dataset.room);
+      this.renderRoomList();
+    });
     const roomplanOverlay = byId('roomplan-modal');
     byId('rp-close').addEventListener('click', () => roomplanOverlay.classList.remove('open'));
     roomplanOverlay.addEventListener('click', (e) => {
@@ -811,6 +841,37 @@ export class App {
     this.toast.show(`📤 ${rows.length} Karten exportiert`);
   }
 
+  // ── Raumliste ───────────────────────────────────────────────────────────
+
+  private openRoomList(): void {
+    this.renderRoomList();
+    byId('roomlist-modal').classList.add('open');
+  }
+
+  private renderRoomList(): void {
+    const rooms = this.state.roomList();
+    const usage = new Map<string, number>();
+    const bump = (r: string): void => {
+      const k = r.trim();
+      if (k) usage.set(k, (usage.get(k) ?? 0) + 1);
+    };
+    for (const c of this.state.pool.all) bump(c.room);
+    for (const p of this.state.schedule.all) bump(p.room);
+    byId('rl-sub').textContent = rooms.length ? `${rooms.length} Räume (verwendete können nicht gelöscht werden)` : '';
+    byId('rl-list').innerHTML = rooms.length
+      ? rooms
+          .map((r) => {
+            const n = usage.get(r) ?? 0;
+            const right =
+              n > 0
+                ? `<span class="pl-badges">${n}× verwendet</span>`
+                : `<button class="rl-del btn btn-del" data-room="${esc(r)}" style="padding:3px 10px">Löschen</button>`;
+            return `<div class="pl-item" style="cursor:default"><span class="pl-abbr" style="flex:1">${esc(r)}</span>${right}</div>`;
+          })
+          .join('')
+      : '<div class="tm-empty">Noch keine Räume. Oben einen Raum hinzufügen.</div>';
+  }
+
   // ── Raumplan ────────────────────────────────────────────────────────────
 
   private openRoomPlan(): void {
@@ -821,12 +882,13 @@ export class App {
   /** Read-only-Überblick: Belegung aller Räume (Räume als Spalten, Tag/Stunde als Zeilen). */
   private renderRoomPlan(): void {
     const placed = this.state.schedule.all.filter((p) => p.room.trim());
-    const rooms = [...new Set(placed.map((p) => p.room.trim()))].sort((a, b) => a.localeCompare(b, 'de'));
+    const rooms = this.state.roomList();
     byId('rp-sub').textContent = rooms.length
       ? `${rooms.length} Räume · ${placed.length} verplante Karten mit Raum`
       : '';
     if (!rooms.length) {
-      byId('rp-body').innerHTML = '<div class="tm-empty">Es sind noch keine Karten mit Raum verplant.</div>';
+      byId('rp-body').innerHTML =
+        '<div class="tm-empty">Noch keine Räume vorhanden.<br>Räume unter „🏫 Raumliste" anlegen oder Karten einen Raum geben.</div>';
       return;
     }
     const side = (arr: typeof placed): string =>

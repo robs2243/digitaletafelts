@@ -91,6 +91,8 @@ export interface PersistedState {
   cards: PersistedCard[];
   placed: PersistedPlacement[];
   nid: number;
+  /** Manuell gepflegte Raumliste (zentrale Quelle für Raum-Vorschläge & Raumplan). */
+  rooms?: string[];
 }
 
 /** Ergebnis des automatischen Verplanens. */
