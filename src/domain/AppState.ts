@@ -537,7 +537,8 @@ export class AppState {
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
 
-      const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number): void => {
+      // countTeacher=false bei gekoppelten Folge-Karten: gleiche Lehrerstunde nur einmal zählen.
+      const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number, countTeacher = true): void => {
         const dayKey = thK(card.abbr, d, w);
         let dayPeriods = teachDayPeriods.get(dayKey);
         if (!dayPeriods) {
@@ -551,11 +552,13 @@ export class AppState {
           dayPeriods.add(p);
         }
         for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
-        teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
-        const a = card.abbr.toLowerCase();
-        const tw = teachWeek.get(a) ?? [0, 0];
-        tw[w === 'u' ? 0 : 1] += card.duration;
-        teachWeek.set(a, tw);
+        if (countTeacher) {
+          teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
+          const a = card.abbr.toLowerCase();
+          const tw = teachWeek.get(a) ?? [0, 0];
+          tw[w === 'u' ? 0 : 1] += card.duration;
+          teachWeek.set(a, tw);
+        }
         const f = card.fach.trim().toLowerCase();
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
       };
@@ -565,8 +568,15 @@ export class AppState {
         (teachWeek.get(abbr.toLowerCase()) ?? [0, 0])[w === 'u' ? 0 : 1];
 
       // Bestehende Platzierungen als Belegung übernehmen (bleiben unangetastet).
+      const seenSeedCoupling = new Set<string>();
       for (const pl of this.schedule.all) {
-        occupy(pl, pl.klasse, pl.classIdx, pl.day, pl.week, pl.startPeriod);
+        let countTeacher = true;
+        if (pl.coupling) {
+          const key = `${pl.coupling}|${pl.day}|${pl.startPeriod}|${pl.week}`;
+          if (seenSeedCoupling.has(key)) countTeacher = false;
+          else seenSeedCoupling.add(key);
+        }
+        occupy(pl, pl.klasse, pl.classIdx, pl.day, pl.week, pl.startPeriod, countTeacher);
         if (pl.labGroup === 'b') {
           groupB.push({ c: pl.classIdx, d: pl.day, w: pl.week, start: pl.startPeriod, duration: pl.duration, isWerk: pl.isWerkstatt, klasse: pl.klasse });
         }
@@ -614,12 +624,58 @@ export class AppState {
         return out;
       };
 
-      const apply = (card: Card, c: number, d: number, w: Week, start: number): void => {
-        occupy(card, card.klasse, c, d, w, start);
+      const apply = (card: Card, c: number, d: number, w: Week, start: number, countTeacher = true): void => {
+        occupy(card, card.klasse, c, d, w, start, countTeacher);
         assigns.push({ card, c, d, w, start });
         if (card.labGroup === 'b') {
           groupB.push({ c, d, w, start, duration: card.duration, isWerk: card.isWerkstatt, klasse: card.klasse });
         }
+      };
+
+      /** Spalte, deren Klassenname an (Tag, Woche) zur Karte passt (für Kopplung). */
+      const columnFor = (card: Card, d: number, w: Week): number | null => {
+        const need = card.klasse.trim().toLowerCase();
+        if (!need) return null;
+        for (let c = 0; c < this.classes.count; c++) {
+          if (this.classes.classNameAt(c, d, w).trim().toLowerCase() === need) return c;
+        }
+        return null;
+      };
+
+      /**
+       * Platziert eine Kopplungsgruppe gemeinsam auf einen Slot: alle Mitglieder
+       * gleichzeitig (gleicher Tag/Woche/Startstunde), jedes in seiner Klassenspalte.
+       * Lehrerstunden zählen nur einmal (erstes Mitglied).
+       */
+      const placeCouplingGroup = (members: Card[]): void => {
+        const label = `⛓ ${members[0].coupling} (${members.map((m) => m.abbr).join(',')})`;
+        if (members.some((m) => !m.klasse.trim())) {
+          skipped.push({ card: label, reason: 'Kopplung: Klasse fehlt' });
+          return;
+        }
+        // Tag/Woche-Kandidaten, an denen ALLE Mitglieder eine passende Spalte haben.
+        const slots: { d: number; w: Week; cols: number[] }[] = [];
+        for (let d = 0; d < DAYS.length; d++) {
+          for (const w of WEEKS) {
+            const cols = members.map((m) => columnFor(m, d, w));
+            if (cols.every((x) => x !== null)) slots.push({ d, w, cols: cols as number[] });
+          }
+        }
+        if (!slots.length) {
+          skipped.push({ card: label, reason: 'Kopplung: keine gemeinsame Spalte' });
+          return;
+        }
+        if (shuffleOrder) shuffle(slots, rng);
+        const starts = shuffleOrder ? shuffle([...baseStarts(members[0])], rng) : baseStarts(members[0]);
+        for (const { d, w, cols } of slots) {
+          for (const start of starts) {
+            if (members.every((m, i) => check(m, cols[i], d, w, start) === null)) {
+              members.forEach((m, i) => apply(m, cols[i], d, w, start, i === 0));
+              return;
+            }
+          }
+        }
+        skipped.push({ card: label, reason: 'Kopplung: kein gemeinsamer freier Slot' });
       };
 
       const placeNormal = (card: Card): void => {
@@ -675,8 +731,17 @@ export class AppState {
         skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: `kein passendes ${what}` });
       };
 
-      // Reihenfolge: Gruppe b (Anker) vor Gruppe a; Werkstätten vor Laboren, dann Rest.
-      const cards = [...this.pool.all];
+      // Gekoppelte Karten gesondert (als Gruppen) verplanen; alles andere einzeln.
+      const all = [...this.pool.all];
+      const cards = all.filter((c) => !c.coupling.trim());
+      const couplingMap = new Map<string, Card[]>();
+      for (const c of all.filter((c) => c.coupling.trim())) {
+        const k = c.coupling.trim();
+        const list = couplingMap.get(k) ?? [];
+        list.push(c);
+        couplingMap.set(k, list);
+      }
+
       const isA = (c: Card) => c.labGroup === 'a';
       const isB = (c: Card) => c.labGroup === 'b';
       const isGrouped = (c: Card) => isA(c) || isB(c);
@@ -686,12 +751,16 @@ export class AppState {
         const seq = shuffleOrder ? shuffle([...list], rng) : [...list].sort((a, b) => b.duration - a.duration);
         for (const card of seq) fn(card);
       };
+      // Werkstatt-/Labor-Gruppen (Anker), dann Kopplungen, dann Hauptfächer, dann Rest.
       step(cards.filter((c) => c.isWerkstatt && isB(c)), placeNormal);
       step(cards.filter((c) => c.isWerkstatt && isA(c)), placeGroupA);
       step(cards.filter((c) => c.isWerkstatt && !isGrouped(c)), placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isB(c)), placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isA(c)), placeGroupA);
       step(cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c)), placeNormal);
+      const groups = [...couplingMap.values()];
+      if (shuffleOrder) shuffle(groups, rng);
+      for (const members of groups) placeCouplingGroup(members);
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && MAIN.has(fach(c))), placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !MAIN.has(fach(c))), placeNormal);
 

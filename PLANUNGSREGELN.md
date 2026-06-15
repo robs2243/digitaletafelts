@@ -98,7 +98,10 @@ Quelle: Vorgaben des Anwenders.
   **Kopplungs-ID** (Feld „Kopplung" / Excel-Spalte „Kopplung", z. B. „K1") dürfen sich
   **zeitlich überschneiden** (gleiche Lehrkraft, andere Klasse, ggf. gleicher Raum) und
   **zählen nur einmal** im Deputat. Anwendung: zwei Klassen sind z. B. in Deutsch
-  zusammengelegt – je eine Karte pro Klasse mit derselben Kopplungs-ID anlegen und beide
-  auf denselben Zeit-Slot legen (am besten von Hand setzen und fixieren).
+  zusammengelegt – je eine Karte pro Klasse mit derselben Kopplungs-ID anlegen.
+  - **Automatisches Verplanen:** Gekoppelte Karten werden als **Gruppe gemeinsam** auf
+    denselben Slot gelegt (jede in ihrer Klassenspalte, gleiche Startstunde). Findet
+    sich kein gemeinsamer freier Slot, bleibt die Gruppe offen und wird gemeldet.
+  - **Manuell:** Beim Ziehen/Entplanen einer gekoppelten Karte wandern die Partner mit.
 - **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
   D, M, E, Gk, Wk). **LBT** wird ebenfalls über das Feld „Fach" erkannt (max. 6/Tag).

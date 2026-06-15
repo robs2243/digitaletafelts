@@ -254,6 +254,18 @@ export class App {
     byId('pool-head').addEventListener('dblclick', () => this.openPoolList());
     byId('btn-pool-list').addEventListener('click', () => this.openPoolList());
 
+    // Beim Überfahren einer gekoppelten Karte alle Karten gleicher Kopplung hervorheben.
+    document.addEventListener('mouseover', (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-coupling]');
+      const id = el?.dataset.coupling;
+      if (!id) return;
+      for (const m of document.querySelectorAll(`[data-coupling="${CSS.escape(id)}"]`)) m.classList.add('coupling-hl');
+    });
+    document.addEventListener('mouseout', (e) => {
+      if (!(e.target as HTMLElement).closest('[data-coupling]')) return;
+      for (const m of document.querySelectorAll('.coupling-hl')) m.classList.remove('coupling-hl');
+    });
+
     byId('btn-couplings').addEventListener('click', () => this.openCouplings());
     const couplingsOverlay = byId('couplings-modal');
     byId('cpl-close').addEventListener('click', () => couplingsOverlay.classList.remove('open'));

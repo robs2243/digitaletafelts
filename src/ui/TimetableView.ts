@@ -393,7 +393,7 @@ export class TimetableView {
     const fg = ink(pl.color);
     const half = semesterLabel(pl);
     const cardCls = pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : '';
-    return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
+    return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
         <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
@@ -427,7 +427,7 @@ export class TimetableView {
       const top = ((pl.startPeriod - cluster.start) / span) * 100;
       const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
       h += `<div class="stack-col">
-          <div class="placed-mini${pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
+          <div class="placed-mini${pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : ''}${pl.locked ? ' locked' : ''}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
                style="background:${pl.color};color:${fg};top:${top}%;height:${height}%" draggable="true">
             <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
             <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
