@@ -262,6 +262,7 @@ export class App {
     byId('plan-unplace-unlocked').addEventListener('click', () => this.handleUnplaceUnlocked());
     byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
+    byId('plan-replan').addEventListener('click', () => this.handleReplan());
     byId('plan-rules').addEventListener('click', (e) => {
       e.preventDefault();
       void this.downloadPlanningRules();
@@ -879,6 +880,33 @@ export class App {
     }
     const free = this.state.pool.all.length;
     if (!confirm(`${free} freie Karten automatisch nach den Planungsregeln verplanen?`)) return;
+    this.runAutoPlan();
+  }
+
+  /**
+   * Plant erneut: entplant alle nicht fixierten Karten und verteilt anschließend
+   * alles neu. Nur fixierte (Schloss) Karten bleiben unverändert liegen.
+   */
+  private handleReplan(): void {
+    if (!this.state.totalPlacedCount && this.state.pool.isEmpty) {
+      this.toast.show('Keine Karten vorhanden.', 'inf');
+      return;
+    }
+    const locked = this.state.lockedPlacedCount;
+    const lockedNote = locked ? ` ${locked} fixierte Karte(n) bleiben liegen.` : '';
+    if (!this.confirmJa(`Erneut planen? Alle nicht fixierten Karten werden neu verteilt.${lockedNote}`)) return;
+    this.state.unplaceUnlocked();
+    this.runAutoPlan();
+  }
+
+  /** Führt das automatische Verplanen aus und meldet das Ergebnis (Toast + Hinweise). */
+  private runAutoPlan(): void {
+    const free = this.state.pool.all.length;
+    if (!free) {
+      this.closePlanning();
+      this.toast.show('Keine freien Karten zum Verplanen.', 'inf');
+      return;
+    }
 
     const res = this.state.autoPlan();
     this.closePlanning();
