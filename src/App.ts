@@ -5,6 +5,7 @@ import type { CardProps, LabelField, PlacementPosition } from './domain/types';
 import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
 import { parseCardRows, TEMPLATE_AOA } from './services/cardImport';
+import planningRulesText from '../PLANUNGSREGELN.md?raw';
 import { FileService } from './services/FileService';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
@@ -231,6 +232,10 @@ export class App {
     byId('plan-unplace-all').addEventListener('click', () => this.handleUnplaceAll());
     byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
+    byId('plan-rules').addEventListener('click', (e) => {
+      e.preventDefault();
+      this.downloadPlanningRules();
+    });
     const poolListOverlay = byId('pool-list-modal');
     byId('pl-close').addEventListener('click', () => this.closePoolList());
     poolListOverlay.addEventListener('click', (e) => {
@@ -495,6 +500,18 @@ export class App {
     } catch {
       this.toast.show('Datei konnte nicht gelesen werden (Excel/CSV?).', 'inf');
     }
+  }
+
+  /** Lädt die Planungsregeln als Textdatei herunter. */
+  private downloadPlanningRules(): void {
+    const blob = new Blob([planningRulesText], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Planungsregeln.md';
+    a.click();
+    URL.revokeObjectURL(url);
+    this.toast.show('📄 Planungsregeln heruntergeladen');
   }
 
   /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */
@@ -776,7 +793,7 @@ export class App {
       this.toast.show(`Keine platzierten Karten zu „${term}".`, 'inf');
       return;
     }
-    if (!confirm(`${matches.length} Karten zu „${term}" entplanen (zurück in den Pool)?`)) return;
+    if (!this.confirmJa(`${matches.length} Karten zu „${term}" entplanen (zurück in den Pool)?`)) return;
     const abbrs = [...new Set(matches.map((p) => p.abbr))];
     let n = 0;
     for (const abbr of abbrs) n += this.state.unplaceByAbbr(abbr);

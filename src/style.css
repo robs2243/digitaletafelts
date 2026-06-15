@@ -561,10 +561,11 @@ body.rooms-only .placed-mini .p-room { font-size: 12px; }
   box-shadow: 0 1px 3px rgba(0,0,0,.22);
 }
 .sw.on { border-color: #222; transform: scale(1.18); }
-.mbtns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+.mbtns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 .btn {
   padding: 8px 17px; border-radius: 7px; border: none;
   font-size: 13px; font-weight: 600; cursor: pointer;
+  white-space: nowrap;
   transition: background .13s, transform .1s;
 }
 .btn:active { transform: scale(.97); }

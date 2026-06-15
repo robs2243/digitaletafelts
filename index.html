@@ -207,9 +207,11 @@
         <div class="mbtns">
           <button class="btn btn-sec" id="pl-template" title="Excel-Vorlage herunterladen">📄 Vorlage</button>
           <button class="btn btn-ok" id="pl-import">📥 Excel importieren</button>
+          <button class="btn btn-sec" id="pl-close" style="margin-left: auto">Schließen</button>
+        </div>
+        <div class="mbtns" style="margin-top: 10px">
           <button class="btn btn-del" id="pl-del-abbr" title="Karten zum gesuchten Kürzel löschen">🗑 Kürzel löschen</button>
           <button class="btn btn-del" id="pl-del-all" title="Alle nicht verplanten Karten löschen">🗑 Alle löschen</button>
-          <button class="btn btn-sec" id="pl-close" style="margin-left: auto">Schließen</button>
         </div>
       </div>
     </div>
@@ -222,9 +224,8 @@
           <label>Automatisch verplanen – freie Karten nach den Regeln einsortieren</label>
           <button class="btn btn-pri" id="plan-auto" style="width: 100%">✨ Automatisch verplanen</button>
           <div style="font-size: 12px; color: #555; margin-top: 6px">
-            Füllt den Pflichtbereich (1.–6. Stunde), hält die 7. frei (außer Werkstatt),
-            max. 6 Lehrerstunden/Tag, Hauptfächer max. 2/Tag, Labor a auf Labor b.
-            Nicht passende Karten bleiben im Pool.
+            Verteilt die freien Karten nach den Planungsregeln.
+            <a href="#" id="plan-rules" style="color: var(--accent)">📄 Regeln herunterladen</a>
           </div>
         </div>
         <div class="fg" style="margin-bottom: 0; border-top: 1px solid #e0e0e0; padding-top: 12px">
