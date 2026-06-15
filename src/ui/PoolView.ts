@@ -95,6 +95,7 @@ export class PoolView {
             ${c.isVierwoechig ? '<div class="tc-sub2">¼ 4-wö.</div>' : ''}
             ${c.noCount ? '<div class="tc-sub2">∅ zählt nicht</div>' : ''}
             ${c.coupling ? `<div class="tc-sub2">⛓ ${esc(c.coupling)}</div>` : ''}
+            ${c.collision ? '<div class="tc-sub2">💥 Kollision</div>' : ''}
             ${c.comment ? `<span class="tc-comment" title="${esc(c.comment)}">💬</span>` : ''}
             <button class="tc-editbtn" title="Bearbeiten">✎</button>
             <button class="tc-delbtn" title="Karte löschen">✕</button>

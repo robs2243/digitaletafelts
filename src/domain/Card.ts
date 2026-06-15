@@ -21,6 +21,7 @@ export class Card {
   secondHalf: boolean;
   noCount: boolean;
   coupling: string;
+  collision: boolean;
   comment: string;
 
   constructor(id: string, props: CardProps) {
@@ -40,6 +41,7 @@ export class Card {
     this.secondHalf = props.secondHalf;
     this.noCount = props.noCount;
     this.coupling = props.coupling;
+    this.collision = props.collision;
     this.comment = props.comment;
   }
 
@@ -59,13 +61,14 @@ export class Card {
     this.secondHalf = props.secondHalf;
     this.noCount = props.noCount;
     this.coupling = props.coupling;
+    this.collision = props.collision;
     this.comment = props.comment;
   }
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, comment };
   }
 
   toJSON(): PersistedCard {
@@ -89,6 +92,7 @@ export class Card {
       secondHalf: !!raw.secondHalf,
       noCount: !!raw.noCount,
       coupling: raw.coupling ?? '',
+      collision: !!raw.collision,
       comment: raw.comment ?? '',
     });
   }

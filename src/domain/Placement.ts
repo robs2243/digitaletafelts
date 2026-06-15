@@ -22,6 +22,7 @@ export class Placement {
   readonly secondHalf: boolean;
   readonly noCount: boolean;
   readonly coupling: string;
+  readonly collision: boolean;
   /** Freitext-Kommentar; per Doppelklick auf die platzierte Karte änderbar. */
   comment: string;
   /** Gegen versehentliches Verschieben/Entfernen fixiert. */
@@ -50,6 +51,7 @@ export class Placement {
     this.secondHalf = card.secondHalf;
     this.noCount = card.noCount;
     this.coupling = card.coupling;
+    this.collision = card.collision;
     this.comment = card.comment;
     this.locked = locked;
     this.day = pos.day;
@@ -70,8 +72,8 @@ export class Placement {
 
   /** Kopie der Karten-Eigenschaften (z. B. für Rückgabe in den Pool). */
   cardSnapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, comment };
   }
 
   toJSON(): PersistedPlacement {
@@ -105,6 +107,7 @@ export class Placement {
         secondHalf: !!raw.secondHalf,
         noCount: !!raw.noCount,
         coupling: raw.coupling ?? '',
+        collision: !!raw.collision,
         comment: raw.comment ?? '',
       },
       {

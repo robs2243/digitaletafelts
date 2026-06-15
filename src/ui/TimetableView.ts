@@ -408,6 +408,7 @@ export class TimetableView {
         ${pl.isVierwoechig ? '<div class="p-range">¼ 4-wö.</div>' : ''}
         ${pl.noCount ? '<div class="p-range">∅ zählt nicht</div>' : ''}
         ${pl.coupling ? `<div class="p-range">⛓ ${esc(pl.coupling)}</div>` : ''}
+        ${pl.collision ? '<div class="p-range">💥 Kollision</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
       </div>`;
   }

@@ -35,6 +35,8 @@ export interface CardProps {
   /** Kopplungs-ID (leer = keine). Karten mit gleicher ID dürfen sich zeitlich
    *  überschneiden (gleiche Lehrkraft, andere Klasse) und zählen nur einmal. */
   coupling: string;
+  /** Darf bewusst auf Kollision gelegt werden (überspringt die Kollisionssperre). */
+  collision: boolean;
   /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
   comment: string;
 }
@@ -102,6 +104,18 @@ export interface AutoPlanResult {
   weekImbalance: { abbr: string; u: number; g: number }[];
   /** Lehrkräfte mit mehr als 6 Hohlstunden in einer Woche (zur Meldung). */
   weekGaps: { abbr: string; week: Week; gaps: number }[];
+}
+
+/** Karte mit optionaler Platzierungs-Info (für Kopplungs-/Kollisions-Listen). */
+export interface CardWithPlace {
+  abbr: string;
+  fach: string;
+  klasse: string;
+  /** Falls platziert: Tag-Index, Startstunde, Dauer, Woche. */
+  day?: number;
+  startPeriod?: number;
+  duration?: number;
+  week?: Week;
 }
 
 /** Fortschritt während des (langen) Planungslaufs. */

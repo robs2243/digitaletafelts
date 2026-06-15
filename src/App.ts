@@ -1,7 +1,7 @@
 import { AppState } from './domain/AppState';
 import { DAYS } from './domain/constants';
 import { semesterFactor } from './domain/semester';
-import type { CardProps, LabelField, PlacementPosition, PlanProgress, PlanRunResult } from './domain/types';
+import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgress, PlanRunResult } from './domain/types';
 import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
 import { parseCardRows, TEMPLATE_AOA } from './services/cardImport';
@@ -273,6 +273,13 @@ export class App {
       if (e.target === couplingsOverlay) couplingsOverlay.classList.remove('open');
     });
 
+    byId('btn-collisions').addEventListener('click', () => this.openCollisions());
+    const collisionsOverlay = byId('collisions-modal');
+    byId('col-close').addEventListener('click', () => collisionsOverlay.classList.remove('open'));
+    collisionsOverlay.addEventListener('click', (e) => {
+      if (e.target === collisionsOverlay) collisionsOverlay.classList.remove('open');
+    });
+
     const planningOverlay = byId('planning-modal');
     byId('plan-cancel').addEventListener('click', () => this.closePlanning());
     planningOverlay.addEventListener('click', (e) => {
@@ -282,6 +289,7 @@ export class App {
     byId('plan-unplace-all').addEventListener('click', () => this.handleUnplaceAll());
     byId('plan-unplace-unlocked').addEventListener('click', () => this.handleUnplaceUnlocked());
     byId('plan-reset-classes').addEventListener('click', () => this.handleResetClasses());
+    byId('plan-export').addEventListener('click', () => this.downloadCardsExport());
     byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     byId('plan-replan').addEventListener('click', () => this.handleReplan());
@@ -473,13 +481,7 @@ export class App {
     list.innerHTML = groups.length
       ? groups
           .map((g) => {
-            const members = g.members
-              .map(
-                (m) =>
-                  `${esc(m.abbr)}${m.fach ? ` ${esc(m.fach)}` : ''}${m.klasse ? ` · ${esc(m.klasse)}` : ''} ` +
-                  `<span style="color:var(--muted)">(${m.placed ? 'im Plan' : 'Pool'})</span>`,
-              )
-              .join('<br>');
+            const members = g.members.map((m) => this.memberLine(m)).join('<br>');
             return `<div class="cmall-item">
               <div class="cmall-body">
                 <div class="cmall-head">🔗 ${esc(g.id)}</div>
@@ -489,6 +491,37 @@ export class App {
           })
           .join('')
       : '<div class="tm-empty">Keine Kopplungen vorhanden.<br>Im Fenster „Nicht verplante Karten" je Karte hinten eine Kopplungs-ID vergeben (gleiche ID = gekoppelt).</div>';
+  }
+
+  /** Eine Karten-Zeile mit Klasse/Fach und – falls platziert – Tag und Stunde. */
+  private memberLine(m: CardWithPlace): string {
+    const head = `${esc(m.abbr)}${m.fach ? ` ${esc(m.fach)}` : ''}${m.klasse ? ` · ${esc(m.klasse)}` : ''}`;
+    let where: string;
+    if (m.day === undefined || m.startPeriod === undefined) {
+      where = 'im Pool';
+    } else {
+      const end = m.startPeriod + (m.duration ?? 1) - 1;
+      const range = end > m.startPeriod ? `${m.startPeriod}.–${end}.` : `${m.startPeriod}.`;
+      where = `${DAYS[m.day]}, ${range} Std.${m.week ? ` (${m.week})` : ''}`;
+    }
+    return `${head} <span style="color:var(--muted)">→ ${where}</span>`;
+  }
+
+  // ── Kollisionen ─────────────────────────────────────────────────────────
+
+  private openCollisions(): void {
+    const cards = this.state.collisionCards();
+    byId('col-sub').textContent = cards.length ? `${cards.length} Karte(n) mit erlaubter Kollision` : '';
+    byId('col-list').innerHTML = cards.length
+      ? cards
+          .map(
+            (m) => `<div class="cmall-item"><div class="cmall-body">
+              <div class="cmall-text">💥 ${this.memberLine(m)}</div>
+            </div></div>`,
+          )
+          .join('')
+      : '<div class="tm-empty">Keine Karten mit aktiver Kollision.<br>Beim Erstellen einer Karte die Checkbox „💥 Kollision erlaubt" aktivieren.</div>';
+    byId('collisions-modal').classList.add('open');
   }
 
   // ── Pool-Liste (nicht verplante Karten, mit Filter) ─────────────────────
@@ -628,6 +661,34 @@ export class App {
     this.toast.show('📄 Planungsregeln (Word) heruntergeladen');
   }
 
+  /** Exportiert alle Karten (Pool + Plan) als Excel, sortiert nach Klasse und Lehrer. */
+  private downloadCardsExport(): void {
+    const rows = this.state.allCardsForExport();
+    if (!rows.length) {
+      this.toast.show('Keine Karten zum Exportieren vorhanden.', 'inf');
+      return;
+    }
+    const yn = (b: boolean): string => (b ? 'x' : '');
+    const header = [
+      'Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Gruppe a/b', 'Werkstatt', '4-wöchig',
+      '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Nicht zählen', 'Kollision', 'Status', 'Tag', 'Stunde', 'Woche', 'Kommentar',
+    ];
+    const aoa: (string | number)[][] = [header];
+    for (const r of rows) {
+      const stunde =
+        r.startPeriod === null ? '' : r.duration > 1 ? `${r.startPeriod}–${r.startPeriod + r.duration - 1}` : `${r.startPeriod}`;
+      aoa.push([
+        r.klasse, r.abbr, r.fach, r.room, r.duration, yn(r.isLabor), r.labGroup, yn(r.isWerkstatt), yn(r.isVierwoechig),
+        yn(r.firstHalf), yn(r.secondHalf), r.coupling, yn(r.noCount), yn(r.collision),
+        r.placed ? 'verplant' : 'Pool', r.day === null ? '' : DAYS[r.day], stunde, r.week ?? '', r.comment,
+      ]);
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Karten');
+    XLSX.writeFile(wb, 'Karten-Export.xlsx');
+    this.toast.show(`📤 ${rows.length} Karten exportiert`);
+  }
+
   /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */
   private downloadTemplate(): void {
     const wb = XLSX.utils.book_new();
@@ -709,6 +770,11 @@ export class App {
     const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
 
     if (!collision) {
+      this.placeDrag(dragData, pos);
+      return;
+    }
+    // Kollisions-Karten dürfen bewusst auf belegte Stellen (außer über Stunde 9).
+    if (dragData.card.collision && collision.type !== 'overflow') {
       this.placeDrag(dragData, pos);
       return;
     }

@@ -118,6 +118,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
       secondHalf: truthy(cell(row, 'secondHalf')),
       noCount: truthy(cell(row, 'noCount')),
       coupling: String(cell(row, 'coupling') ?? '').trim(),
+      collision: false,
       comment: String(cell(row, 'comment') ?? '').trim(),
     });
   }

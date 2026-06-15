@@ -5,7 +5,7 @@ import { DAYS, PALETTE, PERIODS, WEEKS } from './constants';
 import { Placement } from './Placement';
 import { Schedule } from './Schedule';
 import { semesterFactor } from './semester';
-import type { CardProps, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, StatRow, Week } from './types';
+import type { CardProps, CardWithPlace, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, StatRow, Week } from './types';
 
 export interface ChangeEvent {
   /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
@@ -193,20 +193,54 @@ export class AppState {
   }
 
   /** Alle Kopplungen (ID → beteiligte Karten, Pool + Plan), alphabetisch. */
-  couplingGroups(): { id: string; members: { abbr: string; fach: string; klasse: string; placed: boolean }[] }[] {
-    const map = new Map<string, { abbr: string; fach: string; klasse: string; placed: boolean }[]>();
-    const push = (c: { coupling: string; abbr: string; fach: string; klasse: string }, placed: boolean): void => {
-      const id = c.coupling.trim();
-      if (!id) return;
-      const list = map.get(id) ?? [];
-      list.push({ abbr: c.abbr, fach: c.fach, klasse: c.klasse, placed });
-      map.set(id, list);
-    };
-    for (const c of this.pool.all) push(c, false);
-    for (const p of this.schedule.all) push(p, true);
+  couplingGroups(): { id: string; members: CardWithPlace[] }[] {
+    const map = new Map<string, CardWithPlace[]>();
+    for (const c of this.pool.all) {
+      if (!c.coupling.trim()) continue;
+      const list = map.get(c.coupling.trim()) ?? [];
+      list.push({ abbr: c.abbr, fach: c.fach, klasse: c.klasse });
+      map.set(c.coupling.trim(), list);
+    }
+    for (const p of this.schedule.all) {
+      if (!p.coupling.trim()) continue;
+      const list = map.get(p.coupling.trim()) ?? [];
+      list.push({ abbr: p.abbr, fach: p.fach, klasse: p.klasse, day: p.day, startPeriod: p.startPeriod, duration: p.duration, week: p.week });
+      map.set(p.coupling.trim(), list);
+    }
     return [...map.entries()]
       .map(([id, members]) => ({ id, members }))
       .sort((a, b) => a.id.localeCompare(b.id, 'de'));
+  }
+
+  /** Alle Karten mit aktivierter Kollision (Pool + Plan), nach Kürzel sortiert. */
+  collisionCards(): CardWithPlace[] {
+    const out: CardWithPlace[] = [];
+    for (const c of this.pool.all) {
+      if (c.collision) out.push({ abbr: c.abbr, fach: c.fach, klasse: c.klasse });
+    }
+    for (const p of this.schedule.all) {
+      if (p.collision) {
+        out.push({ abbr: p.abbr, fach: p.fach, klasse: p.klasse, day: p.day, startPeriod: p.startPeriod, duration: p.duration, week: p.week });
+      }
+    }
+    return out.sort((a, b) => a.abbr.localeCompare(b.abbr, 'de'));
+  }
+
+  /** Alle Karten (Pool + Plan) für den Excel-Export, sortiert nach Klasse, dann Lehrer. */
+  allCardsForExport(): (CardProps & { placed: boolean; day: number | null; startPeriod: number | null; week: Week | null })[] {
+    const rows = [
+      ...this.pool.all.map((c) => ({ ...c.snapshot(), placed: false, day: null, startPeriod: null, week: null as Week | null })),
+      ...this.schedule.all.map((p) => ({
+        ...p.cardSnapshot(),
+        placed: true,
+        day: p.day as number | null,
+        startPeriod: p.startPeriod as number | null,
+        week: p.week as Week | null,
+      })),
+    ];
+    return rows.sort(
+      (a, b) => a.klasse.localeCompare(b.klasse, 'de') || a.abbr.localeCompare(b.abbr, 'de') || a.fach.localeCompare(b.fach, 'de'),
+    );
   }
 
   /** Entfernt alle Kommentare (Pool + Plan). */
