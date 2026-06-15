@@ -29,6 +29,27 @@ function byId<T extends HTMLElement>(id: string): T {
   return el as T;
 }
 
+/** Eingebettetes CSS für das PDF-Druckfenster der Stundenpläne (Querformat). */
+const SCHED_PDF_CSS = `
+  * { font-family: Arial, Helvetica, sans-serif; box-sizing: border-box; }
+  body { margin: 0; }
+  .page { page-break-after: always; padding: 4px 2px 16px; }
+  .page:last-child { page-break-after: auto; }
+  h2 { color: #1a237e; font-size: 16px; margin: 0 0 3px; }
+  .stats { font-size: 12px; font-weight: 700; color: #1a237e; margin-bottom: 8px; }
+  table { border-collapse: collapse; table-layout: fixed; }
+  th, td { border: 1px solid #999; overflow: hidden; }
+  .sched-head { background: #1a237e; color: #fff; padding: 4px; text-align: center; font-size: 11px; }
+  .sched-sub { background: #283593; color: #fff; text-align: center; font-size: 9px; }
+  .sched-per { background: #eef1f6; text-align: center; font-weight: 700; width: 34px; font-size: 10px; }
+  .sched-cell { height: 32px; }
+  .sched-box { width: 100%; height: 32px; display: flex; align-items: center; justify-content: center; }
+  .sched-chip { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; font-size: 9px; font-weight: 700; line-height: 1.1; text-align: center; }
+  .sched-chip small { font-weight: 400; }
+  @page { size: A4 landscape; margin: 10mm; }
+`;
+
 /**
  * Kompositionswurzel: lädt den Zustand, verdrahtet Domäne, Persistenz
  * und UI-Komponenten und steuert die Anwendungsfälle (Controller-Rolle).
@@ -361,6 +382,7 @@ export class App {
     byId('sched-zoom-out').addEventListener('click', () => this.setSchedZoom(this.schedZoom - 0.15));
     byId('sched-zoom-in').addEventListener('click', () => this.setSchedZoom(this.schedZoom + 0.15));
     byId('sched-zoom-reset').addEventListener('click', () => this.setSchedZoom(1));
+    byId('sched-pdf').addEventListener('click', () => this.exportSchedPdf());
     byId<HTMLInputElement>('sched-u').addEventListener('change', (e) => {
       this.schedShowU = (e.target as HTMLInputElement).checked;
       this.renderSchedGrid();
@@ -978,35 +1000,22 @@ export class App {
     return (Number.isInteger(n) ? String(n) : n.toFixed(1)).replace('.', ',');
   }
 
-  /** Stundenplan-Raster der aktuellen Auswahl: Stunden × Tage (u | g, per Checkbox). */
-  private renderSchedGrid(): void {
-    const grid = byId('sched-grid');
-    const statsEl = byId('sched-stats');
-    if (!this.schedSel) {
-      grid.innerHTML = '<div class="tm-empty">Links auswählen …</div>';
-      statsEl.textContent = '';
-      return;
-    }
-    const teacher = this.schedMode === 'teacher';
-    const sel = this.schedSel;
+  /** Aktive Wochen laut Checkboxen (für die Bildschirmansicht). */
+  private schedWeeks(): ('u' | 'g')[] {
+    return [...(this.schedShowU ? (['u'] as const) : []), ...(this.schedShowG ? (['g'] as const) : [])];
+  }
+
+  /** Ist-Stunden + Schnitt (Deputat) einer Lehrkraft als Text (wie auf der Hauptseite). */
+  private teacherStatsLine(abbr: string): string {
+    const row = this.state.stats().find((r) => r.abbr === abbr);
+    return row
+      ? `Ist: u ${this.fmtHours(row.hoursU)} · g ${this.fmtHours(row.hoursG)} · Schnitt Ø ${this.fmtHours((row.hoursU + row.hoursG) / 2)}`
+      : '';
+  }
+
+  /** Baut die Stundenplan-Tabelle (Stunden × Tage, je aktiver Woche eine Spalte). */
+  private schedTableHtml(sel: string, teacher: boolean, weeks: ('u' | 'g')[], fit = false): string {
     const placed = this.state.schedule.all.filter((p) => (teacher ? p.abbr === sel : p.klasse.trim() === sel));
-
-    // Ist-Stunden + Schnitt (Deputat) der gewählten Lehrkraft – wie auf der Hauptseite.
-    if (teacher) {
-      const row = this.state.stats().find((r) => r.abbr === sel);
-      statsEl.textContent = row
-        ? `Ist: u ${this.fmtHours(row.hoursU)} · g ${this.fmtHours(row.hoursG)} · Schnitt Ø ${this.fmtHours((row.hoursU + row.hoursG) / 2)}`
-        : '';
-    } else {
-      statsEl.textContent = '';
-    }
-
-    const weeks = [...(this.schedShowU ? (['u'] as const) : []), ...(this.schedShowG ? (['g'] as const) : [])];
-    if (!weeks.length) {
-      grid.innerHTML = '<div class="tm-empty">Bitte „u" und/oder „g" aktivieren.</div>';
-      return;
-    }
-
     const side = (arr: Placement[]): string =>
       arr
         .map((pl) => {
@@ -1017,12 +1026,14 @@ export class App {
         })
         .join('');
 
-    // Feste, gleiche Spaltenbreiten je aktiver Woche (sonst wird eine leere Spalte riesig).
+    // Bildschirm: feste px-Breiten (Scrollen). PDF (fit): erste Spalte schmal, Rest gleich (100 %).
     const colW = weeks.length === 1 ? 110 : 66;
-    const cols = `<colgroup><col style="width:42px" />${DAYS.map(() => weeks.map(() => `<col style="width:${colW}px" />`).join('')).join('')}</colgroup>`;
-    const totalW = 42 + DAYS.length * weeks.length * colW;
+    const cols = fit
+      ? `<colgroup><col style="width:34px" />${DAYS.map(() => weeks.map(() => '<col />').join('')).join('')}</colgroup>`
+      : `<colgroup><col style="width:42px" />${DAYS.map(() => weeks.map(() => `<col style="width:${colW}px" />`).join('')).join('')}</colgroup>`;
+    const tableStyle = fit ? 'width:100%' : `width:${42 + DAYS.length * weeks.length * colW}px`;
     let body =
-      `<table class="sched-table" style="width:${totalW}px">${cols}<thead><tr><th class="sched-head" rowspan="2">Std</th>` +
+      `<table class="sched-table" style="${tableStyle}">${cols}<thead><tr><th class="sched-head" rowspan="2">Std</th>` +
       DAYS.map((d) => `<th class="sched-head" colspan="${weeks.length}">${esc(d)}</th>`).join('') +
       '</tr><tr>' +
       DAYS.map(() => weeks.map((w) => `<th class="sched-sub">${w}</th>`).join('')).join('') +
@@ -1037,8 +1048,70 @@ export class App {
       }
       body += '</tr>';
     }
-    grid.innerHTML = body + '</tbody></table>';
+    return body + '</tbody></table>';
+  }
+
+  /** Stundenplan-Raster der aktuellen Auswahl: Stunden × Tage (u | g, per Checkbox). */
+  private renderSchedGrid(): void {
+    const grid = byId('sched-grid');
+    const statsEl = byId('sched-stats');
+    if (!this.schedSel) {
+      grid.innerHTML = '<div class="tm-empty">Links auswählen …</div>';
+      statsEl.textContent = '';
+      return;
+    }
+    const teacher = this.schedMode === 'teacher';
+    statsEl.textContent = teacher ? this.teacherStatsLine(this.schedSel) : '';
+
+    const weeks = this.schedWeeks();
+    if (!weeks.length) {
+      grid.innerHTML = '<div class="tm-empty">Bitte „u" und/oder „g" aktivieren.</div>';
+      return;
+    }
+    grid.innerHTML = this.schedTableHtml(this.schedSel, teacher, weeks, false);
     this.applySchedZoom();
+  }
+
+  /** PDF-Export der Stundenpläne (aktuelle Auswahl oder – per Checkbox – alle). */
+  private exportSchedPdf(): void {
+    const teacher = this.schedMode === 'teacher';
+    const all = byId<HTMLInputElement>('sched-pdf-all').checked;
+    const entries = all ? this.schedEntries() : this.schedSel ? [{ key: this.schedSel }] : [];
+    if (!entries.length) {
+      this.toast.show('Nichts zum Exportieren ausgewählt.', 'inf');
+      return;
+    }
+    // Falls beide Wochen ausgeblendet sind, im PDF dennoch beide zeigen.
+    const weeks = this.schedWeeks();
+    const useWeeks = weeks.length ? weeks : (['u', 'g'] as ('u' | 'g')[]);
+    const pages = entries
+      .map((e) => {
+        const name = teacher ? this.teacherName(e.key) : '';
+        const heading = teacher
+          ? `Stundenplan ${esc(e.key)}${name ? ` – ${esc(name)}` : ''}`
+          : `Stundenplan Klasse ${esc(e.key)}`;
+        const stats = teacher ? this.teacherStatsLine(e.key) : '';
+        return `<div class="page"><h2>${heading}</h2>${stats ? `<div class="stats">${esc(stats)}</div>` : ''}${this.schedTableHtml(e.key, teacher, useWeeks, true)}</div>`;
+      })
+      .join('');
+    const win = window.open('', '_blank');
+    if (!win) {
+      this.toast.show('Pop-up wurde blockiert – bitte erlauben.', 'inf');
+      return;
+    }
+    win.document.write(
+      `<!doctype html><html lang="de"><head><meta charset="utf-8" /><title>Stundenpläne</title><style>${SCHED_PDF_CSS}</style></head><body>${pages}</body></html>`,
+    );
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 350);
+  }
+
+  /** Lehrername zu einem Kürzel (für PDF-Überschrift). */
+  private teacherName(abbr: string): string {
+    const c = this.state.pool.all.find((x) => x.abbr === abbr);
+    if (c?.name) return c.name;
+    return this.state.schedule.all.find((p) => p.abbr === abbr)?.name ?? '';
   }
 
   /** Stellt den Zoom des Stundenplan-Rasters ein (CSS-Zoom auf der Tabelle). */
