@@ -88,5 +88,8 @@ export interface StatRow {
   fach: string;
   name: string;
   color: string;
-  hours: number;
+  /** Stunden in der u-Woche. */
+  hoursU: number;
+  /** Stunden in der g-Woche. */
+  hoursG: number;
 }

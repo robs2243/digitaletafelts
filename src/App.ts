@@ -1,6 +1,7 @@
 import { AppState } from './domain/AppState';
 import { DAYS } from './domain/constants';
 import type { CardProps, LabelField, PlacementPosition } from './domain/types';
+import { esc } from './utils/html';
 import { FileService } from './services/FileService';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
@@ -57,7 +58,9 @@ export class App {
 
     this.toast = new Toast(byId('toast'));
     this.saveBadge = new SaveBadge(byId('sbadge'));
-    this.statsView = new StatsView(byId('stats'), this.state);
+    this.statsView = new StatsView(byId('stats'), this.state, {
+      onSelect: (abbr) => this.openTeacherList(abbr),
+    });
     this.collisionModal = new CollisionModal();
     this.commentModal = new CommentModal();
     this.clearModal = new ClearCardsModal();
@@ -200,15 +203,65 @@ export class App {
 
     this.bindZoom();
 
+    const teacherOverlay = byId('teacher-modal');
+    byId('tm-close').addEventListener('click', () => this.closeTeacherModal());
+    teacherOverlay.addEventListener('click', (e) => {
+      if (e.target === teacherOverlay) this.closeTeacherModal();
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.cardModal.close();
         this.collisionModal.close();
         this.commentModal.close();
         this.clearModal.close();
+        this.closeTeacherModal();
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
     });
+  }
+
+  // ── Lehrer-Stundenliste ─────────────────────────────────────────────────
+
+  /** Zeigt alle Stunden einer Lehrkraft (sortiert) in einem Dialog. */
+  private openTeacherList(abbr: string): void {
+    const items = this.state.schedule.all
+      .filter((p) => p.abbr === abbr)
+      .sort((a, b) => a.day - b.day || a.startPeriod - b.startPeriod || a.week.localeCompare(b.week));
+
+    let hoursU = 0;
+    let hoursG = 0;
+    for (const p of items) (p.week === 'u' ? (hoursU += p.duration) : (hoursG += p.duration));
+    const avg = (hoursU + hoursG) / 2;
+    const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1)).replace('.', ',');
+
+    byId('tm-title').textContent = `Stunden – ${abbr}`;
+    byId('tm-sub').textContent = `u: ${hoursU} · g: ${hoursG} · Schnitt (Deputat): ${fmt(avg)}`;
+
+    const list = byId('tm-list');
+    if (!items.length) {
+      list.innerHTML = '<div class="tm-empty">Keine platzierten Stunden.</div>';
+    } else {
+      list.innerHTML = items
+        .map((p) => {
+          const range = p.duration > 1 ? `${p.startPeriod}–${p.endPeriod}` : `${p.startPeriod}`;
+          const klass = this.state.classes.displayLabel(p.classIdx, p.day, p.week);
+          const extra = [p.fach, p.room].filter(Boolean).map((x) => esc(x)).join(' · ');
+          return `<div class="tm-item">
+              <span class="tm-week tm-week-${p.week}">${p.week.toUpperCase()}</span>
+              <span class="tm-day">${DAYS[p.day]}</span>
+              <span class="tm-per">Std. ${range}</span>
+              <span class="tm-cls">${esc(klass)}</span>
+              ${extra ? `<span class="tm-extra">${extra}</span>` : ''}
+            </div>`;
+        })
+        .join('');
+    }
+    byId('teacher-modal').classList.add('open');
+  }
+
+  private closeTeacherModal(): void {
+    byId('teacher-modal').classList.remove('open');
   }
 
   // ── Zoom (Strg+Mausrad / Buttons / Strg +,-,0) ──────────────────────────

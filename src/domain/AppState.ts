@@ -229,13 +229,15 @@ export class AppState {
   stats(): StatRow[] {
     const map = new Map<string, StatRow>();
     for (const p of this.schedule.all) {
-      const row = map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hours: 0 };
-      row.hours += p.duration;
+      const row =
+        map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hoursU: 0, hoursG: 0 };
+      if (p.week === 'u') row.hoursU += p.duration;
+      else row.hoursG += p.duration;
       map.set(p.abbr, row);
     }
     for (const c of this.pool.all) {
       if (!map.has(c.abbr)) {
-        map.set(c.abbr, { abbr: c.abbr, fach: c.fach, name: c.name, color: c.color, hours: 0 });
+        map.set(c.abbr, { abbr: c.abbr, fach: c.fach, name: c.name, color: c.color, hoursU: 0, hoursG: 0 });
       }
     }
     return [...map.values()].sort((a, b) => a.abbr.localeCompare(b.abbr));

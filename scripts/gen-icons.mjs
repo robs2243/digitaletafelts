@@ -18,6 +18,6 @@ if (!ico) {
   console.error('[icons] ICO konnte nicht erzeugt werden (ist die Quelle eine quadratische PNG?).');
   process.exit(1);
 }
-mkdirSync('build', { recursive: true });
+if (!existsSync('build')) mkdirSync('build');
 writeFileSync(OUT, ico);
 console.log(`[icons] ${OUT} erzeugt.`);
