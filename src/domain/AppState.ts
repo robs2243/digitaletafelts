@@ -407,7 +407,7 @@ export class AppState {
       openMandatory: number;
     }
 
-    const startsFor = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
+    const baseStarts = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
 
     /**
      * Ein vollständiger Verplanungs-Durchlauf auf einer eigenen Belegungs-Simulation.
@@ -509,9 +509,10 @@ export class AppState {
         const f = card.fach.trim().toLowerCase();
         if (shuffleOrder) shuffle(ctx, rng);
         ctx.sort((a, b) => (subj.get(sK(card.klasse, a.d, a.w, f)) ?? 0) - (subj.get(sK(card.klasse, b.d, b.w, f)) ?? 0));
+        const starts = shuffleOrder ? shuffle([...baseStarts(card)], rng) : baseStarts(card);
         let reason = 'kein freier Platz';
         for (const { c, d, w } of ctx) {
-          for (const start of startsFor(card)) {
+          for (const start of starts) {
             const r = check(card, c, d, w, start);
             if (r === null) {
               apply(card, c, d, w, start);
@@ -549,7 +550,8 @@ export class AppState {
       const isGrouped = (c: Card) => isA(c) || isB(c);
       const fach = (c: Card) => c.fach.trim().toLowerCase();
       const step = (list: Card[], fn: (c: Card) => void): void => {
-        const seq = shuffleOrder ? shuffle([...list], rng) : list;
+        // Heuristik (1. Durchlauf): längere/schwerer platzierbare Blöcke zuerst.
+        const seq = shuffleOrder ? shuffle([...list], rng) : [...list].sort((a, b) => b.duration - a.duration);
         for (const card of seq) fn(card);
       };
       step(cards.filter((c) => c.isWerkstatt && isB(c)), placeNormal);
@@ -573,17 +575,21 @@ export class AppState {
       return { assigns, skipped, openMandatory };
     };
 
-    // Mehrere Durchläufe: ersten deterministisch, weitere mit variierter Reihenfolge.
-    // Bestes Ergebnis = meiste platzierte Karten, dann wenigste offene Pflichtstunden.
+    // Mehrere Durchläufe: ersten deterministisch (Heuristik), weitere mit variierter
+    // Reihenfolge/Startstunden. Es wird so lange probiert, bis alle Karten verplant
+    // sind ODER das Zeit-/Versuchsbudget erschöpft ist. Bestes Ergebnis = meiste
+    // platzierte Karten, dann wenigste offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean =>
       a.assigns.length > b.assigns.length ||
       (a.assigns.length === b.assigns.length && a.openMandatory < b.openMandatory);
     const rng = Math.random;
     let best = runOnce(false, rng);
-    const MAX_ATTEMPTS = 50;
+    const MAX_ATTEMPTS = 20000;
+    const deadline = Date.now() + 4000; // hartes Zeitbudget, damit die UI nicht hängt
     for (let i = 1; i < MAX_ATTEMPTS && best.skipped.length > 0; i++) {
       const cand = runOnce(true, rng);
       if (better(cand, best)) best = cand;
+      if (i % 64 === 0 && Date.now() > deadline) break;
     }
 
     // Bestes Ergebnis anwenden: Karten aus dem Pool in den Plan übernehmen.

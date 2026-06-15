@@ -55,9 +55,11 @@ Quelle: Vorgaben des Anwenders.
   (Werkstatt a auf Werkstatt b, gleicher Slot).
 - **Wenn 1–6 nicht voll füllbar:** so weit wie möglich verplanen, offene Slots frei
   lassen und am Ende auflisten, was unbelegt blieb (Lehrer >6 Std → Hinweis/fragen).
-- **Mehrere Durchläufe:** Der Planer versucht **mehrere Durchläufe** mit variierter
-  Reihenfolge und behält das beste Ergebnis (meiste platzierte Karten, dann wenigste
-  offene Pflichtstunden), um möglichst alle Stunden unterzubringen.
+- **Mehrere Durchläufe:** Der Planer probiert **sehr viele Durchläufe** mit
+  variierter Reihenfolge und variierten Startstunden (der erste Durchlauf nutzt
+  eine Heuristik: längere Blöcke zuerst). Er läuft so lange, **bis alle Karten
+  verplant sind** oder ein Zeitbudget (einige Sekunden) erreicht ist, und behält
+  das beste Ergebnis (meiste platzierte Karten, dann wenigste offene Pflichtstunden).
 - **Fixierte Karten:** werden nie verschoben; der Planer plant nur die freien
   Pool-Karten um sie herum.
 - **4 Stunden am Stück:** zusammenhängende Stunden derselben Lehrkraft in einer
