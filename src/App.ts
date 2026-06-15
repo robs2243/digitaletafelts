@@ -61,6 +61,8 @@ export class App {
   private schedMode: 'teacher' | 'class' = 'teacher';
   private schedSel = '';
   private schedZoom = 1;
+  private schedShowU = true;
+  private schedShowG = true;
   /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
   private filterLabor = false;
   private filterWerkstatt = false;
@@ -359,6 +361,14 @@ export class App {
     byId('sched-zoom-out').addEventListener('click', () => this.setSchedZoom(this.schedZoom - 0.15));
     byId('sched-zoom-in').addEventListener('click', () => this.setSchedZoom(this.schedZoom + 0.15));
     byId('sched-zoom-reset').addEventListener('click', () => this.setSchedZoom(1));
+    byId<HTMLInputElement>('sched-u').addEventListener('change', (e) => {
+      this.schedShowU = (e.target as HTMLInputElement).checked;
+      this.renderSchedGrid();
+    });
+    byId<HTMLInputElement>('sched-g').addEventListener('change', (e) => {
+      this.schedShowG = (e.target as HTMLInputElement).checked;
+      this.renderSchedGrid();
+    });
 
     const roomsOverlay = byId('rooms-modal');
     byId('rm-close').addEventListener('click', () => roomsOverlay.classList.remove('open'));
@@ -963,16 +973,40 @@ export class App {
       : `<div class="tm-empty">${this.schedMode === 'teacher' ? 'Keine Lehrkräfte' : 'Keine Klassen'} vorhanden.</div>`;
   }
 
-  /** Stundenplan-Raster der aktuellen Auswahl: Stunden × Tage (u | g). */
+  /** Deutsch formatierte Stundenzahl (ganze Zahl oder eine Nachkommastelle mit Komma). */
+  private fmtHours(n: number): string {
+    return (Number.isInteger(n) ? String(n) : n.toFixed(1)).replace('.', ',');
+  }
+
+  /** Stundenplan-Raster der aktuellen Auswahl: Stunden × Tage (u | g, per Checkbox). */
   private renderSchedGrid(): void {
     const grid = byId('sched-grid');
+    const statsEl = byId('sched-stats');
     if (!this.schedSel) {
       grid.innerHTML = '<div class="tm-empty">Links auswählen …</div>';
+      statsEl.textContent = '';
       return;
     }
     const teacher = this.schedMode === 'teacher';
     const sel = this.schedSel;
     const placed = this.state.schedule.all.filter((p) => (teacher ? p.abbr === sel : p.klasse.trim() === sel));
+
+    // Ist-Stunden + Schnitt (Deputat) der gewählten Lehrkraft – wie auf der Hauptseite.
+    if (teacher) {
+      const row = this.state.stats().find((r) => r.abbr === sel);
+      statsEl.textContent = row
+        ? `Ist: u ${this.fmtHours(row.hoursU)} · g ${this.fmtHours(row.hoursG)} · Schnitt Ø ${this.fmtHours((row.hoursU + row.hoursG) / 2)}`
+        : '';
+    } else {
+      statsEl.textContent = '';
+    }
+
+    const weeks = [...(this.schedShowU ? (['u'] as const) : []), ...(this.schedShowG ? (['g'] as const) : [])];
+    if (!weeks.length) {
+      grid.innerHTML = '<div class="tm-empty">Bitte „u" und/oder „g" aktivieren.</div>';
+      return;
+    }
+
     const side = (arr: Placement[]): string =>
       arr
         .map((pl) => {
@@ -982,21 +1016,24 @@ export class App {
           return `<span class="sched-chip" style="background:${pl.color};color:${ink(pl.color)}" title="${tip}">${esc(main)}${sub ? `<small>${sub}</small>` : ''}</span>`;
         })
         .join('');
-    // Feste, gleiche Spaltenbreiten (sonst wird eine leere Spalte riesig).
-    const cols = `<colgroup><col style="width:42px" />${DAYS.map(() => '<col style="width:66px" /><col style="width:66px" />').join('')}</colgroup>`;
-    const totalW = 42 + DAYS.length * 2 * 66;
+
+    // Feste, gleiche Spaltenbreiten je aktiver Woche (sonst wird eine leere Spalte riesig).
+    const colW = weeks.length === 1 ? 110 : 66;
+    const cols = `<colgroup><col style="width:42px" />${DAYS.map(() => weeks.map(() => `<col style="width:${colW}px" />`).join('')).join('')}</colgroup>`;
+    const totalW = 42 + DAYS.length * weeks.length * colW;
     let body =
       `<table class="sched-table" style="width:${totalW}px">${cols}<thead><tr><th class="sched-head" rowspan="2">Std</th>` +
-      DAYS.map((d) => `<th class="sched-head" colspan="2">${esc(d)}</th>`).join('') +
+      DAYS.map((d) => `<th class="sched-head" colspan="${weeks.length}">${esc(d)}</th>`).join('') +
       '</tr><tr>' +
-      DAYS.map(() => '<th class="sched-sub">u</th><th class="sched-sub">g</th>').join('') +
+      DAYS.map(() => weeks.map((w) => `<th class="sched-sub">${w}</th>`).join('')).join('') +
       '</tr></thead><tbody>';
     for (let p = 1; p <= PERIODS; p++) {
       body += `<tr><td class="sched-per">${p}</td>`;
       for (let d = 0; d < DAYS.length; d++) {
-        const u = placed.filter((pl) => pl.day === d && pl.week === 'u' && pl.covers(p));
-        const g = placed.filter((pl) => pl.day === d && pl.week === 'g' && pl.covers(p));
-        body += `<td class="sched-cell"><div class="sched-ug"><div class="sched-side u">${side(u)}</div><div class="sched-side g">${side(g)}</div></div></td>`;
+        for (const w of weeks) {
+          const cellPls = placed.filter((pl) => pl.day === d && pl.week === w && pl.covers(p));
+          body += `<td class="sched-cell"><div class="sched-box">${side(cellPls)}</div></td>`;
+        }
       }
       body += '</tr>';
     }
