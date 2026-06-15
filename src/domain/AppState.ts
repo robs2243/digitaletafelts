@@ -911,7 +911,13 @@ export class AppState {
               main && ((subj.get(sK(card.klasse, d - 1, w, f)) ?? 0) > 0 || (subj.get(sK(card.klasse, d + 1, w, f)) ?? 0) > 0)
                 ? 1
                 : 0;
+            // u/g-Differenz hat Vorrang: würde diese Platzierung die Differenz der
+            // Lehrkraft über 2 treiben, wird der Slot abgewertet (vor der Parallelität).
+            const loadW = teacherWeekLoad(card.abbr, w);
+            const loadOther = teacherWeekLoad(card.abbr, w === 'u' ? 'g' : 'u');
+            const imbalancePush = Math.max(0, Math.abs(loadW + card.duration - loadOther) - 2);
             const score = [
+              imbalancePush,
               hasMirror(card, d, w, start) ? 0 : 1,
               main && start > 6 ? 1 : 0,
               mainAdj,
@@ -1022,13 +1028,13 @@ export class AppState {
       return { assigns, skipped, openMandatory, imbalance, gaps, mirrorMismatch };
     };
 
-    // Auswahlkriterium (Priorität): meiste platzierte Karten → beste u/g-Konstanz
-    // (gleicher Slot in u/g) → u/g-Stunden-Balance → wenigste Hohlstunden → wenigste
-    // offene Pflichtstunden.
+    // Auswahlkriterium (Priorität): meiste platzierte Karten → u/g-Stunden-Balance
+    // (Differenz ≤ 2 zuerst) → beste u/g-Konstanz (gleicher Slot) → wenigste
+    // Hohlstunden → wenigste offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean => {
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
-      if (a.mirrorMismatch !== b.mirrorMismatch) return a.mirrorMismatch < b.mirrorMismatch;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
+      if (a.mirrorMismatch !== b.mirrorMismatch) return a.mirrorMismatch < b.mirrorMismatch;
       if (a.gaps !== b.gaps) return a.gaps < b.gaps;
       return a.openMandatory < b.openMandatory;
     };

@@ -102,10 +102,14 @@ Quelle: Vorgaben des Anwenders.
   **1–6** gelegt (8. nur als Ausweichplatz) und möglichst **mit einem Tag Pause** zum
   selben Hauptfach (Nachbartage mit gleichem Fach werden gemieden).
 - **u/g-Konstanz (hohe Priorität):** Bei der Platzwahl bevorzugt der Planer Slots, an
-  denen dieselbe Lehrkraft+Klasse+Fach in der anderen Woche bereits liegt; zusätzlich
-  fließt die **u/g-Ähnlichkeit in die Bewertung des besten Durchlaufs** ein (direkt
-  nach „meiste Karten verplant"). Ziel: u- und g-Stundenplan möglichst gleich. Geht es
-  nicht auf, bleibt eine Woche mit mehr Stunden (z. B. u 6 / g 4).
+  denen dieselbe Lehrkraft+Klasse+Fach in der anderen Woche bereits liegt; die
+  **u/g-Ähnlichkeit** fließt auch in die Bewertung des besten Durchlaufs ein. Ziel:
+  u- und g-Stundenplan möglichst gleich.
+- **u/g-Differenz hat Vorrang vor Parallelität:** Würde ein Slot die u/g-Differenz
+  einer Lehrkraft über **2 Stunden** treiben, wird er abgewertet (vor der Parallelität)
+  – und auch bei der Durchlauf-Bewertung steht die Balance vor der u/g-Konstanz. So
+  bleibt die Differenz ≤ 2 und es wird **trotzdem so viel wie möglich** parallel
+  (gleicher Slot in u/g) verplant. Geht es nicht auf, hat eine Woche mehr Stunden.
 - **u/g-Ausgleich:** der Planer bevorzugt beim Verplanen die für die Lehrkraft
   „leichtere" Woche und **rechnet mehrere Zyklen, bis die u/g-Differenz aller
   Lehrkräfte ≤ 2 Stunden** ist (Teil der „vollständigen Lösung"). Bleibt die Differenz
