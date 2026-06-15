@@ -705,8 +705,8 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .sched-entry.on { background: var(--accent); color: #fff; }
 .sched-entry small { font-weight: 400; opacity: .8; }
 .sched-grid { flex: 1; min-height: 0; overflow: auto; }
-.sched-table { border-collapse: collapse; font-size: 11px; width: 100%; }
-.sched-table th, .sched-table td { border: 1px solid var(--border); }
+.sched-table { border-collapse: collapse; font-size: 11px; table-layout: fixed; }
+.sched-table th, .sched-table td { border: 1px solid var(--border); overflow: hidden; }
 .sched-head { background: #1a237e; color: #fff; padding: 5px 6px; text-align: center; position: sticky; top: 0; z-index: 2; }
 .sched-sub { background: #283593; color: #fff; font-weight: 700; text-align: center; width: 50%; font-size: 10px; }
 .sched-per { background: #eef1f6; font-weight: 700; text-align: center; width: 40px; color: #475569; }

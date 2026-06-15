@@ -395,8 +395,15 @@
     <!-- ═══ STUNDENPLAN-MODAL (Lehrkräfte / Klassen, Button in Planung) ═══ -->
     <div class="overlay" id="sched-modal">
       <div class="modal" style="width: 94vw; max-width: 1150px; max-height: 92vh; display: flex; flex-direction: column">
-        <h2 id="sched-title" style="color: #1a237e">Stundenpläne</h2>
-        <div class="sched-wrap">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <h2 id="sched-title" style="color: #1a237e; margin: 0">Stundenpläne</h2>
+          <div style="display: flex; gap: 6px; margin-left: auto">
+            <button class="btn btn-sec" id="sched-zoom-out" title="Verkleinern">−</button>
+            <button class="btn btn-sec" id="sched-zoom-reset" title="Zoom zurücksetzen">100%</button>
+            <button class="btn btn-sec" id="sched-zoom-in" title="Vergrößern">+</button>
+          </div>
+        </div>
+        <div class="sched-wrap" style="margin-top: 12px">
           <div id="sched-list" class="sched-list"></div>
           <div id="sched-grid" class="sched-grid"><div class="tm-empty">Links auswählen …</div></div>
         </div>

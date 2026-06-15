@@ -60,6 +60,7 @@ export class App {
   /** Stundenplan-Ansicht: Modus und aktuelle Auswahl (Kürzel bzw. Klassenname). */
   private schedMode: 'teacher' | 'class' = 'teacher';
   private schedSel = '';
+  private schedZoom = 1;
   /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
   private filterLabor = false;
   private filterWerkstatt = false;
@@ -355,6 +356,9 @@ export class App {
       this.renderSchedList();
       this.renderSchedGrid();
     });
+    byId('sched-zoom-out').addEventListener('click', () => this.setSchedZoom(this.schedZoom - 0.15));
+    byId('sched-zoom-in').addEventListener('click', () => this.setSchedZoom(this.schedZoom + 0.15));
+    byId('sched-zoom-reset').addEventListener('click', () => this.setSchedZoom(1));
 
     const roomsOverlay = byId('rooms-modal');
     byId('rm-close').addEventListener('click', () => roomsOverlay.classList.remove('open'));
@@ -978,8 +982,11 @@ export class App {
           return `<span class="sched-chip" style="background:${pl.color};color:${ink(pl.color)}" title="${tip}">${esc(main)}${sub ? `<small>${sub}</small>` : ''}</span>`;
         })
         .join('');
+    // Feste, gleiche Spaltenbreiten (sonst wird eine leere Spalte riesig).
+    const cols = `<colgroup><col style="width:42px" />${DAYS.map(() => '<col style="width:66px" /><col style="width:66px" />').join('')}</colgroup>`;
+    const totalW = 42 + DAYS.length * 2 * 66;
     let body =
-      '<table class="sched-table"><thead><tr><th class="sched-head" rowspan="2">Std</th>' +
+      `<table class="sched-table" style="width:${totalW}px">${cols}<thead><tr><th class="sched-head" rowspan="2">Std</th>` +
       DAYS.map((d) => `<th class="sched-head" colspan="2">${esc(d)}</th>`).join('') +
       '</tr><tr>' +
       DAYS.map(() => '<th class="sched-sub">u</th><th class="sched-sub">g</th>').join('') +
@@ -994,6 +1001,18 @@ export class App {
       body += '</tr>';
     }
     grid.innerHTML = body + '</tbody></table>';
+    this.applySchedZoom();
+  }
+
+  /** Stellt den Zoom des Stundenplan-Rasters ein (CSS-Zoom auf der Tabelle). */
+  private setSchedZoom(z: number): void {
+    this.schedZoom = Math.min(2.5, Math.max(0.5, Math.round(z * 100) / 100));
+    this.applySchedZoom();
+  }
+
+  private applySchedZoom(): void {
+    const table = byId('sched-grid').querySelector<HTMLElement>('table');
+    if (table) table.style.zoom = String(this.schedZoom);
   }
 
   /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */
