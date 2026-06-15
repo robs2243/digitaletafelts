@@ -99,8 +99,9 @@ Quelle: Vorgaben des Anwenders.
   verteilt.
 - **Hauptfach:** Karten-Checkbox „⭐ Hauptfach" (oder Excel-Spalte „Hauptfach") bzw.
   Fach D/M/E/Gk/Wk. Solche Karten werden **zuerst** verplant, bevorzugt in die Stunden
-  **1–6** gelegt (8. nur als Ausweichplatz) und möglichst **mit einem Tag Pause** zum
-  selben Hauptfach (Nachbartage mit gleichem Fach werden gemieden).
+  **1–6** gelegt (8. nur als Ausweichplatz) und **mit mindestens einem Tag Pause** zum
+  selben (gleichnamigen) Hauptfach: Solange ein Slot mit Lücke frei ist, wird ein
+  Nachbartag vermieden – nur wenn es nicht anders geht, wird er als Ausweg genutzt.
 - **u/g-Konstanz (hohe Priorität):** Bei der Platzwahl bevorzugt der Planer Slots, an
   denen dieselbe Lehrkraft+Klasse+Fach in der anderen Woche bereits liegt; die
   **u/g-Ähnlichkeit** fließt auch in die Bewertung des besten Durchlaufs ein. Ziel:

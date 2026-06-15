@@ -918,9 +918,9 @@ export class AppState {
             const imbalancePush = Math.max(0, Math.abs(loadW + card.duration - loadOther) - 2);
             const score = [
               imbalancePush,
+              mainAdj, // Hauptfach: mind. ein Tag Pause – Nachbartag nur als Ausweg
               hasMirror(card, d, w, start) ? 0 : 1,
               main && start > 6 ? 1 : 0,
-              mainAdj,
               subj.get(sK(card.klasse, d, w, f)) ?? 0,
               teacherWeekLoad(card.abbr, w),
               start,
