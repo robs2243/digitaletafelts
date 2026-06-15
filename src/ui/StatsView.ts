@@ -39,7 +39,7 @@ export class StatsView {
         return `<div class="stat-row" data-abbr="${esc(r.abbr)}" title="Klicken: alle Stunden von ${esc(r.abbr)}">
           <div class="stat-dot" style="background:${r.color}"></div>
           <div class="stat-abbr">${esc(r.abbr)}</div>
-          <div class="stat-ug">u ${r.hoursU} · g ${r.hoursG}</div>
+          <div class="stat-ug">u ${fmt(r.hoursU)} · g ${fmt(r.hoursG)}</div>
           <div class="stat-hrs" title="Schnitt aus u/g – Deputat">Ø ${fmt(avg)}</div>
         </div>`;
       })

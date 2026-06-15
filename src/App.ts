@@ -1,5 +1,6 @@
 import { AppState } from './domain/AppState';
 import { DAYS } from './domain/constants';
+import { semesterFactor } from './domain/semester';
 import type { CardProps, LabelField, PlacementPosition } from './domain/types';
 import { esc } from './utils/html';
 import { FileService } from './services/FileService';
@@ -154,6 +155,12 @@ export class App {
     byId('btn-add-class').addEventListener('click', () => this.handleAddClass());
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
     byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
+    byId('btn-comments').addEventListener('click', () => this.openComments());
+
+    const roomsOnly = byId<HTMLInputElement>('rooms-only');
+    roomsOnly.addEventListener('change', () => {
+      document.body.classList.toggle('rooms-only', roomsOnly.checked);
+    });
     byId('btn-open').addEventListener('click', () => void this.handleOpen());
     byId('btn-save').addEventListener('click', () => void this.handleSave(false));
     byId('btn-save-as').addEventListener('click', () => void this.handleSave(true));
@@ -209,6 +216,12 @@ export class App {
       if (e.target === teacherOverlay) this.closeTeacherModal();
     });
 
+    const commentsOverlay = byId('comments-modal');
+    byId('cmall-close').addEventListener('click', () => this.closeComments());
+    commentsOverlay.addEventListener('click', (e) => {
+      if (e.target === commentsOverlay) this.closeComments();
+    });
+
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         this.cardModal.close();
@@ -216,6 +229,7 @@ export class App {
         this.commentModal.close();
         this.clearModal.close();
         this.closeTeacherModal();
+        this.closeComments();
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
     });
@@ -231,7 +245,11 @@ export class App {
 
     let hoursU = 0;
     let hoursG = 0;
-    for (const p of items) (p.week === 'u' ? (hoursU += p.duration) : (hoursG += p.duration));
+    for (const p of items) {
+      const h = p.duration * semesterFactor(p);
+      if (p.week === 'u') hoursU += h;
+      else hoursG += h;
+    }
     const avg = (hoursU + hoursG) / 2;
     const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1)).replace('.', ',');
 
@@ -262,6 +280,43 @@ export class App {
 
   private closeTeacherModal(): void {
     byId('teacher-modal').classList.remove('open');
+  }
+
+  // ── Alle Kommentare ─────────────────────────────────────────────────────
+
+  /** Zeigt alle Karten-Kommentare (Pool + Plan) gesammelt in einem Dialog. */
+  private openComments(): void {
+    const entries: { head: string; comment: string }[] = [];
+    for (const p of this.state.schedule.all) {
+      if (!p.comment.trim()) continue;
+      const range = p.duration > 1 ? `${p.startPeriod}–${p.endPeriod}` : `${p.startPeriod}`;
+      const klass = this.state.classes.displayLabel(p.classIdx, p.day, p.week);
+      entries.push({
+        head: `${p.abbr} · ${DAYS[p.day]} Std. ${range} (${p.week.toUpperCase()}) · ${klass}`,
+        comment: p.comment,
+      });
+    }
+    for (const c of this.state.pool.all) {
+      if (c.comment.trim()) entries.push({ head: `${c.abbr} · Pool`, comment: c.comment });
+    }
+    entries.sort((a, b) => a.head.localeCompare(b.head));
+
+    const list = byId('cmall-list');
+    list.innerHTML = entries.length
+      ? entries
+          .map(
+            (e) => `<div class="cmall-item">
+              <div class="cmall-head">${esc(e.head)}</div>
+              <div class="cmall-text">${esc(e.comment)}</div>
+            </div>`,
+          )
+          .join('')
+      : '<div class="tm-empty">Keine Kommentare vorhanden.</div>';
+    byId('comments-modal').classList.add('open');
+  }
+
+  private closeComments(): void {
+    byId('comments-modal').classList.remove('open');
   }
 
   // ── Zoom (Strg+Mausrad / Buttons / Strg +,-,0) ──────────────────────────

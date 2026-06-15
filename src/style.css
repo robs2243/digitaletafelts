@@ -381,6 +381,16 @@ thead tr:nth-child(2) th { top: 29px; }
 .p-abbr  { font-weight: 800; font-size: 16px; line-height: 1.2; }
 .p-name  { font-size: 9px; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .p-range { font-size: 9px; opacity: .7; }
+.p-room  { font-size: 9px; opacity: .9; font-weight: 700; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.placed-mini .p-room { font-size: 8px; }
+/* „Nur Räume“-Ansicht: auf den Karten nur den (großen) Raum zeigen */
+body.rooms-only .placed .p-klasse, body.rooms-only .placed .p-abbr,
+body.rooms-only .placed .p-name, body.rooms-only .placed .p-range,
+body.rooms-only .placed-mini .p-klasse, body.rooms-only .placed-mini .p-abbr,
+body.rooms-only .placed-mini .p-name, body.rooms-only .placed-mini .p-range { display: none; }
+body.rooms-only .placed, body.rooms-only .placed-mini { justify-content: center; }
+body.rooms-only .placed .p-room { font-size: 20px; font-weight: 800; opacity: 1; }
+body.rooms-only .placed-mini .p-room { font-size: 13px; font-weight: 800; opacity: 1; white-space: normal; }
 .p-half {
   align-self: flex-start; opacity: .95; font-weight: 800;
   background: rgba(0,0,0,.2); border-radius: 5px; padding: 0 4px; margin-top: 1px;
@@ -572,6 +582,9 @@ thead tr:nth-child(2) th { top: 29px; }
 .tm-per { color: var(--muted); min-width: 64px; }
 .tm-cls { font-weight: 700; color: var(--accent); }
 .tm-extra { color: var(--muted); margin-left: auto; text-align: right; }
+.cmall-item { padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; }
+.cmall-head { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
+.cmall-text { font-size: 13px; color: var(--text); white-space: pre-wrap; word-break: break-word; }
 
 /* ── KOLLISIONS-MODAL ── */
 .warn-modal { max-width: 420px; width: 100%; }

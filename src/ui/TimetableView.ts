@@ -395,8 +395,7 @@ export class TimetableView {
         <div class="p-abbr">${esc(pl.abbr)}</div>
         ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
         ${pl.name && !pl.fach ? `<div class="p-name">${esc(pl.name)}</div>` : ''}
-        ${pl.room ? `<div class="p-range">${esc(pl.room)}</div>` : ''}
-        ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
+        ${pl.room ? `<div class="p-room">${esc(pl.room)}</div>` : ''}
         ${half ? `<div class="p-range p-half">${half}</div>` : ''}
         ${pl.isLabor ? '<div class="p-range">⚗ Labor</div>' : ''}
         ${pl.isWerkstatt ? '<div class="p-range">🔧 Werkstatt</div>' : ''}
@@ -426,8 +425,7 @@ export class TimetableView {
             ${pl.klasse ? `<div class="p-klasse">${esc(pl.klasse)}</div>` : ''}
             <div class="p-abbr">${esc(pl.abbr)}</div>
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
-            ${pl.room ? `<div class="p-range">${esc(pl.room)}</div>` : ''}
-            ${pl.duration > 1 ? `<div class="p-range">Std.${pl.startPeriod}–${pl.endPeriod}</div>` : ''}
+            ${pl.room ? `<div class="p-room">${esc(pl.room)}</div>` : ''}
             ${half ? `<div class="p-range p-half">${half}</div>` : ''}
             ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
           </div>

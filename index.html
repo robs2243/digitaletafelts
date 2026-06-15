@@ -15,6 +15,7 @@
     <header>
       <h1>📋 Digitale Tafel</h1>
       <button class="hdr-btn" id="btn-add-class"><span>+</span> Klasse</button>
+      <button class="hdr-btn" id="btn-comments" title="Alle Kommentare anzeigen">💬 Kommentare</button>
       <div class="hdr-filter">
         <span class="hdr-filter-lbl">Anzeigen:</span>
         <label><input type="checkbox" id="filter-hj1" checked /> 1. HJ</label>
@@ -24,6 +25,7 @@
         <span class="hdr-filter-lbl">Hervorheben:</span>
         <label><input type="checkbox" id="filter-labor" /> ⚗ Labor</label>
         <label><input type="checkbox" id="filter-werkstatt" /> 🔧 Werkstatt</label>
+        <label><input type="checkbox" id="rooms-only" /> 📍 Nur Räume</label>
       </div>
       <div class="hdr-zoom">
         <button class="hdr-btn hdr-zoom-btn" id="zoom-out" title="Verkleinern (Strg + Mausrad / Strg & −)">−</button>
@@ -160,6 +162,17 @@
         <div id="tm-list" class="tm-list"></div>
         <div class="mbtns">
           <button class="btn btn-ok" id="tm-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ ALLE-KOMMENTARE-MODAL (Button in der Kopfzeile) ═══ -->
+    <div class="overlay" id="comments-modal">
+      <div class="modal teacher-modal-box">
+        <h2 style="color: #1a237e">💬 Kommentare</h2>
+        <div id="cmall-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="cmall-close">Schließen</button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { ClassList } from './ClassList';
 import { PALETTE } from './constants';
 import { Placement } from './Placement';
 import { Schedule } from './Schedule';
+import { semesterFactor } from './semester';
 import type { CardProps, LabelField, PersistedState, PlacementPosition, StatRow } from './types';
 
 export interface ChangeEvent {
@@ -231,8 +232,9 @@ export class AppState {
     for (const p of this.schedule.all) {
       const row =
         map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hoursU: 0, hoursG: 0 };
-      if (p.week === 'u') row.hoursU += p.duration;
-      else row.hoursG += p.duration;
+      const h = p.duration * semesterFactor(p);
+      if (p.week === 'u') row.hoursU += h;
+      else row.hoursG += h;
       map.set(p.abbr, row);
     }
     for (const c of this.pool.all) {

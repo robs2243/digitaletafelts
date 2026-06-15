@@ -7,9 +7,10 @@ export const PERIODS = 9;
 /** Wochentypen: u = ungerade, g = gerade Kalenderwoche. */
 export const WEEKS = ['u', 'g'] as const;
 
-/** Farbpalette für Karten. */
+/** Farbpalette für Karten und Klassen-Felder (24 gut unterscheidbare Farben). */
 export const PALETTE = [
-  '#e53935', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5',
-  '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4caf50',
-  '#8bc34a', '#ff9800', '#ff5722', '#795548', '#607d8b',
+  '#e53935', '#d81b60', '#8e24aa', '#5e35b1', '#3949ab', '#1e88e5',
+  '#039be5', '#00acc1', '#00897b', '#43a047', '#7cb342', '#c0ca33',
+  '#fdd835', '#ffb300', '#fb8c00', '#f4511e', '#6d4c41', '#757575',
+  '#546e7a', '#ad1457', '#4527a0', '#283593', '#00695c', '#9e9d24',
 ] as const;

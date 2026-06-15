@@ -25,6 +25,14 @@ export function sharesSemester(a: SemesterFlags, b: SemesterFlags): boolean {
   );
 }
 
+/**
+ * Gewichtung der Stunden: Karten für genau ein Halbjahr (nur 1. oder nur 2.)
+ * zählen mit 0,5 (finden nur ein Halbjahr lang statt); ganzjährig = 1.
+ */
+export function semesterFactor(c: SemesterFlags): number {
+  return c.firstHalf !== c.secondHalf ? 0.5 : 1;
+}
+
 /** Kurzlabel für die Karte: '1.HJ' / '2.HJ' / '' (ganzes Jahr). */
 export function semesterLabel(c: SemesterFlags): string {
   const first = coversFirstHalf(c);
