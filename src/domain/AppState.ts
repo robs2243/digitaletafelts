@@ -127,6 +127,13 @@ export class AppState {
     this.emit();
   }
 
+  /** Entfernt alle Kommentare (Pool + Plan). */
+  clearAllComments(): void {
+    for (const c of this.pool.all) c.comment = '';
+    for (const p of this.schedule.all) p.comment = '';
+    this.emit();
+  }
+
   // ── Platzierungen ───────────────────────────────────────────────────────
 
   /** Pool-Karte in den Plan legen; die Pool-Karte wird verbraucht. */
@@ -232,7 +239,7 @@ export class AppState {
     for (const p of this.schedule.all) {
       const row =
         map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hoursU: 0, hoursG: 0 };
-      const h = p.duration * semesterFactor(p);
+      const h = p.duration * semesterFactor(p) * (p.isVierwoechig ? 0.5 : 1);
       if (p.week === 'u') row.hoursU += h;
       else row.hoursG += h;
       map.set(p.abbr, row);

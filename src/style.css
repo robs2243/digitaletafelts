@@ -389,12 +389,14 @@ body.rooms-only .placed .p-name, body.rooms-only .placed .p-range,
 body.rooms-only .placed-mini .p-klasse, body.rooms-only .placed-mini .p-abbr,
 body.rooms-only .placed-mini .p-name, body.rooms-only .placed-mini .p-range { display: none; }
 body.rooms-only .placed, body.rooms-only .placed-mini { justify-content: center; }
+/* Raumname um 90° gedreht (nutzt die Zellenhöhe → auch längere Namen lesbar) */
 body.rooms-only .p-room {
+  writing-mode: vertical-rl; transform: rotate(180deg);
   font-weight: 800; opacity: 1; text-align: center;
-  white-space: normal; word-break: break-word; overflow: visible; text-overflow: clip; line-height: 1.1;
+  white-space: nowrap; overflow: visible; text-overflow: clip; line-height: 1;
 }
-body.rooms-only .placed .p-room { font-size: 16px; }
-body.rooms-only .placed-mini .p-room { font-size: 11px; }
+body.rooms-only .placed .p-room { font-size: 18px; letter-spacing: .5px; }
+body.rooms-only .placed-mini .p-room { font-size: 12px; }
 .p-half {
   align-self: flex-start; opacity: .95; font-weight: 800;
   background: rgba(0,0,0,.2); border-radius: 5px; padding: 0 4px; margin-top: 1px;
@@ -589,9 +591,19 @@ body.rooms-only .placed-mini .p-room { font-size: 11px; }
 .tm-per { color: var(--muted); min-width: 64px; }
 .tm-cls { font-weight: 700; color: var(--accent); }
 .tm-extra { color: var(--muted); margin-left: auto; text-align: right; }
-.cmall-item { padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; }
+.cmall-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px;
+}
+.cmall-body { flex: 1; min-width: 0; }
 .cmall-head { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 2px; }
 .cmall-text { font-size: 13px; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.cmall-del {
+  flex-shrink: 0; width: 24px; height: 24px; border: none; border-radius: 6px;
+  background: #eef1f6; color: var(--muted); cursor: pointer; font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+.cmall-del:hover { background: #e53935; color: #fff; }
 
 /* ── KOLLISIONS-MODAL ── */
 .warn-modal { max-width: 420px; width: 100%; }

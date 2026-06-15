@@ -399,6 +399,7 @@ export class TimetableView {
         ${half ? `<div class="p-range p-half">${half}</div>` : ''}
         ${pl.isLabor ? '<div class="p-range">⚗ Labor</div>' : ''}
         ${pl.isWerkstatt ? '<div class="p-range">🔧 Werkstatt</div>' : ''}
+        ${pl.isVierwoechig ? '<div class="p-range">¼ 4-wö.</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
       </div>`;
   }
@@ -427,6 +428,7 @@ export class TimetableView {
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
             ${pl.room ? `<div class="p-room">${esc(pl.room)}</div>` : ''}
             ${half ? `<div class="p-range p-half">${half}</div>` : ''}
+            ${pl.isVierwoechig ? '<div class="p-range">¼</div>' : ''}
             ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
           </div>
         </div>`;

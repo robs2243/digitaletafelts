@@ -15,6 +15,7 @@ export class Card {
   color: string;
   isLabor: boolean;
   isWerkstatt: boolean;
+  isVierwoechig: boolean;
   firstHalf: boolean;
   secondHalf: boolean;
   comment: string;
@@ -30,6 +31,7 @@ export class Card {
     this.color = props.color;
     this.isLabor = props.isLabor;
     this.isWerkstatt = props.isWerkstatt;
+    this.isVierwoechig = props.isVierwoechig;
     this.firstHalf = props.firstHalf;
     this.secondHalf = props.secondHalf;
     this.comment = props.comment;
@@ -45,6 +47,7 @@ export class Card {
     this.color = props.color;
     this.isLabor = props.isLabor;
     this.isWerkstatt = props.isWerkstatt;
+    this.isVierwoechig = props.isVierwoechig;
     this.firstHalf = props.firstHalf;
     this.secondHalf = props.secondHalf;
     this.comment = props.comment;
@@ -52,8 +55,8 @@ export class Card {
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, isWerkstatt, firstHalf, secondHalf, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, isWerkstatt, firstHalf, secondHalf, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, isWerkstatt, isVierwoechig, firstHalf, secondHalf, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, isWerkstatt, isVierwoechig, firstHalf, secondHalf, comment };
   }
 
   toJSON(): PersistedCard {
@@ -71,6 +74,7 @@ export class Card {
       color: raw.color ?? '#3f51b5',
       isLabor: !!raw.isLabor,
       isWerkstatt: !!raw.isWerkstatt,
+      isVierwoechig: !!raw.isVierwoechig,
       firstHalf: !!raw.firstHalf,
       secondHalf: !!raw.secondHalf,
       comment: raw.comment ?? '',

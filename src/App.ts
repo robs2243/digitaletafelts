@@ -221,6 +221,18 @@ export class App {
     commentsOverlay.addEventListener('click', (e) => {
       if (e.target === commentsOverlay) this.closeComments();
     });
+    byId('cmall-list').addEventListener('click', (e) => {
+      const del = (e.target as HTMLElement).closest<HTMLElement>('.cmall-del');
+      if (!del?.dataset.id) return;
+      if (del.dataset.kind === 'p') this.state.setPlacementComment(del.dataset.id, '');
+      else this.state.setCardComment(del.dataset.id, '');
+      this.renderCommentsList();
+    });
+    byId('cmall-clear-all').addEventListener('click', () => {
+      if (!confirm('Wirklich ALLE Kommentare löschen?')) return;
+      this.state.clearAllComments();
+      this.renderCommentsList();
+    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
@@ -246,7 +258,7 @@ export class App {
     let hoursU = 0;
     let hoursG = 0;
     for (const p of items) {
-      const h = p.duration * semesterFactor(p);
+      const h = p.duration * semesterFactor(p) * (p.isVierwoechig ? 0.5 : 1);
       if (p.week === 'u') hoursU += h;
       else hoursG += h;
     }
@@ -286,33 +298,43 @@ export class App {
 
   /** Zeigt alle Karten-Kommentare (Pool + Plan) gesammelt in einem Dialog. */
   private openComments(): void {
-    const entries: { head: string; comment: string }[] = [];
+    this.renderCommentsList();
+    byId('comments-modal').classList.add('open');
+  }
+
+  private renderCommentsList(): void {
+    const entries: { kind: 'p' | 'c'; id: string; head: string; comment: string }[] = [];
     for (const p of this.state.schedule.all) {
       if (!p.comment.trim()) continue;
       const range = p.duration > 1 ? `${p.startPeriod}–${p.endPeriod}` : `${p.startPeriod}`;
       const klass = this.state.classes.displayLabel(p.classIdx, p.day, p.week);
       entries.push({
+        kind: 'p',
+        id: p.id,
         head: `${p.abbr} · ${DAYS[p.day]} Std. ${range} (${p.week.toUpperCase()}) · ${klass}`,
         comment: p.comment,
       });
     }
     for (const c of this.state.pool.all) {
-      if (c.comment.trim()) entries.push({ head: `${c.abbr} · Pool`, comment: c.comment });
+      if (c.comment.trim()) entries.push({ kind: 'c', id: c.id, head: `${c.abbr} · Pool`, comment: c.comment });
     }
     entries.sort((a, b) => a.head.localeCompare(b.head));
 
+    byId('cmall-clear-all').style.display = entries.length ? 'inline-flex' : 'none';
     const list = byId('cmall-list');
     list.innerHTML = entries.length
       ? entries
           .map(
             (e) => `<div class="cmall-item">
-              <div class="cmall-head">${esc(e.head)}</div>
-              <div class="cmall-text">${esc(e.comment)}</div>
+              <div class="cmall-body">
+                <div class="cmall-head">${esc(e.head)}</div>
+                <div class="cmall-text">${esc(e.comment)}</div>
+              </div>
+              <button class="cmall-del" data-kind="${e.kind}" data-id="${esc(e.id)}" title="Diesen Kommentar löschen">✕</button>
             </div>`,
           )
           .join('')
       : '<div class="tm-empty">Keine Kommentare vorhanden.</div>';
-    byId('comments-modal').classList.add('open');
   }
 
   private closeComments(): void {
