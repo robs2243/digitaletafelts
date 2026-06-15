@@ -419,8 +419,8 @@ export class App {
       return;
     }
     if (collision.type === 'class') {
-      if (dragData.card.isLabor || dragData.card.isWerkstatt) {
-        // Labor-/Werkstatt-Karten stapeln ohne Rückfrage
+      if (dragData.card.isLabor || dragData.card.isWerkstatt || dragData.card.isVierwoechig) {
+        // Labor-/Werkstatt-/4-wöchig-Karten stapeln ohne Rückfrage
         this.placeDrag(dragData, pos);
       } else {
         const msg = collisionMessage(collision, pos, dragData.card.abbr, (c, d, w) =>

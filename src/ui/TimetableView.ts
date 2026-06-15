@@ -169,7 +169,9 @@ export class TimetableView {
         // Grün bei Labor-Karte (stapelt automatisch), sonst orange.
         // dropEffect muss zu effectAllowed ('move') passen, sonst
         // blockiert der Browser den Drop (🚫-Cursor).
-        cell.classList.add(dragData.card.isLabor || dragData.card.isWerkstatt ? 'dv' : 'ds');
+        cell.classList.add(
+          dragData.card.isLabor || dragData.card.isWerkstatt || dragData.card.isVierwoechig ? 'dv' : 'ds',
+        );
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
       } else {
         cell.classList.add('di');
@@ -436,6 +438,7 @@ export class TimetableView {
     h += '</div>';
     if (cluster.cards.every((x) => x.isLabor)) h += '<div class="stack-labor">⚗</div>';
     else if (cluster.cards.every((x) => x.isWerkstatt)) h += '<div class="stack-labor">🔧</div>';
+    else if (cluster.cards.every((x) => x.isVierwoechig)) h += '<div class="stack-labor">¼</div>';
     return h;
   }
 }
