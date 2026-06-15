@@ -25,6 +25,11 @@ const HEADER_MAP: Record<string, keyof CardProps> = {
   '2halbjahr': 'secondHalf',
   hj2: 'secondHalf',
   '2hj': 'secondHalf',
+  nichtzaehlen: 'noCount',
+  nichtzahlen: 'noCount',
+  nichtzaehlend: 'noCount',
+  nichtzaehlt: 'noCount',
+  nichtwerten: 'noCount',
   kommentar: 'comment',
 };
 
@@ -108,6 +113,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
       isVierwoechig: truthy(cell(row, 'isVierwoechig')),
       firstHalf: truthy(cell(row, 'firstHalf')),
       secondHalf: truthy(cell(row, 'secondHalf')),
+      noCount: truthy(cell(row, 'noCount')),
       comment: String(cell(row, 'comment') ?? '').trim(),
     });
   }
@@ -116,12 +122,13 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
 
 /** Vorlage-Inhalt (Überschriften + Beispielzeilen). */
 export const TEMPLATE_AOA: (string | number)[][] = [
-  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kommentar'],
-  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '', '', '', '', '', '', '', 'Taschenrechner mitbringen'],
-  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', ''],
-  ['7b', 'RD', 'Chemie', 'L1', 2, 'x', 'a', '', '', '', '', '', 'Labor Gruppe a'],
-  ['7b', 'GH', 'Physik', 'L2', 2, 'x', 'b', '', '', '', '', '', 'Labor Gruppe b'],
-  ['M1', 'ST', 'Metall', 'W1', 6, '', '', 'x', 'a', '', '', '', 'Werkstatt Gruppe a'],
-  ['M1', 'KL', 'Metall', 'W2', 6, '', '', 'x', 'b', '', '', '', 'Werkstatt Gruppe b'],
-  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '4-wöchiger Turnus'],
+  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Nicht zählen', 'Kommentar'],
+  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '', '', '', '', '', '', '', '', 'Taschenrechner mitbringen'],
+  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', '', ''],
+  ['7b', 'RD', 'Chemie', 'L1', 2, 'x', 'a', '', '', '', '', '', '', 'Labor Gruppe a'],
+  ['7b', 'GH', 'Physik', 'L2', 2, 'x', 'b', '', '', '', '', '', '', 'Labor Gruppe b'],
+  ['M1', 'ST', 'Metall', 'W1', 6, '', '', 'x', 'a', '', '', '', '', 'Werkstatt Gruppe a'],
+  ['M1', 'KL', 'Metall', 'W2', 6, '', '', 'x', 'b', '', '', '', '', 'Werkstatt Gruppe b'],
+  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '', '4-wöchiger Turnus'],
+  ['5a', 'KN', 'gesperrt', '', 2, '', '', '', '', '', '', '', 'x', 'Block 1.+2. Std – zählt nicht'],
 ];

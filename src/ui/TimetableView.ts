@@ -402,6 +402,7 @@ export class TimetableView {
         ${pl.isLabor ? `<div class="p-range">⚗ Labor${pl.labGroup ? ` ${pl.labGroup}` : ''}</div>` : ''}
         ${pl.isWerkstatt ? '<div class="p-range">🔧 Werkstatt</div>' : ''}
         ${pl.isVierwoechig ? '<div class="p-range">¼ 4-wö.</div>' : ''}
+        ${pl.noCount ? '<div class="p-range">∅ zählt nicht</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
       </div>`;
   }

@@ -978,6 +978,14 @@ export class App {
           'Bitte diese Lehrkräfte von Hand ausgleichen.',
       );
     }
+
+    if (res.weekGaps.length) {
+      const lines = res.weekGaps.map((t) => `• ${t.abbr} (${t.week}-Woche): ${t.gaps} Hohlstunden`);
+      alert(
+        `⚠️ Zu viele Hohlstunden (mehr als 6 pro Woche):\n\n${lines.join('\n')}\n\n` +
+          'Bitte diese Lehrkräfte von Hand entzerren.',
+      );
+    }
   }
 
   /** Aktualisiert das Fortschritts-Fenster während der Planung. */
@@ -988,7 +996,8 @@ export class App {
       `Zeit: ${time} · Versuche: ${p.attempts.toLocaleString('de-DE')}\n` +
       `Beste Lösung: ${p.placed}/${p.total} Karten verplant` +
       (p.skipped ? `, ${p.skipped} noch offen` : '') +
-      `\nu/g-Differenz über Limit: ${p.imbalance} Std`;
+      `\nu/g-Differenz über Limit: ${p.imbalance} Std` +
+      `\nHohlstunden über Limit: ${p.gaps} Std`;
   }
 
   private openClearCards(): void {

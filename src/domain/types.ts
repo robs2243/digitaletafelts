@@ -30,6 +30,8 @@ export interface CardProps {
   firstHalf: boolean;
   /** Findet im 2. Halbjahr statt. Beide Flags false = ganzes Jahr. */
   secondHalf: boolean;
+  /** Nicht in die Stunden-/Werterechnung einbeziehen (z. B. Block-/Sperrkarte). */
+  noCount: boolean;
   /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
   comment: string;
 }
@@ -95,6 +97,8 @@ export interface AutoPlanResult {
   openMandatory: number;
   /** Lehrkräfte mit u/g-Differenz > 2 Stunden (u-/g-Stunden zur Meldung). */
   weekImbalance: { abbr: string; u: number; g: number }[];
+  /** Lehrkräfte mit mehr als 6 Hohlstunden in einer Woche (zur Meldung). */
+  weekGaps: { abbr: string; week: Week; gaps: number }[];
 }
 
 /** Fortschritt während des (langen) Planungslaufs. */
@@ -109,6 +113,8 @@ export interface PlanProgress {
   skipped: number;
   /** Summe der u/g-Überschreitungen (über alle Lehrkräfte). */
   imbalance: number;
+  /** Summe der Hohlstunden über dem Limit (6) über alle Lehrkraft-Wochen. */
+  gaps: number;
 }
 
 /** Ergebnis eines kompletten Planungslaufs (mit Mehrfach-Zyklen). */

@@ -36,20 +36,23 @@ Quelle: Vorgaben des Anwenders.
 10. Die Stunden einer Lehrkraft sollen zwischen **u-Woche und g-Woche ausgeglichen**
     sein. Die **Differenz darf höchstens 2 Stunden** betragen. Liegt sie höher,
     **erscheint eine Meldung** (Hinweis zum Ausgleichen von Hand).
+11. **Hohlstunden:** Eine Lehrkraft soll **pro Woche höchstens 6 Hohlstunden**
+    (Freistunden zwischen erster und letzter Unterrichtsstunde, über die Tage summiert)
+    haben. Wird das überschritten, **erscheint eine Meldung**.
 
 ## Werkstatt
 
-11. Werkstatt darf **4–8 Stunden am Stück** sein.
-12. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
-13. Werkstatt darf **auch in der 7. Stunde** stattfinden.
-14. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
+12. Werkstatt darf **4–8 Stunden am Stück** sein.
+13. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
+14. Werkstatt darf **auch in der 7. Stunde** stattfinden.
+15. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
     **Gruppe a** muss immer auf eine Werkstatt der **Gruppe b** gelegt werden
     (gestapelt, gleicher Slot) – analog zu den Laboren.
 
 ## Labore
 
-15. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
-16. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
+16. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
+17. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
     werden (gestapelt). Das **Fach muss nicht übereinstimmen**.
 
 ## Entscheidungen zur Umsetzung
@@ -64,13 +67,14 @@ Quelle: Vorgaben des Anwenders.
 - **Mehrere Durchläufe (Zyklen):** Der Planer probiert **sehr viele Durchläufe** mit
   variierter Reihenfolge und variierten Startstunden (der erste Durchlauf nutzt eine
   Heuristik: längere Blöcke zuerst). Er läuft so lange, **bis eine vollständige Lösung
-  gefunden ist** – alle Karten verplant **und** u/g-Differenz jeder Lehrkraft ≤ 2 –
-  oder das **Zeitbudget (bis zu 10 Minuten)** erreicht ist. Die Suche läuft asynchron;
-  ein Fortschritts-Fenster zeigt Zeit/Versuche/beste Lösung und erlaubt **Abbrechen**
-  oder **bestes Ergebnis vorzeitig übernehmen**.
+  gefunden ist** – alle Karten verplant, u/g-Differenz jeder Lehrkraft ≤ 2 **und**
+  keine Lehrkraft mit mehr als 6 Hohlstunden/Woche – oder das **Zeitbudget (bis zu
+  10 Minuten)** erreicht ist. Die Suche läuft asynchron; ein Fortschritts-Fenster zeigt
+  Zeit/Versuche/beste Lösung und erlaubt **Abbrechen** oder **bestes Ergebnis vorzeitig
+  übernehmen**.
 - **Keine Lösung gefunden:** Wird im Zeitbudget keine vollständige Lösung gefunden,
   wird das **beste** Ergebnis übernommen und eine **Meldung** mit den offenen Punkten
-  (nicht platzierbare Karten, u/g-Differenzen) ausgegeben.
+  (nicht platzierbare Karten, u/g-Differenzen, zu viele Hohlstunden) ausgegeben.
 - **Fixierte Karten:** werden nie verschoben; der Planer plant nur die freien
   Pool-Karten um sie herum.
 - **4 Stunden am Stück:** zusammenhängende Stunden derselben Lehrkraft in einer
@@ -82,5 +86,12 @@ Quelle: Vorgaben des Anwenders.
   Lehrkräfte ≤ 2 Stunden** ist (Teil der „vollständigen Lösung"). Bleibt die Differenz
   am Ende des Zeitbudgets > 2 Stunden, wird die Lehrkraft in einer Meldung aufgeführt
   (harte Sperre wäre zu streng, daher Hinweis statt Verbot).
+- **Hohlstunden:** je Lehrkraft und Woche werden die Freistunden zwischen erster und
+  letzter belegter Stunde (über die Tage summiert) gezählt; der Planer optimiert auf
+  ≤ 6 und meldet Überschreitungen.
+- **Block-/Sperrkarten („Nicht zählen"):** Karten mit aktivierter Checkbox „Nicht
+  zählen" (bzw. Excel-Spalte „Nicht zählen") **fließen nicht in die Stunden-/
+  Werterechnung** ein. Sie eignen sich z. B., um mit einem Kürzel Felder zu blockieren
+  (Lehrkraft kann dort nicht unterrichten), ohne das Deputat zu erhöhen.
 - **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
   D, M, E, Gk, Wk). **LBT** wird ebenfalls über das Feld „Fach" erkannt (max. 6/Tag).

@@ -342,9 +342,12 @@ export class AppState {
     for (const p of this.schedule.all) {
       const row =
         map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hoursU: 0, hoursG: 0 };
-      const h = p.duration * semesterFactor(p) * (p.isVierwoechig ? 0.5 : 1);
-      if (p.week === 'u') row.hoursU += h;
-      else row.hoursG += h;
+      // Block-/Sperrkarten (noCount) zählen nicht in die Werterechnung.
+      if (!p.noCount) {
+        const h = p.duration * semesterFactor(p) * (p.isVierwoechig ? 0.5 : 1);
+        if (p.week === 'u') row.hoursU += h;
+        else row.hoursG += h;
+      }
       map.set(p.abbr, row);
     }
     for (const c of this.pool.all) {
@@ -427,6 +430,8 @@ export class AppState {
       openMandatory: number;
       /** Summe der Überschreitungen der erlaubten u/g-Differenz (2) über alle Lehrkräfte. */
       imbalance: number;
+      /** Summe der Hohlstunden über dem Limit (6) über alle Lehrkraft-Wochen. */
+      gaps: number;
     }
 
     const baseStarts = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
@@ -443,16 +448,24 @@ export class AppState {
       const teachClass = new Set<string>(); // Lehrer unterrichtet in dieser Klasse: kürzel|c|d|w|p
       const teachH = new Map<string, number>();
       const teachWeek = new Map<string, [number, number]>(); // kürzel → [u-Stunden, g-Stunden]
+      const teachDayPeriods = new Map<string, Set<number>>(); // kürzel|d|w → belegte Stunden (für Hohlstunden)
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
 
       const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number): void => {
+        const dayKey = thK(card.abbr, d, w);
+        let dayPeriods = teachDayPeriods.get(dayKey);
+        if (!dayPeriods) {
+          dayPeriods = new Set();
+          teachDayPeriods.set(dayKey, dayPeriods);
+        }
         for (const p of blockedPeriods(card.isWerkstatt, start, card.duration)) {
           cell.add(cK(d, w, c, p));
           if (card.room) roomSet.add(rK(d, w, p, card.room));
           teachSet.add(tK(card.abbr, d, w, p));
+          dayPeriods.add(p);
         }
         for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
         teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
@@ -610,18 +623,34 @@ export class AppState {
       }
       let imbalance = 0;
       for (const [u, g] of teachWeek.values()) imbalance += Math.max(0, Math.abs(u - g) - 2);
-      return { assigns, skipped, openMandatory, imbalance };
+
+      // Hohlstunden je Lehrkraft und Woche (Freistunden zwischen erster und letzter
+      // belegter Stunde, über die Tage summiert); zähle nur die Überschreitung von 6.
+      const weekGap = new Map<string, number>(); // kürzel|w → Hohlstunden gesamt
+      for (const [key, periods] of teachDayPeriods) {
+        const [abbr, , w] = key.split('|');
+        const arr = [...periods];
+        const gap = Math.max(...arr) - Math.min(...arr) + 1 - arr.length;
+        const wk = `${abbr}|${w}`;
+        weekGap.set(wk, (weekGap.get(wk) ?? 0) + gap);
+      }
+      let gaps = 0;
+      for (const g of weekGap.values()) gaps += Math.max(0, g - 6);
+
+      return { assigns, skipped, openMandatory, imbalance, gaps };
     };
 
     // Auswahlkriterium: meiste platzierte Karten, dann beste u/g-Balance, dann
-    // wenigste offene Pflichtstunden.
+    // wenigste Hohlstunden über Limit, dann wenigste offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean => {
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
+      if (a.gaps !== b.gaps) return a.gaps < b.gaps;
       return a.openMandatory < b.openMandatory;
     };
-    // „Perfekt": alle Karten verplant UND u/g-Differenz überall ≤ 2.
-    const perfect = (o: Outcome): boolean => o.skipped.length === 0 && o.imbalance === 0;
+    // „Perfekt": alle Karten verplant, u/g-Differenz überall ≤ 2 UND keine Lehrkraft
+    // mit mehr als 6 Hohlstunden pro Woche.
+    const perfect = (o: Outcome): boolean => o.skipped.length === 0 && o.imbalance === 0 && o.gaps === 0;
 
     const rng = Math.random;
     const total = this.pool.all.length;
@@ -647,12 +676,13 @@ export class AppState {
         total,
         skipped: best.skipped.length,
         imbalance: best.imbalance,
+        gaps: best.gaps,
       });
       await new Promise((r) => setTimeout(r));
     }
 
     if (stop === 'cancel') {
-      return { placed: 0, skipped: [], openMandatory: 0, weekImbalance: [], solved: false, cancelled: true, attempts, elapsedMs: Date.now() - start };
+      return { placed: 0, skipped: [], openMandatory: 0, weekImbalance: [], weekGaps: [], solved: false, cancelled: true, attempts, elapsedMs: Date.now() - start };
     }
 
     // Bestes Ergebnis anwenden: Karten aus dem Pool in den Plan übernehmen.
@@ -664,11 +694,13 @@ export class AppState {
     this.emit();
 
     const weekImbalance = this.teacherWeekImbalance();
+    const weekGaps = this.teacherWeekGaps();
     return {
       placed: best.assigns.length,
       skipped: best.skipped,
       openMandatory: best.openMandatory,
       weekImbalance,
+      weekGaps,
       solved: perfect(best),
       cancelled: false,
       attempts,
@@ -688,6 +720,49 @@ export class AppState {
       .filter(([, [u, g]]) => Math.abs(u - g) > 2)
       .map(([abbr, [u, g]]) => ({ abbr, u, g }))
       .sort((a, b) => Math.abs(b.u - b.g) - Math.abs(a.u - a.g));
+  }
+
+  /** Belegte Stunden einer Platzierung (Werkstatt-Pause in der 5. zählt als belegt). */
+  private occupiedPeriodsOf(p: Placement): number[] {
+    if (!p.isWerkstatt) {
+      const a: number[] = [];
+      for (let i = 0; i < p.duration; i++) a.push(p.startPeriod + i);
+      return a;
+    }
+    const t: number[] = [];
+    let q = p.startPeriod;
+    while (t.length < p.duration && q <= PERIODS) {
+      if (q !== 5) t.push(q);
+      q++;
+    }
+    if (t.length && p.startPeriod <= 5 && t[t.length - 1] >= 5) t.push(5);
+    return t;
+  }
+
+  /** Lehrkräfte mit mehr als 6 Hohlstunden (Freistunden) in einer Woche (für die Warnung). */
+  teacherWeekGaps(): { abbr: string; week: Week; gaps: number }[] {
+    const byDay = new Map<string, number[]>(); // kürzel|tag|woche → belegte Stunden
+    for (const p of this.schedule.all) {
+      const key = `${p.abbr}|${p.day}|${p.week}`;
+      const arr = byDay.get(key) ?? [];
+      arr.push(...this.occupiedPeriodsOf(p));
+      byDay.set(key, arr);
+    }
+    const weekly = new Map<string, number>(); // kürzel|woche → Hohlstunden gesamt
+    for (const [key, periods] of byDay) {
+      const [abbr, , w] = key.split('|');
+      const gap = Math.max(...periods) - Math.min(...periods) + 1 - periods.length;
+      const wk = `${abbr}|${w}`;
+      weekly.set(wk, (weekly.get(wk) ?? 0) + gap);
+    }
+    const out: { abbr: string; week: Week; gaps: number }[] = [];
+    for (const [wk, gaps] of weekly) {
+      if (gaps > 6) {
+        const [abbr, w] = wk.split('|');
+        out.push({ abbr, week: w as Week, gaps });
+      }
+    }
+    return out.sort((a, b) => b.gaps - a.gaps);
   }
 
   // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────
