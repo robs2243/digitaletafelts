@@ -190,6 +190,29 @@ export class AppState {
     return count;
   }
 
+  /** Anzahl platzierter Karten gesamt. */
+  get totalPlacedCount(): number {
+    return this.schedule.all.length;
+  }
+
+  /** Platzierte Karten je Kürzel (für die Entplan-Auswahl), alphabetisch. */
+  placedCountsByAbbr(): { abbr: string; count: number }[] {
+    const map = new Map<string, number>();
+    for (const p of this.schedule.all) map.set(p.abbr, (map.get(p.abbr) ?? 0) + 1);
+    return [...map.entries()]
+      .map(([abbr, count]) => ({ abbr, count }))
+      .sort((a, b) => a.abbr.localeCompare(b.abbr));
+  }
+
+  /** Entplant alle Karten eines Kürzels (zurück in den Pool). */
+  unplaceByAbbr(abbr: string): number {
+    const matching = this.schedule.all.filter((p) => p.abbr === abbr);
+    for (const p of matching) this.pool.add(new Card(this.nextId(), p.cardSnapshot()));
+    this.schedule.replaceAll(this.schedule.all.filter((p) => p.abbr !== abbr));
+    this.emit();
+    return matching.length;
+  }
+
   // ── Klassen ─────────────────────────────────────────────────────────────
 
   addClass(): number {

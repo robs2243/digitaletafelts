@@ -14,7 +14,7 @@
     <!-- ═══ HEADER ═══ -->
     <header>
       <h1>📋 Digitale Tafel</h1>
-      <button class="hdr-btn" id="btn-unplace-all" title="Alle platzierten Karten zurück in den Pool">↩ Alle Felder entplanen</button>
+      <button class="hdr-btn" id="btn-planning" title="Planung: entplanen (alle oder nach Kürzel)">📅 Planung</button>
       <button class="hdr-btn" id="btn-comments" title="Alle Kommentare anzeigen">💬 Kommentare</button>
       <div class="hdr-filter">
         <span class="hdr-filter-lbl">Anzeigen:</span>
@@ -200,6 +200,21 @@
           <button class="btn btn-sec" id="pl-template" title="Excel-Vorlage herunterladen">📄 Vorlage</button>
           <button class="btn btn-ok" id="pl-import">📥 Excel importieren</button>
           <button class="btn btn-sec" id="pl-close" style="margin-left: auto">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PLANUNGS-MODAL (Button in der Kopfzeile) ═══ -->
+    <div class="overlay" id="planning-modal">
+      <div class="modal">
+        <h2 style="color: #1a237e">📅 Planung</h2>
+        <div class="fg" style="margin-bottom: 0">
+          <label>Entplanen – was zurück in den Pool?</label>
+          <select id="plan-select"></select>
+        </div>
+        <div class="mbtns">
+          <button class="btn btn-sec" id="plan-cancel">Abbrechen</button>
+          <button class="btn btn-del" id="plan-unplace">Entplanen…</button>
         </div>
       </div>
     </div>

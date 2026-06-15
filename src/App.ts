@@ -155,7 +155,7 @@ export class App {
   }
 
   private bindGlobalControls(): void {
-    byId('btn-unplace-all').addEventListener('click', () => this.handleUnplaceAll());
+    byId('btn-planning').addEventListener('click', () => this.openPlanning());
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
     byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
     byId('btn-comments').addEventListener('click', () => this.openComments());
@@ -221,6 +221,13 @@ export class App {
 
     byId('pool-head').addEventListener('dblclick', () => this.openPoolList());
     byId('btn-pool-list').addEventListener('click', () => this.openPoolList());
+
+    const planningOverlay = byId('planning-modal');
+    byId('plan-cancel').addEventListener('click', () => this.closePlanning());
+    planningOverlay.addEventListener('click', (e) => {
+      if (e.target === planningOverlay) this.closePlanning();
+    });
+    byId('plan-unplace').addEventListener('click', () => this.handleUnplace());
     const poolListOverlay = byId('pool-list-modal');
     byId('pl-close').addEventListener('click', () => this.closePoolList());
     poolListOverlay.addEventListener('click', (e) => {
@@ -275,6 +282,7 @@ export class App {
         this.closeTeacherModal();
         this.closeComments();
         this.closePoolList();
+        this.closePlanning();
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
     });
@@ -674,21 +682,55 @@ export class App {
     }
   }
 
-  /** Entplant alle Felder (Karten zurück in den Pool) – mit „Ja"-Bestätigung. */
-  private handleUnplaceAll(): void {
-    const count = this.state.schedule.all.length;
-    if (!count) {
-      this.toast.show('Es sind keine Karten platziert.', 'inf');
+  // ── Planung (entplanen) ─────────────────────────────────────────────────
+
+  /** Öffnet das Planungsfenster mit der Entplan-Auswahl (alle / je Kürzel). */
+  private openPlanning(): void {
+    const total = this.state.totalPlacedCount;
+    const select = byId<HTMLSelectElement>('plan-select');
+    if (!total) {
+      select.innerHTML = '<option value="">Keine Karten platziert</option>';
+    } else {
+      select.innerHTML =
+        `<option value="__all__">Alle Karten entplanen (${total})</option>` +
+        this.state
+          .placedCountsByAbbr()
+          .map((o) => `<option value="${esc(o.abbr)}">${esc(o.abbr)} (${o.count})</option>`)
+          .join('');
+    }
+    byId('planning-modal').classList.add('open');
+  }
+
+  private closePlanning(): void {
+    byId('planning-modal').classList.remove('open');
+  }
+
+  /** Führt die im Planungsfenster gewählte Entplanung aus (alle: „Ja"-Bestätigung). */
+  private handleUnplace(): void {
+    if (!this.state.totalPlacedCount) {
+      this.closePlanning();
       return;
     }
-    const answer = prompt(`Alle ${count} platzierten Karten zurück in den Pool (entplanen)?\n\nZum Bestätigen „Ja" eingeben:`);
-    if (answer === null) return;
-    if (answer.trim().toLowerCase() !== 'ja') {
-      this.toast.show('Abgebrochen – es wurde nicht „Ja" eingegeben.', 'inf');
-      return;
+    const value = byId<HTMLSelectElement>('plan-select').value;
+    if (!value) return;
+
+    if (value === '__all__') {
+      const answer = prompt(
+        `Alle ${this.state.totalPlacedCount} platzierten Karten zurück in den Pool (entplanen)?\n\nZum Bestätigen „Ja" eingeben:`,
+      );
+      if (answer === null) return;
+      if (answer.trim().toLowerCase() !== 'ja') {
+        this.toast.show('Abgebrochen – es wurde nicht „Ja" eingegeben.', 'inf');
+        return;
+      }
+      const n = this.state.unplaceAll();
+      this.toast.show(`↩ ${n} Karten entplant`, 'inf');
+    } else {
+      if (!confirm(`Alle Karten von „${value}" entplanen (zurück in den Pool)?`)) return;
+      const n = this.state.unplaceByAbbr(value);
+      this.toast.show(`↩ ${n} Karten von „${value}" entplant`, 'inf');
     }
-    this.state.unplaceAll();
-    this.toast.show(`↩ ${count} Karten entplant`, 'inf');
+    this.closePlanning();
   }
 
   private openClearCards(): void {
