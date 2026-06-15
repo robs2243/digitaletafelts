@@ -1,5 +1,6 @@
 import { AppState } from './domain/AppState';
 import { DAYS, PERIODS } from './domain/constants';
+import type { Placement } from './domain/Placement';
 import { ink } from './utils/color';
 import { semesterFactor } from './domain/semester';
 import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgress, PlanRunResult } from './domain/types';
@@ -56,6 +57,9 @@ export class App {
   private klasseTerm = '';
   /** Steuerflag für den laufenden Planungslauf (Abbrechen / vorzeitig übernehmen). */
   private planStop: 'continue' | 'accept' | 'cancel' = 'continue';
+  /** Stundenplan-Ansicht: Modus und aktuelle Auswahl (Kürzel bzw. Klassenname). */
+  private schedMode: 'teacher' | 'class' = 'teacher';
+  private schedSel = '';
   /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
   private filterLabor = false;
   private filterWerkstatt = false;
@@ -335,6 +339,21 @@ export class App {
     byId('rp-close').addEventListener('click', () => roomplanOverlay.classList.remove('open'));
     roomplanOverlay.addEventListener('click', (e) => {
       if (e.target === roomplanOverlay) roomplanOverlay.classList.remove('open');
+    });
+
+    byId('plan-sched-teacher').addEventListener('click', () => this.openSchedules('teacher'));
+    byId('plan-sched-class').addEventListener('click', () => this.openSchedules('class'));
+    const schedOverlay = byId('sched-modal');
+    byId('sched-close').addEventListener('click', () => schedOverlay.classList.remove('open'));
+    schedOverlay.addEventListener('click', (e) => {
+      if (e.target === schedOverlay) schedOverlay.classList.remove('open');
+    });
+    byId('sched-list').addEventListener('click', (e) => {
+      const entry = (e.target as HTMLElement).closest<HTMLElement>('.sched-entry');
+      if (entry?.dataset.key === undefined) return;
+      this.schedSel = entry.dataset.key;
+      this.renderSchedList();
+      this.renderSchedGrid();
     });
 
     const roomsOverlay = byId('rooms-modal');
@@ -892,6 +911,89 @@ export class App {
       }
     }
     byId('rp-body').innerHTML = body + '</tbody></table>';
+  }
+
+  // ── Stundenpläne (je Lehrkraft / Klasse) ────────────────────────────────
+
+  private openSchedules(mode: 'teacher' | 'class'): void {
+    this.schedMode = mode;
+    byId('sched-title').textContent =
+      mode === 'teacher' ? '👩‍🏫 Stundenpläne der Lehrkräfte' : '🎓 Stundenpläne der Klassen';
+    const entries = this.schedEntries();
+    this.schedSel = entries.length ? entries[0].key : '';
+    this.renderSchedList();
+    this.renderSchedGrid();
+    byId('sched-modal').classList.add('open');
+  }
+
+  /** Listeneinträge links: Lehrkräfte (Kürzel + Name) bzw. Klassennamen. */
+  private schedEntries(): { key: string; label: string }[] {
+    if (this.schedMode === 'teacher') {
+      const map = new Map<string, string>();
+      for (const c of this.state.pool.all) if (!map.has(c.abbr)) map.set(c.abbr, c.name);
+      for (const p of this.state.schedule.all) if (!map.has(p.abbr)) map.set(p.abbr, p.name);
+      return [...map.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0], 'de'))
+        .map(([abbr, name]) => ({ key: abbr, label: name ? `${esc(abbr)} <small>– ${esc(name)}</small>` : esc(abbr) }));
+    }
+    const set = new Set<string>();
+    for (const p of this.state.schedule.all) if (p.klasse.trim()) set.add(p.klasse.trim());
+    for (let c = 0; c < this.state.classes.count; c++) {
+      for (let d = 0; d < DAYS.length; d++) {
+        for (const w of ['u', 'g'] as const) {
+          const n = this.state.classes.classNameAt(c, d, w).trim();
+          if (n) set.add(n);
+        }
+      }
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, 'de')).map((n) => ({ key: n, label: esc(n) }));
+  }
+
+  private renderSchedList(): void {
+    const entries = this.schedEntries();
+    if (entries.length && !entries.some((e) => e.key === this.schedSel)) this.schedSel = entries[0].key;
+    byId('sched-list').innerHTML = entries.length
+      ? entries
+          .map((e) => `<div class="sched-entry${e.key === this.schedSel ? ' on' : ''}" data-key="${esc(e.key)}">${e.label}</div>`)
+          .join('')
+      : `<div class="tm-empty">${this.schedMode === 'teacher' ? 'Keine Lehrkräfte' : 'Keine Klassen'} vorhanden.</div>`;
+  }
+
+  /** Stundenplan-Raster der aktuellen Auswahl: Stunden × Tage (u | g). */
+  private renderSchedGrid(): void {
+    const grid = byId('sched-grid');
+    if (!this.schedSel) {
+      grid.innerHTML = '<div class="tm-empty">Links auswählen …</div>';
+      return;
+    }
+    const teacher = this.schedMode === 'teacher';
+    const sel = this.schedSel;
+    const placed = this.state.schedule.all.filter((p) => (teacher ? p.abbr === sel : p.klasse.trim() === sel));
+    const side = (arr: Placement[]): string =>
+      arr
+        .map((pl) => {
+          const main = teacher ? pl.klasse || '—' : pl.abbr;
+          const sub = [pl.fach, pl.room].filter(Boolean).map((x) => esc(x)).join(' · ');
+          const tip = `${esc(pl.abbr)}${pl.klasse ? ` · ${esc(pl.klasse)}` : ''}${pl.fach ? ` · ${esc(pl.fach)}` : ''}${pl.room ? ` · ${esc(pl.room)}` : ''} – ${DAYS[pl.day]} ${pl.startPeriod}. Std (${pl.week})`;
+          return `<span class="sched-chip" style="background:${pl.color};color:${ink(pl.color)}" title="${tip}">${esc(main)}${sub ? `<small>${sub}</small>` : ''}</span>`;
+        })
+        .join('');
+    let body =
+      '<table class="sched-table"><thead><tr><th class="sched-head" rowspan="2">Std</th>' +
+      DAYS.map((d) => `<th class="sched-head" colspan="2">${esc(d)}</th>`).join('') +
+      '</tr><tr>' +
+      DAYS.map(() => '<th class="sched-sub">u</th><th class="sched-sub">g</th>').join('') +
+      '</tr></thead><tbody>';
+    for (let p = 1; p <= PERIODS; p++) {
+      body += `<tr><td class="sched-per">${p}</td>`;
+      for (let d = 0; d < DAYS.length; d++) {
+        const u = placed.filter((pl) => pl.day === d && pl.week === 'u' && pl.covers(p));
+        const g = placed.filter((pl) => pl.day === d && pl.week === 'g' && pl.covers(p));
+        body += `<td class="sched-cell"><div class="sched-ug"><div class="sched-side u">${side(u)}</div><div class="sched-side g">${side(g)}</div></div></td>`;
+      }
+      body += '</tr>';
+    }
+    grid.innerHTML = body + '</tbody></table>';
   }
 
   /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */

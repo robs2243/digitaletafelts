@@ -274,6 +274,13 @@
           <button class="btn btn-ok" id="plan-roomplan" style="width: 100%">🗺️ Raumplan öffnen</button>
         </div>
         <div class="fg">
+          <label>Stundenpläne – einzeln je Lehrkraft oder Klasse ansehen</label>
+          <div style="display: flex; gap: 8px">
+            <button class="btn btn-ok" id="plan-sched-teacher" style="flex: 1">👩‍🏫 Stundenplan der Lehrkräfte</button>
+            <button class="btn btn-ok" id="plan-sched-class" style="flex: 1">🎓 Stundenplan der Klassen</button>
+          </div>
+        </div>
+        <div class="fg">
           <label>Excel-Export – alle Karten (sortiert nach Klasse und Lehrer)</label>
           <button class="btn btn-ok" id="plan-export" style="width: 100%">📤 Alle Karten als Excel exportieren</button>
         </div>
@@ -381,6 +388,20 @@
           <button class="btn btn-sec" id="rl-template" title="Excel-Vorlage – eine Spalte mit Raumnamen">📄 Vorlage</button>
           <button class="btn btn-ok" id="rl-import">📥 Räume importieren</button>
           <button class="btn btn-ok" id="rl-close" style="margin-left: auto">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ STUNDENPLAN-MODAL (Lehrkräfte / Klassen, Button in Planung) ═══ -->
+    <div class="overlay" id="sched-modal">
+      <div class="modal" style="width: 94vw; max-width: 1150px; max-height: 92vh; display: flex; flex-direction: column">
+        <h2 id="sched-title" style="color: #1a237e">Stundenpläne</h2>
+        <div class="sched-wrap">
+          <div id="sched-list" class="sched-list"></div>
+          <div id="sched-grid" class="sched-grid"><div class="tm-empty">Links auswählen …</div></div>
+        </div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="sched-close">Schließen</button>
         </div>
       </div>
     </div>
