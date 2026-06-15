@@ -389,8 +389,12 @@ body.rooms-only .placed .p-name, body.rooms-only .placed .p-range,
 body.rooms-only .placed-mini .p-klasse, body.rooms-only .placed-mini .p-abbr,
 body.rooms-only .placed-mini .p-name, body.rooms-only .placed-mini .p-range { display: none; }
 body.rooms-only .placed, body.rooms-only .placed-mini { justify-content: center; }
-body.rooms-only .placed .p-room { font-size: 20px; font-weight: 800; opacity: 1; }
-body.rooms-only .placed-mini .p-room { font-size: 13px; font-weight: 800; opacity: 1; white-space: normal; }
+body.rooms-only .p-room {
+  font-weight: 800; opacity: 1; text-align: center;
+  white-space: normal; word-break: break-word; overflow: visible; text-overflow: clip; line-height: 1.1;
+}
+body.rooms-only .placed .p-room { font-size: 16px; }
+body.rooms-only .placed-mini .p-room { font-size: 11px; }
 .p-half {
   align-self: flex-start; opacity: .95; font-weight: 800;
   background: rgba(0,0,0,.2); border-radius: 5px; padding: 0 4px; margin-top: 1px;
@@ -562,10 +566,13 @@ body.rooms-only .placed-mini .p-room { font-size: 13px; font-weight: 800; opacit
 .btn-stack { background: #fb8c00; color: #fff; }
 .btn-stack:hover { background: #e65100; }
 
-/* ── LEHRER-STUNDEN-MODAL ── */
-.teacher-modal-box { width: 460px; max-width: 92vw; }
+/* ── LEHRER-STUNDEN-MODAL / KOMMENTAR-LISTE ── */
+.teacher-modal-box {
+  width: 460px; max-width: 92vw; max-height: 88vh;
+  display: flex; flex-direction: column;
+}
 .tm-sub { font-size: 12px; color: var(--muted); font-weight: 600; margin: -6px 0 12px; }
-.tm-list { max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.tm-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .tm-empty { font-size: 13px; color: var(--muted); text-align: center; padding: 14px 0; }
 .tm-item {
   display: flex; align-items: center; gap: 8px;
