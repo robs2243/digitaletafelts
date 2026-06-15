@@ -111,6 +111,16 @@ export class AppState {
     this.emit();
   }
 
+  /** Löscht mehrere nicht verplante (Pool-)Karten anhand ihrer IDs. */
+  deletePoolCards(ids: string[]): number {
+    const set = new Set(ids);
+    const before = this.pool.all.length;
+    this.pool.replaceAll(this.pool.all.filter((c) => !set.has(c.id)));
+    const removed = before - this.pool.all.length;
+    if (removed) this.emit();
+    return removed;
+  }
+
   /** Löscht alle Karten (Pool und Plan); Klassen-Spalten bleiben erhalten. */
   deleteAllCards(): void {
     this.pool.replaceAll([]);

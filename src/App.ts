@@ -228,6 +228,8 @@ export class App {
       if (e.target === planningOverlay) this.closePlanning();
     });
     byId('plan-unplace').addEventListener('click', () => this.handleUnplace());
+    byId('plan-unplace-all').addEventListener('click', () => this.handleUnplaceAll());
+    byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     const poolListOverlay = byId('pool-list-modal');
     byId('pl-close').addEventListener('click', () => this.closePoolList());
@@ -255,6 +257,8 @@ export class App {
       if (file) void this.handleExcelImport(file);
       importFile.value = '';
     });
+    byId('pl-del-abbr').addEventListener('click', () => this.handleDeletePoolByAbbr());
+    byId('pl-del-all').addEventListener('click', () => this.handleDeleteAllPool());
 
     const commentsOverlay = byId('comments-modal');
     byId('cmall-close').addEventListener('click', () => this.closeComments());
@@ -430,6 +434,48 @@ export class App {
 
   private closePoolList(): void {
     byId('pool-list-modal').classList.remove('open');
+  }
+
+  /** Sicherheitsabfrage: erfordert die Eingabe von „Ja". */
+  private confirmJa(message: string): boolean {
+    const answer = prompt(`${message}\n\nZum Bestätigen „Ja" eingeben:`);
+    if (answer === null) return false;
+    if (answer.trim().toLowerCase() !== 'ja') {
+      this.toast.show('Abgebrochen – es wurde nicht „Ja" eingegeben.', 'inf');
+      return false;
+    }
+    return true;
+  }
+
+  /** Löscht die zum gesuchten Kürzel passenden nicht verplanten Karten. */
+  private handleDeletePoolByAbbr(): void {
+    const term = byId<HTMLInputElement>('pl-abbr').value.trim().toLowerCase();
+    if (!term) {
+      this.toast.show('Bitte oben ein Kürzel eingeben.', 'inf');
+      return;
+    }
+    const matches = this.state.pool.all.filter((c) => c.abbr.toLowerCase().includes(term));
+    if (!matches.length) {
+      this.toast.show(`Keine nicht verplanten Karten zu „${term}".`, 'inf');
+      return;
+    }
+    if (!this.confirmJa(`${matches.length} nicht verplante Karten zu „${term}" löschen?`)) return;
+    const n = this.state.deletePoolCards(matches.map((c) => c.id));
+    this.renderPoolList();
+    this.toast.show(`🗑 ${n} Karten gelöscht`, 'inf');
+  }
+
+  /** Löscht alle nicht verplanten (Pool-)Karten. */
+  private handleDeleteAllPool(): void {
+    const all = this.state.pool.all;
+    if (!all.length) {
+      this.toast.show('Keine nicht verplanten Karten vorhanden.', 'inf');
+      return;
+    }
+    if (!this.confirmJa(`Alle ${all.length} nicht verplanten Karten löschen?`)) return;
+    const n = this.state.deletePoolCards(all.map((c) => c.id));
+    this.renderPoolList();
+    this.toast.show(`🗑 ${n} Karten gelöscht`, 'inf');
   }
 
   /** Lädt eine Excel-/CSV-Datei und legt daraus Pool-Karten an. */
@@ -685,20 +731,15 @@ export class App {
 
   // ── Planung (entplanen) ─────────────────────────────────────────────────
 
-  /** Öffnet das Planungsfenster mit der Entplan-Auswahl (alle / je Kürzel). */
+  /** Öffnet das Planungsfenster mit Kürzel-Suche fürs Entplanen. */
   private openPlanning(): void {
-    const total = this.state.totalPlacedCount;
-    const select = byId<HTMLSelectElement>('plan-select');
-    if (!total) {
-      select.innerHTML = '<option value="">Keine Karten platziert</option>';
-    } else {
-      select.innerHTML =
-        `<option value="__all__">Alle Karten entplanen (${total})</option>` +
-        this.state
-          .placedCountsByAbbr()
-          .map((o) => `<option value="${esc(o.abbr)}">${esc(o.abbr)} (${o.count})</option>`)
-          .join('');
-    }
+    const input = byId<HTMLInputElement>('plan-abbr');
+    input.value = '';
+    byId('plan-abbr-list').innerHTML = this.state
+      .placedCountsByAbbr()
+      .map((o) => `<option value="${esc(o.abbr)}">${esc(o.abbr)} (${o.count})</option>`)
+      .join('');
+    this.updatePlanHint();
     byId('planning-modal').classList.add('open');
   }
 
@@ -706,32 +747,53 @@ export class App {
     byId('planning-modal').classList.remove('open');
   }
 
-  /** Führt die im Planungsfenster gewählte Entplanung aus (alle: „Ja"-Bestätigung). */
+  /** Zeigt unter dem Suchfeld, wie viele Karten zum Kürzel entplant würden. */
+  private updatePlanHint(): void {
+    const total = this.state.totalPlacedCount;
+    const term = byId<HTMLInputElement>('plan-abbr').value.trim().toLowerCase();
+    const hint = byId('plan-sub');
+    if (!total) {
+      hint.textContent = 'Keine Karten platziert.';
+      return;
+    }
+    if (!term) {
+      hint.textContent = `${total} Karten platziert. Kürzel eingeben oder „Alle entplanen".`;
+      return;
+    }
+    const n = this.state.schedule.all.filter((p) => p.abbr.toLowerCase().includes(term)).length;
+    hint.textContent = n ? `${n} Karten zu „${term}" werden entplant.` : `Keine platzierten Karten zu „${term}".`;
+  }
+
+  /** Entplant alle platzierten Karten, deren Kürzel zur Suche passt. */
   private handleUnplace(): void {
+    const term = byId<HTMLInputElement>('plan-abbr').value.trim().toLowerCase();
+    if (!term) {
+      this.toast.show('Bitte ein Kürzel eingeben (oder „Alle entplanen").', 'inf');
+      return;
+    }
+    const matches = this.state.schedule.all.filter((p) => p.abbr.toLowerCase().includes(term));
+    if (!matches.length) {
+      this.toast.show(`Keine platzierten Karten zu „${term}".`, 'inf');
+      return;
+    }
+    if (!confirm(`${matches.length} Karten zu „${term}" entplanen (zurück in den Pool)?`)) return;
+    const abbrs = [...new Set(matches.map((p) => p.abbr))];
+    let n = 0;
+    for (const abbr of abbrs) n += this.state.unplaceByAbbr(abbr);
+    this.closePlanning();
+    this.toast.show(`↩ ${n} Karten entplant`, 'inf');
+  }
+
+  /** Entplant alle platzierten Karten („Ja"-Bestätigung). */
+  private handleUnplaceAll(): void {
     if (!this.state.totalPlacedCount) {
       this.closePlanning();
       return;
     }
-    const value = byId<HTMLSelectElement>('plan-select').value;
-    if (!value) return;
-
-    if (value === '__all__') {
-      const answer = prompt(
-        `Alle ${this.state.totalPlacedCount} platzierten Karten zurück in den Pool (entplanen)?\n\nZum Bestätigen „Ja" eingeben:`,
-      );
-      if (answer === null) return;
-      if (answer.trim().toLowerCase() !== 'ja') {
-        this.toast.show('Abgebrochen – es wurde nicht „Ja" eingegeben.', 'inf');
-        return;
-      }
-      const n = this.state.unplaceAll();
-      this.toast.show(`↩ ${n} Karten entplant`, 'inf');
-    } else {
-      if (!confirm(`Alle Karten von „${value}" entplanen (zurück in den Pool)?`)) return;
-      const n = this.state.unplaceByAbbr(value);
-      this.toast.show(`↩ ${n} Karten von „${value}" entplant`, 'inf');
-    }
+    if (!this.confirmJa(`Alle ${this.state.totalPlacedCount} platzierten Karten zurück in den Pool (entplanen)?`)) return;
+    const n = this.state.unplaceAll();
     this.closePlanning();
+    this.toast.show(`↩ ${n} Karten entplant`, 'inf');
   }
 
   /** Verplant die freien Pool-Karten automatisch und meldet das Ergebnis. */

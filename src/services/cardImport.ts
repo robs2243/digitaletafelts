@@ -15,6 +15,7 @@ const HEADER_MAP: Record<string, keyof CardProps> = {
   labor: 'isLabor',
   laborgruppe: 'labGroup',
   gruppe: 'labGroup',
+  gruppeab: 'labGroup',
   werkstatt: 'isWerkstatt',
   '4woechig': 'isVierwoechig',
   vierwoechig: 'isVierwoechig',
@@ -94,10 +95,12 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
 
 /** Vorlage-Inhalt (Überschriften + Beispielzeilen). */
 export const TEMPLATE_AOA: (string | number)[][] = [
-  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Farbe', 'Labor', 'Labor-Gruppe', 'Werkstatt', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kommentar'],
+  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Farbe', 'Labor', 'Gruppe (a/b)', 'Werkstatt', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kommentar'],
   ['E3EG', 'KN', 'Mathematik', 'C103', 2, '#4f46e5', '', '', '', '', '', '', 'Taschenrechner mitbringen'],
   ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', ''],
-  ['7b', 'RD', 'Chemie', 'L1', 2, '', 'x', 'a', '', '', '', '', ''],
-  ['7b', 'GH', 'Physik', 'L2', 2, '', 'x', 'b', '', '', '', '', ''],
+  ['7b', 'RD', 'Chemie', 'L1', 2, '', 'x', 'a', '', '', '', '', 'Labor Gruppe a'],
+  ['7b', 'GH', 'Physik', 'L2', 2, '', 'x', 'b', '', '', '', '', 'Labor Gruppe b'],
+  ['M1', 'ST', 'Metall', 'W1', 6, '', '', 'a', 'x', '', '', '', 'Werkstatt Gruppe a'],
+  ['M1', 'KL', 'Metall', 'W2', 6, '', '', 'b', 'x', '', '', '', 'Werkstatt Gruppe b'],
   ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '4-wöchiger Turnus'],
 ];

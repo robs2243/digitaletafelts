@@ -124,7 +124,7 @@
           </label>
         </div>
         <div class="fg">
-          <label>Labor-Gruppe (beim Planen wird a auf b gelegt)</label>
+          <label>Gruppe a/b (beim Planen wird Labor a auf b gelegt)</label>
           <select id="am-labgroup">
             <option value="">— keine</option>
             <option value="a">Gruppe a</option>
@@ -207,6 +207,8 @@
         <div class="mbtns">
           <button class="btn btn-sec" id="pl-template" title="Excel-Vorlage herunterladen">📄 Vorlage</button>
           <button class="btn btn-ok" id="pl-import">📥 Excel importieren</button>
+          <button class="btn btn-del" id="pl-del-abbr" title="Karten zum gesuchten Kürzel löschen">🗑 Kürzel löschen</button>
+          <button class="btn btn-del" id="pl-del-all" title="Alle nicht verplanten Karten löschen">🗑 Alle löschen</button>
           <button class="btn btn-sec" id="pl-close" style="margin-left: auto">Schließen</button>
         </div>
       </div>
@@ -226,12 +228,15 @@
           </div>
         </div>
         <div class="fg" style="margin-bottom: 0; border-top: 1px solid #e0e0e0; padding-top: 12px">
-          <label>Entplanen – was zurück in den Pool?</label>
-          <select id="plan-select"></select>
+          <label>Entplanen – Kürzel suchen und zurück in den Pool legen</label>
+          <input id="plan-abbr" type="text" placeholder="Kürzel" list="plan-abbr-list" autocomplete="off" />
+          <datalist id="plan-abbr-list"></datalist>
+          <div id="plan-sub" style="font-size: 12px; color: #555; margin-top: 6px"></div>
         </div>
         <div class="mbtns">
           <button class="btn btn-sec" id="plan-cancel">Abbrechen</button>
-          <button class="btn btn-del" id="plan-unplace">Entplanen…</button>
+          <button class="btn btn-del" id="plan-unplace-all">Alle entplanen…</button>
+          <button class="btn btn-del" id="plan-unplace">Kürzel entplanen</button>
         </div>
       </div>
     </div>
