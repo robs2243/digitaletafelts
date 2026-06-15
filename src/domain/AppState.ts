@@ -67,15 +67,23 @@ export class AppState {
 
   // ── Karten (Pool) ───────────────────────────────────────────────────────
 
+  /** Fügt einen Raum still (ohne emit) zur gepflegten Liste hinzu, falls neu. */
+  private ensureRoom(room: string): void {
+    const name = room.trim();
+    if (name && !this.rooms.some((r) => r.toLowerCase() === name.toLowerCase())) this.rooms.push(name);
+  }
+
   createCard(props: CardProps): Card {
     const card = new Card(this.nextId(), props);
     this.pool.add(card);
+    this.ensureRoom(props.room);
     this.emit();
     return card;
   }
 
   updateCard(id: string, props: CardProps): void {
     this.pool.findById(id)?.update(props);
+    this.ensureRoom(props.room);
     this.emit();
   }
 
@@ -121,7 +129,10 @@ export class AppState {
 
   /** Erstellt mehrere Pool-Karten auf einmal (z. B. Excel-Import). */
   importCards(list: CardProps[]): number {
-    for (const props of list) this.pool.add(new Card(this.nextId(), props));
+    for (const props of list) {
+      this.pool.add(new Card(this.nextId(), props));
+      this.ensureRoom(props.room);
+    }
     if (list.length) this.emit();
     return list.length;
   }
@@ -251,6 +262,7 @@ export class AppState {
    */
   setRoom(id: string, room: string): { ok: boolean; conflictAbbr?: string } {
     const value = room.trim();
+    this.ensureRoom(value);
     const card = this.pool.findById(id);
     if (card) {
       card.room = value;
