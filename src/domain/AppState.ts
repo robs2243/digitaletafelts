@@ -635,6 +635,12 @@ export class AppState {
     const MAIN = new Set(['d', 'm', 'e', 'gk', 'wk']);
     const MAX_STREAK = 4; // max. Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt)
     const LBT_MAX = 6; // max. Stunden „LBT" je Klasse und Tag
+    // Hauptfach: explizit angehakt ODER über das Fach erkannt (D/M/E/Gk/Wk).
+    const isMain = (c: { mainSubject: boolean; fach: string }): boolean =>
+      c.mainSubject || MAIN.has(c.fach.trim().toLowerCase());
+    // Schlüssel für u/g-Konstanz: gleiche Lehrkraft + Klasse + Fach.
+    const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
+      `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
 
     const cK = (d: number, w: Week, c: number, p: number) => `${d}|${w}|${c}|${p}`;
     const rK = (d: number, w: Week, p: number, room: string) => `${d}|${w}|${p}|${room.toLowerCase()}`;
@@ -703,6 +709,7 @@ export class AppState {
       const teachWeek = new Map<string, [number, number]>(); // kürzel → [u-Stunden, g-Stunden]
       const teachDayPeriods = new Map<string, Set<number>>(); // kürzel|d|w → belegte Stunden (für Hohlstunden)
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
+      const mirrorSlots = new Map<string, Set<string>>(); // kürzel|klasse|fach → belegte „tag|start|woche" (für u/g-Konstanz)
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
@@ -731,11 +738,24 @@ export class AppState {
         }
         const f = card.fach.trim().toLowerCase();
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
+        const mk = mirrorKey({ abbr: card.abbr, klasse: kl, fach: card.fach });
+        let ms = mirrorSlots.get(mk);
+        if (!ms) {
+          ms = new Set();
+          mirrorSlots.set(mk, ms);
+        }
+        ms.add(`${d}|${start}|${w}`);
       };
 
       /** Aktuelle Stunden der Lehrkraft in der angegebenen Woche (für den Ausgleich). */
       const teacherWeekLoad = (abbr: string, w: Week): number =>
         (teachWeek.get(abbr.toLowerCase()) ?? [0, 0])[w === 'u' ? 0 : 1];
+
+      /** Liegt dieselbe Lehrkraft+Klasse+Fach in der ANDEREN Woche schon auf (d, start)? */
+      const hasMirror = (card: Card, d: number, w: Week, start: number): boolean => {
+        const other: Week = w === 'u' ? 'g' : 'u';
+        return mirrorSlots.get(mirrorKey(card))?.has(`${d}|${start}|${other}`) ?? false;
+      };
 
       // Bestehende Platzierungen als Belegung übernehmen (bleiben unangetastet).
       const seenSeedCoupling = new Set<string>();
@@ -775,7 +795,7 @@ export class AppState {
         if (!card.isWerkstatt && streak(card.abbr, c, d, w, start, start + card.duration - 1) > MAX_STREAK)
           return 'max. 4 Std am Stück';
         const f = card.fach.trim().toLowerCase();
-        if (MAIN.has(f) && (subj.get(sK(card.klasse, d, w, f)) ?? 0) + card.duration > 2) return 'Hauptfach >2/Tag';
+        if (isMain(card) && (subj.get(sK(card.klasse, d, w, f)) ?? 0) + card.duration > 2) return 'Hauptfach >2/Tag';
         if (f === 'lbt' && (subj.get(sK(card.klasse, d, w, f)) ?? 0) + card.duration > LBT_MAX) return 'LBT >6/Tag';
         return null;
       };
@@ -858,28 +878,43 @@ export class AppState {
           skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: 'keine passende Spalte' });
           return;
         }
-        // Sortier-Präferenz: Fächer-Variation (wenig gleiches Fach am Tag), danach
-        // u/g-Ausgleich (die für die Lehrkraft leichtere Woche zuerst). Gleichstände ggf. zufällig.
         const f = card.fach.trim().toLowerCase();
+        const main = isMain(card);
         if (shuffleOrder) shuffle(ctx, rng);
-        ctx.sort(
-          (a, b) =>
-            (subj.get(sK(card.klasse, a.d, a.w, f)) ?? 0) - (subj.get(sK(card.klasse, b.d, b.w, f)) ?? 0) ||
-            teacherWeekLoad(card.abbr, a.w) - teacherWeekLoad(card.abbr, b.w),
-        );
         const starts = shuffleOrder ? shuffle([...baseStarts(card)], rng) : baseStarts(card);
+
+        // Alle gültigen Plätze sammeln und nach Präferenz bewerten (kleiner = besser):
+        //  1. u/g-Konstanz: gleiche Lehrkraft+Klasse+Fach in der anderen Woche am selben Slot.
+        //  2. Hauptfach möglichst in den Stunden 1–6.
+        //  3. Fächer-Variation (wenig gleiches Fach am Tag).
+        //  4. u/g-Ausgleich (leichtere Woche der Lehrkraft).
+        //  5. frühe Stunde.
+        // Lexikografischer Vergleich der Score-Tupel (kleiner = besser).
+        const better = (a: number[], b: number[]): boolean => {
+          for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
+          return false;
+        };
+        let best: { c: number; d: number; w: Week; start: number; score: number[] } | null = null;
         let reason = 'kein freier Platz';
         for (const { c, d, w } of ctx) {
           for (const start of starts) {
             const r = check(card, c, d, w, start);
-            if (r === null) {
-              apply(card, c, d, w, start);
-              return;
+            if (r !== null) {
+              reason = r;
+              continue;
             }
-            reason = r;
+            const score = [
+              hasMirror(card, d, w, start) ? 0 : 1,
+              main && start > 6 ? 1 : 0,
+              subj.get(sK(card.klasse, d, w, f)) ?? 0,
+              teacherWeekLoad(card.abbr, w),
+              start,
+            ];
+            if (!best || better(score, best.score)) best = { c, d, w, start, score };
           }
         }
-        skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
+        if (best) apply(card, best.c, best.d, best.w, best.start);
+        else skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
       };
 
       const placeGroupA = (card: Card): void => {
@@ -918,7 +953,6 @@ export class AppState {
       const isA = (c: Card) => c.labGroup === 'a';
       const isB = (c: Card) => c.labGroup === 'b';
       const isGrouped = (c: Card) => isA(c) || isB(c);
-      const fach = (c: Card) => c.fach.trim().toLowerCase();
       const step = (list: Card[], fn: (c: Card) => void): void => {
         // Heuristik (1. Durchlauf): längere/schwerer platzierbare Blöcke zuerst.
         const seq = shuffleOrder ? shuffle([...list], rng) : [...list].sort((a, b) => b.duration - a.duration);
@@ -934,8 +968,8 @@ export class AppState {
       const groups = [...couplingMap.values()];
       if (shuffleOrder) shuffle(groups, rng);
       for (const members of groups) placeCouplingGroup(members);
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && MAIN.has(fach(c))), placeNormal);
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !MAIN.has(fach(c))), placeNormal);
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c)), placeNormal);
 
       let openMandatory = 0;
       for (let c = 0; c < this.classes.count; c++) {

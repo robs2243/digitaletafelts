@@ -23,44 +23,48 @@ Quelle: Vorgaben des Anwenders.
 
 ## Fächer-Verteilung
 
-7. **Hauptfächer** (z. B. **D, M, E, Gk, Wk**): am **gleichen Tag höchstens 2 Stunden**
-   (pro Klasse). Möglichst mit **einem Tag Pause dazwischen**, damit Hausaufgaben
-   gegeben werden können.
+7. **Hauptfächer** (Karten-Checkbox „⭐ Hauptfach" oder Fach **D, M, E, Gk, Wk**):
+   beim Planen **bevorzugt** und **möglichst in den Stunden 1–6**. Am **gleichen Tag
+   höchstens 2 Stunden** (pro Klasse), möglichst mit **einem Tag Pause dazwischen**.
 8. **Fächer variieren:** Über den Tag sollen die Fächer **abwechseln** (nicht das
    gleiche Fach häufen) – der Planer verteilt gleiche Fächer möglichst auf
    unterschiedliche Tage.
 9. **LBT:** am **gleichen Tag höchstens 6 Stunden** „LBT" (pro Klasse).
+10. **u/g-Konstanz:** Hat eine Lehrkraft **mehrere Karten desselben Fachs in einer
+    Klasse**, sollen u- und g-Woche **möglichst an derselben Stelle** (gleicher Tag +
+    gleiche Stunde) liegen. Geht es nicht auf (ungerade Gesamtzahl), hat eine Woche
+    eben mehr Stunden (z. B. u 6 / g 4).
 
 ## Wochen-Ausgleich (u/g)
 
-10. Die Stunden einer Lehrkraft sollen zwischen **u-Woche und g-Woche ausgeglichen**
+11. Die Stunden einer Lehrkraft sollen zwischen **u-Woche und g-Woche ausgeglichen**
     sein. Die **Differenz darf höchstens 2 Stunden** betragen. Liegt sie höher,
     **erscheint eine Meldung** (Hinweis zum Ausgleichen von Hand).
-11. **Hohlstunden:** Eine Lehrkraft soll **pro Woche höchstens 6 Hohlstunden**
+12. **Hohlstunden:** Eine Lehrkraft soll **pro Woche höchstens 6 Hohlstunden**
     (Freistunden zwischen erster und letzter Unterrichtsstunde, über die Tage summiert)
     haben. Wird das überschritten, **erscheint eine Meldung**.
 
 ## Werkstatt
 
-12. Werkstatt darf **4–8 Stunden am Stück** sein.
-13. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
-14. Werkstatt darf **auch in der 7. Stunde** stattfinden.
-15. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
+13. Werkstatt darf **4–8 Stunden am Stück** sein.
+14. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
+15. Werkstatt darf **auch in der 7. Stunde** stattfinden.
+16. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
     **Gruppe a** muss immer auf eine Werkstatt der **Gruppe b** gelegt werden
     (gestapelt, gleicher Slot) – analog zu den Laboren.
 
 ## Labore
 
-16. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
-17. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
+17. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
+18. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
     werden (gestapelt). Das **Fach muss nicht übereinstimmen**.
 
 ## Gruppen a/b – Ausnahmen (Labor & Werkstatt)
 
-18. **Nur eine Gruppe vorhanden:** Gibt es zu einer Gruppe-a-Karte **keinen passenden
+19. **Nur eine Gruppe vorhanden:** Gibt es zu einer Gruppe-a-Karte **keinen passenden
     Gruppe-b-Partner** (manche Klassen haben nur Gruppe a), wird die **Gruppe-a-Karte
     einfach normal verplant** – kein Stapeln, kein Überspringen.
-19. **Gleiche Lehrkraft für a und b:** Wenn **dieselbe Lehrkraft** Gruppe a *und* b
+20. **Gleiche Lehrkraft für a und b:** Wenn **dieselbe Lehrkraft** Gruppe a *und* b
     hat, dürfen diese **nicht aufeinander** liegen (sie kann nicht gleichzeitig an
     beiden Gruppen sein). Sie werden dann zu **verschiedenen Zeiten** verplant.
     Gestapelt wird nur, wenn die Gruppe b von einer **anderen Lehrkraft** kommt.
@@ -93,6 +97,12 @@ Quelle: Vorgaben des Anwenders.
   Klasse werden gezählt (inkl. angrenzender Blöcke); >4 ist nur bei Werkstatt erlaubt.
 - **Fächer-Variation:** gleiche Fächer werden bevorzugt auf unterschiedliche Tage
   verteilt.
+- **Hauptfach:** Karten-Checkbox „⭐ Hauptfach" (oder Excel-Spalte „Hauptfach") bzw.
+  Fach D/M/E/Gk/Wk. Solche Karten werden **zuerst** verplant und bevorzugt in die
+  Stunden **1–6** gelegt (8. nur als Ausweichplatz).
+- **u/g-Konstanz:** Bei der Platzwahl bevorzugt der Planer Slots, an denen dieselbe
+  Lehrkraft+Klasse+Fach in der anderen Woche bereits liegt (gleicher Tag/Stunde in u
+  und g). Geht es nicht auf, bleibt eine Woche mit mehr Stunden.
 - **u/g-Ausgleich:** der Planer bevorzugt beim Verplanen die für die Lehrkraft
   „leichtere" Woche und **rechnet mehrere Zyklen, bis die u/g-Differenz aller
   Lehrkräfte ≤ 2 Stunden** ist (Teil der „vollständigen Lösung"). Bleibt die Differenz

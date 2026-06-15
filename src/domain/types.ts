@@ -37,6 +37,8 @@ export interface CardProps {
   coupling: string;
   /** Darf bewusst auf Kollision gelegt werden (überspringt die Kollisionssperre). */
   collision: boolean;
+  /** Hauptfach: beim Planen bevorzugt (möglichst Stunden 1–6, max. 2/Tag). */
+  mainSubject: boolean;
   /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
   comment: string;
 }

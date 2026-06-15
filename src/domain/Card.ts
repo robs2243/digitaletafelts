@@ -22,6 +22,7 @@ export class Card {
   noCount: boolean;
   coupling: string;
   collision: boolean;
+  mainSubject: boolean;
   comment: string;
 
   constructor(id: string, props: CardProps) {
@@ -42,6 +43,7 @@ export class Card {
     this.noCount = props.noCount;
     this.coupling = props.coupling;
     this.collision = props.collision;
+    this.mainSubject = props.mainSubject;
     this.comment = props.comment;
   }
 
@@ -62,13 +64,14 @@ export class Card {
     this.noCount = props.noCount;
     this.coupling = props.coupling;
     this.collision = props.collision;
+    this.mainSubject = props.mainSubject;
     this.comment = props.comment;
   }
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, mainSubject, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, mainSubject, comment };
   }
 
   toJSON(): PersistedCard {
@@ -93,6 +96,7 @@ export class Card {
       noCount: !!raw.noCount,
       coupling: raw.coupling ?? '',
       collision: !!raw.collision,
+      mainSubject: !!raw.mainSubject,
       comment: raw.comment ?? '',
     });
   }
