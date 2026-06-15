@@ -65,6 +65,9 @@ export class Schedule {
         if (pl.day !== pos.day || pl.week !== pos.week) continue;
         if (!pl.covers(period)) continue;
         if (!sharesSemester(card, pl)) continue;
+        // Gekoppelte Karten (gleiche Kopplungs-ID) dürfen sich überschneiden
+        // (gleiche Lehrkraft, andere Klasse, ggf. gleicher Raum) – keine Kollision.
+        if (card.coupling && pl.coupling === card.coupling) continue;
 
         // Harte Sperren zuerst – auch innerhalb derselben Klasse.
         if (card.room && pl.room === card.room) return { type: 'room', conflict: pl };

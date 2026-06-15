@@ -32,6 +32,9 @@ export interface CardProps {
   secondHalf: boolean;
   /** Nicht in die Stunden-/Werterechnung einbeziehen (z. B. Block-/Sperrkarte). */
   noCount: boolean;
+  /** Kopplungs-ID (leer = keine). Karten mit gleicher ID dürfen sich zeitlich
+   *  überschneiden (gleiche Lehrkraft, andere Klasse) und zählen nur einmal. */
+  coupling: string;
   /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
   comment: string;
 }

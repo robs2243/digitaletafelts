@@ -30,6 +30,9 @@ const HEADER_MAP: Record<string, keyof CardProps> = {
   nichtzaehlend: 'noCount',
   nichtzaehlt: 'noCount',
   nichtwerten: 'noCount',
+  kopplung: 'coupling',
+  koppelung: 'coupling',
+  kopplungsid: 'coupling',
   kommentar: 'comment',
 };
 
@@ -114,6 +117,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
       firstHalf: truthy(cell(row, 'firstHalf')),
       secondHalf: truthy(cell(row, 'secondHalf')),
       noCount: truthy(cell(row, 'noCount')),
+      coupling: String(cell(row, 'coupling') ?? '').trim(),
       comment: String(cell(row, 'comment') ?? '').trim(),
     });
   }
@@ -122,13 +126,15 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
 
 /** Vorlage-Inhalt (Überschriften + Beispielzeilen). */
 export const TEMPLATE_AOA: (string | number)[][] = [
-  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Nicht zählen', 'Kommentar'],
-  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '', '', '', '', '', '', '', '', 'Taschenrechner mitbringen'],
-  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', '', ''],
-  ['7b', 'RD', 'Chemie', 'L1', 2, 'x', 'a', '', '', '', '', '', '', 'Labor Gruppe a'],
-  ['7b', 'GH', 'Physik', 'L2', 2, 'x', 'b', '', '', '', '', '', '', 'Labor Gruppe b'],
-  ['M1', 'ST', 'Metall', 'W1', 6, '', '', 'x', 'a', '', '', '', '', 'Werkstatt Gruppe a'],
-  ['M1', 'KL', 'Metall', 'W2', 6, '', '', 'x', 'b', '', '', '', '', 'Werkstatt Gruppe b'],
-  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '', '4-wöchiger Turnus'],
-  ['5a', 'KN', 'gesperrt', '', 2, '', '', '', '', '', '', '', 'x', 'Block 1.+2. Std – zählt nicht'],
+  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Nicht zählen', 'Kommentar'],
+  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '', '', '', '', '', '', '', '', '', 'Taschenrechner mitbringen'],
+  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', '', '', ''],
+  ['7b', 'RD', 'Chemie', 'L1', 2, 'x', 'a', '', '', '', '', '', '', '', 'Labor Gruppe a'],
+  ['7b', 'GH', 'Physik', 'L2', 2, 'x', 'b', '', '', '', '', '', '', '', 'Labor Gruppe b'],
+  ['M1', 'ST', 'Metall', 'W1', 6, '', '', 'x', 'a', '', '', '', '', '', 'Werkstatt Gruppe a'],
+  ['M1', 'KL', 'Metall', 'W2', 6, '', '', 'x', 'b', '', '', '', '', '', 'Werkstatt Gruppe b'],
+  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '', '', '4-wöchiger Turnus'],
+  ['E2EG', 'BM', 'Deutsch', 'A5', 2, '', '', '', '', '', '', '', 'K1', '', 'Kopplung mit M2WZ (gleichzeitig)'],
+  ['M2WZ', 'BM', 'Deutsch', 'A5', 2, '', '', '', '', '', '', '', 'K1', '', 'Kopplung mit E2EG (gleichzeitig)'],
+  ['5a', 'KN', 'gesperrt', '', 2, '', '', '', '', '', '', '', '', 'x', 'Block 1.+2. Std – zählt nicht'],
 ];

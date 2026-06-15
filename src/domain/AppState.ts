@@ -345,11 +345,18 @@ export class AppState {
   /** Stunden-Übersicht: verplante Stunden je Kürzel, Pool-Karten mit 0h. */
   stats(): StatRow[] {
     const map = new Map<string, StatRow>();
+    const seenCoupling = new Set<string>(); // gekoppelte Stunde nur einmal zählen
     for (const p of this.schedule.all) {
       const row =
         map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hoursU: 0, hoursG: 0 };
-      // Block-/Sperrkarten (noCount) zählen nicht in die Werterechnung.
-      if (!p.noCount) {
+      // Block-/Sperrkarten (noCount) zählen nicht; gekoppelte Karten nur einmal.
+      let countIt = !p.noCount;
+      if (countIt && p.coupling) {
+        const key = `${p.coupling}|${p.day}|${p.startPeriod}|${p.week}`;
+        if (seenCoupling.has(key)) countIt = false;
+        else seenCoupling.add(key);
+      }
+      if (countIt) {
         const h = p.duration * semesterFactor(p) * (p.isVierwoechig ? 0.5 : 1);
         if (p.week === 'u') row.hoursU += h;
         else row.hoursG += h;

@@ -29,6 +29,7 @@ export class CardModal {
   private readonly half1Checkbox: HTMLInputElement;
   private readonly half2Checkbox: HTMLInputElement;
   private readonly noCountCheckbox: HTMLInputElement;
+  private readonly couplingInput: HTMLInputElement;
   private readonly swatchesEl: HTMLElement;
   private readonly deleteBtn: HTMLButtonElement;
   private readonly handlers: CardModalHandlers;
@@ -55,6 +56,7 @@ export class CardModal {
     this.half1Checkbox = document.getElementById('am-half1') as HTMLInputElement;
     this.half2Checkbox = document.getElementById('am-half2') as HTMLInputElement;
     this.noCountCheckbox = document.getElementById('am-nocount') as HTMLInputElement;
+    this.couplingInput = document.getElementById('am-coupling') as HTMLInputElement;
     this.swatchesEl = document.getElementById('am-swatches')!;
     this.deleteBtn = document.getElementById('am-delbtn') as HTMLButtonElement;
 
@@ -110,6 +112,7 @@ export class CardModal {
     this.half1Checkbox.checked = false;
     this.half2Checkbox.checked = false;
     this.noCountCheckbox.checked = false;
+    this.couplingInput.value = '';
     this.renderSwatches(suggestedColor);
     this.open();
   }
@@ -132,6 +135,7 @@ export class CardModal {
     this.half1Checkbox.checked = card.firstHalf;
     this.half2Checkbox.checked = card.secondHalf;
     this.noCountCheckbox.checked = card.noCount;
+    this.couplingInput.value = card.coupling;
     this.renderSwatches(card.color);
     this.open();
   }
@@ -152,6 +156,7 @@ export class CardModal {
       firstHalf: this.half1Checkbox.checked,
       secondHalf: this.half2Checkbox.checked,
       noCount: this.noCountCheckbox.checked,
+      coupling: this.couplingInput.value.trim(),
       comment: this.existingComment,
     };
     if (this.handlers.onSave(this.editingId, props)) this.close();

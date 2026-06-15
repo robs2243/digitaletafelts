@@ -92,6 +92,13 @@ Quelle: Vorgaben des Anwenders.
 - **Block-/Sperrkarten („Nicht zählen"):** Karten mit aktivierter Checkbox „Nicht
   zählen" (bzw. Excel-Spalte „Nicht zählen") **fließen nicht in die Stunden-/
   Werterechnung** ein. Sie eignen sich z. B., um mit einem Kürzel Felder zu blockieren
-  (Lehrkraft kann dort nicht unterrichten), ohne das Deputat zu erhöhen.
+  (Lehrkraft kann dort nicht unterrichten), ohne das Deputat zu erhöhen. Solche Karten
+  dürfen frei gestapelt werden.
+- **Kopplung (gleiche Lehrkraft, mehrere Klassen gleichzeitig):** Karten mit gleicher
+  **Kopplungs-ID** (Feld „Kopplung" / Excel-Spalte „Kopplung", z. B. „K1") dürfen sich
+  **zeitlich überschneiden** (gleiche Lehrkraft, andere Klasse, ggf. gleicher Raum) und
+  **zählen nur einmal** im Deputat. Anwendung: zwei Klassen sind z. B. in Deutsch
+  zusammengelegt – je eine Karte pro Klasse mit derselben Kopplungs-ID anlegen und beide
+  auf denselben Zeit-Slot legen (am besten von Hand setzen und fixieren).
 - **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
   D, M, E, Gk, Wk). **LBT** wird ebenfalls über das Feld „Fach" erkannt (max. 6/Tag).
