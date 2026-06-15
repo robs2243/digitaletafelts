@@ -1,5 +1,6 @@
 import { AppState } from './domain/AppState';
-import { DAYS } from './domain/constants';
+import { DAYS, PERIODS } from './domain/constants';
+import { ink } from './utils/color';
 import { semesterFactor } from './domain/semester';
 import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgress, PlanRunResult } from './domain/types';
 import { esc } from './utils/html';
@@ -291,6 +292,12 @@ export class App {
     byId('plan-reset-classes').addEventListener('click', () => this.handleResetClasses());
     byId('plan-export').addEventListener('click', () => this.downloadCardsExport());
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
+    byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
+    const roomplanOverlay = byId('roomplan-modal');
+    byId('rp-close').addEventListener('click', () => roomplanOverlay.classList.remove('open'));
+    roomplanOverlay.addEventListener('click', (e) => {
+      if (e.target === roomplanOverlay) roomplanOverlay.classList.remove('open');
+    });
 
     const roomsOverlay = byId('rooms-modal');
     byId('rm-close').addEventListener('click', () => roomsOverlay.classList.remove('open'));
@@ -802,6 +809,52 @@ export class App {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Karten');
     XLSX.writeFile(wb, 'Karten-Export.xlsx');
     this.toast.show(`📤 ${rows.length} Karten exportiert`);
+  }
+
+  // ── Raumplan ────────────────────────────────────────────────────────────
+
+  private openRoomPlan(): void {
+    this.renderRoomPlan();
+    byId('roomplan-modal').classList.add('open');
+  }
+
+  /** Read-only-Überblick: Belegung aller Räume (Räume als Spalten, Tag/Stunde als Zeilen). */
+  private renderRoomPlan(): void {
+    const placed = this.state.schedule.all.filter((p) => p.room.trim());
+    const rooms = [...new Set(placed.map((p) => p.room.trim()))].sort((a, b) => a.localeCompare(b, 'de'));
+    byId('rp-sub').textContent = rooms.length
+      ? `${rooms.length} Räume · ${placed.length} verplante Karten mit Raum`
+      : '';
+    if (!rooms.length) {
+      byId('rp-body').innerHTML = '<div class="tm-empty">Es sind noch keine Karten mit Raum verplant.</div>';
+      return;
+    }
+    const side = (arr: typeof placed): string =>
+      arr
+        .map(
+          (pl) =>
+            `<span class="rp-chip${arr.length > 1 ? ' rp-multi' : ''}" style="background:${pl.color};color:${ink(pl.color)}"` +
+            ` title="${esc(pl.abbr)}${pl.klasse ? ` · ${esc(pl.klasse)}` : ''}${pl.fach ? ` · ${esc(pl.fach)}` : ''} – ${DAYS[pl.day]} ${pl.startPeriod}. Std (${pl.week})">${esc(pl.abbr)}</span>`,
+        )
+        .join('');
+    let body =
+      '<table class="rp-table"><thead><tr><th class="rp-corner" colspan="2">Tag / Std</th>' +
+      rooms.map((r) => `<th class="rp-room">${esc(r)}</th>`).join('') +
+      '</tr></thead><tbody>';
+    for (let d = 0; d < DAYS.length; d++) {
+      for (let p = 1; p <= PERIODS; p++) {
+        body += '<tr>';
+        if (p === 1) body += `<td class="rp-day" rowspan="${PERIODS}">${esc(DAYS[d])}</td>`;
+        body += `<td class="rp-per">${p}</td>`;
+        for (const r of rooms) {
+          const u = placed.filter((pl) => pl.room.trim() === r && pl.day === d && pl.week === 'u' && pl.covers(p));
+          const g = placed.filter((pl) => pl.room.trim() === r && pl.day === d && pl.week === 'g' && pl.covers(p));
+          body += `<td class="rp-cell"><div class="rp-ug"><div class="rp-side rp-u">${side(u)}</div><div class="rp-side rp-g">${side(g)}</div></div></td>`;
+        }
+        body += '</tr>';
+      }
+    }
+    byId('rp-body').innerHTML = body + '</tbody></table>';
   }
 
   /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */

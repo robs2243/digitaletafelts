@@ -671,6 +671,29 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 }
 .room-set:focus { border-color: var(--accent); }
 
+/* ── RAUMPLAN ── */
+.rp-table { border-collapse: collapse; font-size: 11px; }
+.rp-table th, .rp-table td { border: 1px solid var(--border); }
+.rp-room {
+  background: #1a237e; color: #fff; font-weight: 700; padding: 5px 6px; text-align: center;
+  white-space: nowrap; position: sticky; top: 0; z-index: 3;
+}
+.rp-corner { background: #1a237e; color: #fff; position: sticky; top: 0; left: 0; z-index: 4; padding: 5px; }
+.rp-day {
+  background: #283593; color: #fff; font-weight: 800; text-align: center; width: 22px;
+  writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: 1px;
+}
+.rp-per { background: #eef1f6; font-weight: 700; text-align: center; width: 26px; color: #475569; }
+.rp-cell { width: 88px; height: 24px; padding: 0; }
+.rp-ug { display: flex; height: 24px; }
+.rp-side { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.rp-side.rp-u { border-right: 1px dashed rgba(0,0,0,.18); }
+.rp-chip {
+  width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 10px; line-height: 1;
+}
+.rp-chip.rp-multi { outline: 2px solid #e53935; outline-offset: -2px; }
+
 /* ── KOLLISIONS-MODAL ── */
 .warn-modal { max-width: 420px; width: 100%; }
 .warn-icon  { font-size: 38px; text-align: center; margin-bottom: 8px; }
