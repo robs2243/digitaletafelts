@@ -13,6 +13,8 @@ const HEADER_MAP: Record<string, keyof CardProps> = {
   farbe: 'color',
   color: 'color',
   labor: 'isLabor',
+  laborgruppe: 'labGroup',
+  gruppe: 'labGroup',
   werkstatt: 'isWerkstatt',
   '4woechig': 'isVierwoechig',
   vierwoechig: 'isVierwoechig',
@@ -69,6 +71,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
     if (!abbr) continue;
     const color = parseColor(cell(row, 'color')) || PALETTE[autoColor++ % PALETTE.length];
     const dur = parseInt(String(cell(row, 'duration') ?? ''), 10);
+    const lg = String(cell(row, 'labGroup') ?? '').trim().toLowerCase();
     out.push({
       klasse: String(cell(row, 'klasse') ?? '').trim(),
       abbr,
@@ -78,6 +81,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
       duration: Number.isFinite(dur) && dur >= 1 && dur <= 9 ? dur : 2,
       color,
       isLabor: truthy(cell(row, 'isLabor')),
+      labGroup: lg === 'a' || lg === 'b' ? lg : '',
       isWerkstatt: truthy(cell(row, 'isWerkstatt')),
       isVierwoechig: truthy(cell(row, 'isVierwoechig')),
       firstHalf: truthy(cell(row, 'firstHalf')),
@@ -90,9 +94,10 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
 
 /** Vorlage-Inhalt (Überschriften + Beispielzeilen). */
 export const TEMPLATE_AOA: (string | number)[][] = [
-  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Farbe', 'Labor', 'Werkstatt', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kommentar'],
-  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '#4f46e5', '', '', '', '', '', 'Taschenrechner mitbringen'],
-  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', 'x', '', ''],
-  ['7b', 'RD', 'Chemie', 'L1', 2, '', 'x', '', '', '', '', ''],
-  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', 'x', '', '', '4-wöchiger Turnus'],
+  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Farbe', 'Labor', 'Labor-Gruppe', 'Werkstatt', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kommentar'],
+  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '#4f46e5', '', '', '', '', '', '', 'Taschenrechner mitbringen'],
+  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', ''],
+  ['7b', 'RD', 'Chemie', 'L1', 2, '', 'x', 'a', '', '', '', '', ''],
+  ['7b', 'GH', 'Physik', 'L2', 2, '', 'x', 'b', '', '', '', '', ''],
+  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '4-wöchiger Turnus'],
 ];

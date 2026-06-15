@@ -15,6 +15,7 @@ export class Placement {
   readonly duration: number;
   readonly color: string;
   readonly isLabor: boolean;
+  readonly labGroup: string;
   readonly isWerkstatt: boolean;
   readonly isVierwoechig: boolean;
   readonly firstHalf: boolean;
@@ -40,6 +41,7 @@ export class Placement {
     this.duration = card.duration;
     this.color = card.color;
     this.isLabor = card.isLabor;
+    this.labGroup = card.labGroup;
     this.isWerkstatt = card.isWerkstatt;
     this.isVierwoechig = card.isVierwoechig;
     this.firstHalf = card.firstHalf;
@@ -64,8 +66,8 @@ export class Placement {
 
   /** Kopie der Karten-Eigenschaften (z. B. für Rückgabe in den Pool). */
   cardSnapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, isWerkstatt, isVierwoechig, firstHalf, secondHalf, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, isWerkstatt, isVierwoechig, firstHalf, secondHalf, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, comment };
   }
 
   toJSON(): PersistedPlacement {
@@ -92,6 +94,7 @@ export class Placement {
         duration: raw.duration ?? 1,
         color: raw.color ?? '#3f51b5',
         isLabor: !!raw.isLabor,
+        labGroup: raw.labGroup ?? '',
         isWerkstatt: !!raw.isWerkstatt,
         isVierwoechig: !!raw.isVierwoechig,
         firstHalf: !!raw.firstHalf,

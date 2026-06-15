@@ -78,7 +78,7 @@ export class PoolView {
       .map((c) => {
         const fg = ink(c.color);
         const half = semesterLabel(c);
-        const badge = c.isLabor ? '⚗' : c.isWerkstatt ? '🔧' : '';
+        const badge = c.isLabor ? `⚗${c.labGroup}` : c.isWerkstatt ? '🔧' : '';
         const cardCls = c.isLabor ? ' labor-card' : c.isWerkstatt ? ' werkstatt-card' : '';
         return `<div class="tc${cardCls}" data-id="${c.id}" data-abbr="${esc(c.abbr)}" data-room="${esc(c.room)}" data-labor="${c.isLabor ? '1' : '0'}" data-werkstatt="${c.isWerkstatt ? '1' : '0'}"
               style="background:${c.color};color:${fg}" draggable="true">

@@ -20,6 +20,8 @@ export interface CardProps {
   color: string;
   /** Labor-/Gruppenkarte: darf ohne Rückfrage gestapelt werden. */
   isLabor: boolean;
+  /** Labor-Gruppe ('a' | 'b' | ''): a wird beim Planen auf b gelegt. */
+  labGroup: string;
   /** Werkstatt-Karte: darf – wie Labor – ohne Rückfrage gestapelt werden. */
   isWerkstatt: boolean;
   /** 4-wöchiger Turnus: zählt bei der Stundenberechnung mit halbem Gewicht. */

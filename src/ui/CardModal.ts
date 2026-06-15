@@ -23,6 +23,7 @@ export class CardModal {
   private readonly roomInput: HTMLInputElement;
   private readonly durSelect: HTMLSelectElement;
   private readonly laborCheckbox: HTMLInputElement;
+  private readonly labGroupSelect: HTMLSelectElement;
   private readonly werkstattCheckbox: HTMLInputElement;
   private readonly vierwoechigCheckbox: HTMLInputElement;
   private readonly half1Checkbox: HTMLInputElement;
@@ -47,6 +48,7 @@ export class CardModal {
     this.roomInput = document.getElementById('am-room') as HTMLInputElement;
     this.durSelect = document.getElementById('am-dur') as HTMLSelectElement;
     this.laborCheckbox = document.getElementById('am-labor') as HTMLInputElement;
+    this.labGroupSelect = document.getElementById('am-labgroup') as HTMLSelectElement;
     this.werkstattCheckbox = document.getElementById('am-werkstatt') as HTMLInputElement;
     this.vierwoechigCheckbox = document.getElementById('am-vierwoechig') as HTMLInputElement;
     this.half1Checkbox = document.getElementById('am-half1') as HTMLInputElement;
@@ -100,6 +102,7 @@ export class CardModal {
     this.roomInput.value = '';
     this.durSelect.value = '2';
     this.laborCheckbox.checked = false;
+    this.labGroupSelect.value = '';
     this.werkstattCheckbox.checked = false;
     this.vierwoechigCheckbox.checked = false;
     this.half1Checkbox.checked = false;
@@ -120,6 +123,7 @@ export class CardModal {
     this.roomInput.value = card.room;
     this.durSelect.value = String(card.duration);
     this.laborCheckbox.checked = card.isLabor;
+    this.labGroupSelect.value = card.labGroup;
     this.werkstattCheckbox.checked = card.isWerkstatt;
     this.vierwoechigCheckbox.checked = card.isVierwoechig;
     this.half1Checkbox.checked = card.firstHalf;
@@ -138,6 +142,7 @@ export class CardModal {
       duration: parseInt(this.durSelect.value, 10),
       color: this.pickedColor,
       isLabor: this.laborCheckbox.checked,
+      labGroup: this.labGroupSelect.value,
       isWerkstatt: this.werkstattCheckbox.checked,
       isVierwoechig: this.vierwoechigCheckbox.checked,
       firstHalf: this.half1Checkbox.checked,

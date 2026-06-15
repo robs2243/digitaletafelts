@@ -34,15 +34,13 @@ Quelle: Vorgaben des Anwenders.
 10. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
     werden (gestapelt). Das **Fach muss nicht übereinstimmen**.
 
-## Offene Punkte / noch zu klären (vor der Umsetzung)
+## Entscheidungen zur Umsetzung
 
-- **Labor-Gruppe a/b:** Wie wird die Gruppe einer Labor-Karte markiert
-  (eigenes Feld a/b im Karten-Dialog) – oder genügt „zwei Labor-Karten im selben
-  Slot stapeln"?
-- **Werkstatt-Block mit Pause:** Wie wird eine z. B. 8-stündige Werkstatt mit Pause
-  in Stunde 5 als Karte abgebildet (eine Karte über 1–9 ohne Stunde 5, oder zwei
-  Blöcke)?
-- **Wenn 1–6 nicht gefüllt werden können** (zu wenige Karten): überspringen +
-  Hinweis, oder Anwender fragen?
-- **Genaue Hauptfächer-Liste:** D, M, E, Gk, Wk – vollständig? Erkennung über das
-  Feld „Fach" oder das „Kürzel"?
+- **Labor-Gruppe a/b:** eigenes Feld an der Karte (Gruppe a / b). Der Planer legt
+  ein Labor der Gruppe a immer auf ein Labor der Gruppe b (gleicher Slot).
+- **Werkstatt:** eine Karte mit Dauer; der Planer lässt Stunde 5 automatisch frei
+  und darf die 7. Stunde nutzen.
+- **Wenn 1–6 nicht voll füllbar:** so weit wie möglich verplanen, offene Slots frei
+  lassen und am Ende auflisten, was unbelegt blieb (Lehrer >6 Std → Hinweis/fragen).
+- **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
+  D, M, E, Gk, Wk).
