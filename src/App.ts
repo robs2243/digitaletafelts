@@ -51,6 +51,8 @@ export class App {
   private searchTerm = '';
   /** Raum-Suchbegriff (hebt passenden Raum hervor, graut Rest aus). */
   private roomTerm = '';
+  /** Klassen-Suchbegriff (hebt passende Klasse hervor, graut Rest aus). */
+  private klasseTerm = '';
   /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
   private filterLabor = false;
   private filterWerkstatt = false;
@@ -126,24 +128,30 @@ export class App {
   private applySearch(): void {
     const abbrTerm = this.searchTerm.trim().toUpperCase();
     const roomTerm = this.roomTerm.trim().toUpperCase();
+    const klasseTerm = this.klasseTerm.trim().toUpperCase();
     const catActive = this.filterLabor || this.filterWerkstatt;
-    const textActive = abbrTerm.length > 0 || roomTerm.length > 0;
+    const textActive = abbrTerm.length > 0 || roomTerm.length > 0 || klasseTerm.length > 0;
     const cardFilterActive = textActive || catActive;
 
-    // Karten (Pool + Plan): Kürzel UND Raum UND Kategorie.
+    // Karten (Pool + Plan): Kürzel UND Raum UND Klasse UND Kategorie.
     for (const el of document.querySelectorAll<HTMLElement>('.tc, .placed, .placed-mini')) {
       const abbr = (el.dataset.abbr ?? '').toUpperCase();
       const room = (el.dataset.room ?? '').toUpperCase();
+      const klasse = (el.dataset.klasse ?? '').toUpperCase();
       const okAbbr = !abbrTerm || abbr.includes(abbrTerm);
       const okRoom = !roomTerm || room.includes(roomTerm);
+      const okKlasse = !klasseTerm || klasse.includes(klasseTerm);
       const okCat =
         !catActive ||
         (this.filterLabor && el.dataset.labor === '1') ||
         (this.filterWerkstatt && el.dataset.werkstatt === '1');
-      const hit = okAbbr && okRoom && okCat;
+      const hit = okAbbr && okRoom && okKlasse && okCat;
       el.classList.toggle('search-dim', cardFilterActive && !hit);
       el.classList.toggle('search-hit', textActive && hit);
     }
+
+    // Treffer im Lehrer-Pool ganz nach oben sortieren (Suche aktiv).
+    this.reorderPoolHits(textActive || catActive);
 
     // Stunden-Übersicht: nur Kürzel-Suche.
     for (const el of document.querySelectorAll<HTMLElement>('.stat-row')) {
@@ -154,6 +162,14 @@ export class App {
     if (abbrTerm.length > 0) {
       document.querySelector('.stats .stat-row.search-hit')?.scrollIntoView({ block: 'nearest' });
     }
+  }
+
+  /** Schiebt die Treffer-Karten im Lehrer-Pool nach oben (Reihenfolge bleibt erhalten). */
+  private reorderPoolHits(active: boolean): void {
+    if (!active) return;
+    const pool = byId('pool');
+    const hits = pool.querySelectorAll<HTMLElement>('.tc.search-hit');
+    for (let i = hits.length - 1; i >= 0; i--) pool.prepend(hits[i]);
   }
 
   private bindGlobalControls(): void {
@@ -211,6 +227,18 @@ export class App {
       this.roomTerm = '';
       this.applySearch();
       roomInput.focus();
+    });
+
+    const klasseInput = byId<HTMLInputElement>('search-klasse');
+    klasseInput.addEventListener('input', () => {
+      this.klasseTerm = klasseInput.value;
+      this.applySearch();
+    });
+    byId('search-klasse-clear').addEventListener('click', () => {
+      klasseInput.value = '';
+      this.klasseTerm = '';
+      this.applySearch();
+      klasseInput.focus();
     });
 
     this.bindZoom();
