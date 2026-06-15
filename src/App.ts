@@ -6,6 +6,7 @@ import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
 import { parseCardRows, TEMPLATE_AOA } from './services/cardImport';
 import planningRulesText from '../PLANUNGSREGELN.md?raw';
+import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
 import { FileService } from './services/FileService';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
@@ -234,7 +235,7 @@ export class App {
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     byId('plan-rules').addEventListener('click', (e) => {
       e.preventDefault();
-      this.downloadPlanningRules();
+      void this.downloadPlanningRules();
     });
     const poolListOverlay = byId('pool-list-modal');
     byId('pl-close').addEventListener('click', () => this.closePoolList());
@@ -502,16 +503,28 @@ export class App {
     }
   }
 
-  /** Lädt die Planungsregeln als Textdatei herunter. */
-  private downloadPlanningRules(): void {
-    const blob = new Blob([planningRulesText], { type: 'text/markdown;charset=utf-8' });
+  /** Lädt die Planungsregeln als Word-Dokument (.docx) herunter. */
+  private async downloadPlanningRules(): Promise<void> {
+    // Markdown-Zeilen grob in Word-Absätze übersetzen (Überschriften, Listen, Text).
+    const paragraphs = planningRulesText.split(/\r?\n/).map((raw) => {
+      const line = raw.replace(/\*\*/g, '').trimEnd();
+      if (line.startsWith('### ')) return new Paragraph({ text: line.slice(4), heading: HeadingLevel.HEADING_3 });
+      if (line.startsWith('## ')) return new Paragraph({ text: line.slice(3), heading: HeadingLevel.HEADING_2 });
+      if (line.startsWith('# ')) return new Paragraph({ text: line.slice(2), heading: HeadingLevel.HEADING_1 });
+      const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+      if (bullet) return new Paragraph({ text: bullet[1], bullet: { level: 0 } });
+      return new Paragraph({ children: [new TextRun(line)] });
+    });
+
+    const doc = new Document({ sections: [{ children: paragraphs }] });
+    const blob = await Packer.toBlob(doc);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Planungsregeln.md';
+    a.download = 'Planungsregeln.docx';
     a.click();
     URL.revokeObjectURL(url);
-    this.toast.show('📄 Planungsregeln heruntergeladen');
+    this.toast.show('📄 Planungsregeln (Word) heruntergeladen');
   }
 
   /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */

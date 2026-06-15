@@ -190,7 +190,7 @@
 
     <!-- ═══ POOL-LISTE-MODAL (Doppelklick auf Lehrer-Pool) ═══ -->
     <div class="overlay" id="pool-list-modal">
-      <div class="modal teacher-modal-box">
+      <div class="modal teacher-modal-box" style="width: 760px">
         <h2 style="color: #1a237e">Nicht verplante Karten</h2>
         <div class="pl-filters">
           <input id="pl-abbr" type="text" placeholder="Kürzel" autocomplete="off" />
@@ -207,18 +207,16 @@
         <div class="mbtns">
           <button class="btn btn-sec" id="pl-template" title="Excel-Vorlage herunterladen">📄 Vorlage</button>
           <button class="btn btn-ok" id="pl-import">📥 Excel importieren</button>
-          <button class="btn btn-sec" id="pl-close" style="margin-left: auto">Schließen</button>
-        </div>
-        <div class="mbtns" style="margin-top: 10px">
-          <button class="btn btn-del" id="pl-del-abbr" title="Karten zum gesuchten Kürzel löschen">🗑 Kürzel löschen</button>
+          <button class="btn btn-del" id="pl-del-abbr" title="Karten zum gesuchten Kürzel löschen" style="margin-left: auto">🗑 Kürzel löschen</button>
           <button class="btn btn-del" id="pl-del-all" title="Alle nicht verplanten Karten löschen">🗑 Alle löschen</button>
+          <button class="btn btn-sec" id="pl-close">Schließen</button>
         </div>
       </div>
     </div>
 
     <!-- ═══ PLANUNGS-MODAL (Button in der Kopfzeile) ═══ -->
     <div class="overlay" id="planning-modal">
-      <div class="modal">
+      <div class="modal" style="width: 480px; max-width: 92vw">
         <h2 style="color: #1a237e">📅 Planung</h2>
         <div class="fg">
           <label>Automatisch verplanen – freie Karten nach den Regeln einsortieren</label>
