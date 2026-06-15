@@ -43,7 +43,7 @@
     <div class="app">
       <!-- SIDEBAR -->
       <aside class="sidebar">
-        <div class="sb-sec">
+        <div class="sb-sec" id="pool-head" title="Doppelklick: alle nicht verplanten Karten mit Filter">
           <h2>Lehrer-Pool</h2>
           <div class="sb-actions">
             <button class="btn-icon" id="btn-clear-cards" title="Karten löschen">🗑</button>
@@ -173,6 +173,25 @@
         <div id="tm-list" class="tm-list"></div>
         <div class="mbtns">
           <button class="btn btn-ok" id="tm-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ POOL-LISTE-MODAL (Doppelklick auf Lehrer-Pool) ═══ -->
+    <div class="overlay" id="pool-list-modal">
+      <div class="modal teacher-modal-box">
+        <h2 style="color: #1a237e">Nicht verplante Karten</h2>
+        <div class="pl-filters">
+          <input id="pl-abbr" type="text" placeholder="Kürzel" autocomplete="off" />
+          <input id="pl-klasse" type="text" placeholder="Klasse" autocomplete="off" />
+          <input id="pl-room" type="text" placeholder="Raum" autocomplete="off" />
+          <label><input type="checkbox" id="pl-labor" /> ⚗ Labor</label>
+          <label><input type="checkbox" id="pl-werkstatt" /> 🔧 Werkstatt</label>
+        </div>
+        <div id="pl-sub" class="tm-sub"></div>
+        <div id="pl-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="pl-close">Schließen</button>
         </div>
       </div>
     </div>

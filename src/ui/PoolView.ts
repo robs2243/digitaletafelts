@@ -8,6 +8,8 @@ export interface PoolViewHandlers {
   onEdit: (cardId: string) => void;
   onComment: (cardId: string) => void;
   onDelete: (cardId: string) => void;
+  /** Doppelklick auf den leeren Pool-Bereich: gefilterte Liste öffnen. */
+  onOpenList: () => void;
   onDragEnd: () => void;
 }
 
@@ -45,6 +47,7 @@ export class PoolView {
       if (target.closest('.tc-editbtn') || target.closest('.tc-delbtn')) return;
       const cardEl = target.closest<HTMLElement>('.tc');
       if (cardEl?.dataset.id) this.handlers.onComment(cardEl.dataset.id);
+      else this.handlers.onOpenList();
     });
 
     this.el.addEventListener('dragstart', (e) => {

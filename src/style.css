@@ -607,6 +607,27 @@ body.rooms-only .placed-mini .p-room { font-size: 12px; }
 }
 .cmall-del:hover { background: #e53935; color: #fff; }
 
+/* ── POOL-LISTE (nicht verplante Karten) ── */
+.pl-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.pl-filters input[type='text'] {
+  flex: 1; min-width: 90px; padding: 7px 9px;
+  border: 1.5px solid var(--border); border-radius: 7px; font-size: 13px; outline: none;
+}
+.pl-filters input[type='text']:focus { border-color: var(--accent); }
+.pl-filters label {
+  display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600;
+  color: var(--muted); cursor: pointer; white-space: nowrap;
+}
+.pl-item {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px;
+}
+.pl-item:hover { background: var(--accent-sft); }
+.pl-chip { flex-shrink: 0; width: 14px; height: 14px; border-radius: 4px; }
+.pl-abbr { font-weight: 800; min-width: 36px; }
+.pl-meta { flex: 1; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-badges { flex-shrink: 0; color: var(--muted); font-weight: 700; }
+
 /* ── KOLLISIONS-MODAL ── */
 .warn-modal { max-width: 420px; width: 100%; }
 .warn-icon  { font-size: 38px; text-align: center; margin-bottom: 8px; }

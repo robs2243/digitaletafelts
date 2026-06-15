@@ -70,6 +70,7 @@ export class App {
       onEdit: (id) => this.openEditCard(id),
       onComment: (id) => this.openCardComment(id),
       onDelete: (id) => this.handleDeleteCard(id),
+      onOpenList: () => this.openPoolList(),
       onDragEnd: () => this.renderAll(),
     });
 
@@ -216,6 +217,26 @@ export class App {
       if (e.target === teacherOverlay) this.closeTeacherModal();
     });
 
+    byId('pool-head').addEventListener('dblclick', () => this.openPoolList());
+    const poolListOverlay = byId('pool-list-modal');
+    byId('pl-close').addEventListener('click', () => this.closePoolList());
+    poolListOverlay.addEventListener('click', (e) => {
+      if (e.target === poolListOverlay) this.closePoolList();
+    });
+    for (const id of ['pl-abbr', 'pl-klasse', 'pl-room']) {
+      byId(id).addEventListener('input', () => this.renderPoolList());
+    }
+    for (const id of ['pl-labor', 'pl-werkstatt']) {
+      byId(id).addEventListener('change', () => this.renderPoolList());
+    }
+    byId('pl-list').addEventListener('click', (e) => {
+      const row = (e.target as HTMLElement).closest<HTMLElement>('.pl-item');
+      if (row?.dataset.id) {
+        this.closePoolList();
+        this.openEditCard(row.dataset.id);
+      }
+    });
+
     const commentsOverlay = byId('comments-modal');
     byId('cmall-close').addEventListener('click', () => this.closeComments());
     commentsOverlay.addEventListener('click', (e) => {
@@ -242,6 +263,7 @@ export class App {
         this.clearModal.close();
         this.closeTeacherModal();
         this.closeComments();
+        this.closePoolList();
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
     });
@@ -339,6 +361,55 @@ export class App {
 
   private closeComments(): void {
     byId('comments-modal').classList.remove('open');
+  }
+
+  // ── Pool-Liste (nicht verplante Karten, mit Filter) ─────────────────────
+
+  private openPoolList(): void {
+    this.renderPoolList();
+    byId('pool-list-modal').classList.add('open');
+  }
+
+  private renderPoolList(): void {
+    const abbr = byId<HTMLInputElement>('pl-abbr').value.trim().toLowerCase();
+    const klasse = byId<HTMLInputElement>('pl-klasse').value.trim().toLowerCase();
+    const room = byId<HTMLInputElement>('pl-room').value.trim().toLowerCase();
+    const onlyLabor = byId<HTMLInputElement>('pl-labor').checked;
+    const onlyWerk = byId<HTMLInputElement>('pl-werkstatt').checked;
+
+    const items = this.state.pool.all
+      .filter(
+        (c) =>
+          (!abbr || c.abbr.toLowerCase().includes(abbr)) &&
+          (!klasse || c.klasse.toLowerCase().includes(klasse)) &&
+          (!room || c.room.toLowerCase().includes(room)) &&
+          (!onlyLabor || c.isLabor) &&
+          (!onlyWerk || c.isWerkstatt),
+      )
+      .sort((a, b) => a.abbr.localeCompare(b.abbr));
+
+    const total = this.state.pool.all.length;
+    byId('pl-sub').textContent =
+      total === 0 ? 'Keine nicht verplanten Karten.' : `${items.length} von ${total} Karten`;
+
+    const list = byId('pl-list');
+    list.innerHTML = items
+      .map((c) => {
+        const badges =
+          (c.isLabor ? '⚗' : '') + (c.isWerkstatt ? '🔧' : '') + (c.isVierwoechig ? '¼' : '');
+        const meta = [c.klasse, c.fach, c.room].filter(Boolean).map((x) => esc(x)).join(' · ');
+        return `<div class="pl-item" data-id="${esc(c.id)}" title="Klicken: bearbeiten">
+            <span class="pl-chip" style="background:${c.color}"></span>
+            <span class="pl-abbr">${esc(c.abbr)}</span>
+            <span class="pl-meta">${meta}</span>
+            <span class="pl-badges">${badges} ${c.duration}h</span>
+          </div>`;
+      })
+      .join('');
+  }
+
+  private closePoolList(): void {
+    byId('pool-list-modal').classList.remove('open');
   }
 
   // ── Zoom (Strg+Mausrad / Buttons / Strg +,-,0) ──────────────────────────
