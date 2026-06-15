@@ -193,22 +193,60 @@ export class AppState {
 
   // ── Platzierungen ───────────────────────────────────────────────────────
 
+  /** Erste Spalte, deren Klassenname an (Tag, Woche) passt (für gekoppelte Partner). */
+  private findColumnForClass(klasse: string, day: number, week: Week): number | null {
+    const need = klasse.trim().toLowerCase();
+    if (!need) return null;
+    for (let c = 0; c < this.classes.count; c++) {
+      if (this.classes.classNameAt(c, day, week).trim().toLowerCase() === need) return c;
+    }
+    return null;
+  }
+
+  /** Verschiebt gekoppelte Platzierungen (gleiche ID) auf denselben Zeit-Slot mit. */
+  private repositionCoupled(coupling: string, pos: PlacementPosition, excludeId: string): void {
+    if (!coupling) return;
+    const partners = this.schedule.all.filter((p) => p.id !== excludeId && p.coupling === coupling);
+    for (const p of partners) {
+      this.schedule.remove(p.id);
+      this.schedule.add(
+        new Placement(
+          this.nextId(),
+          p.cardSnapshot(),
+          { day: pos.day, startPeriod: pos.startPeriod, classIdx: p.classIdx, week: pos.week },
+          p.locked,
+        ),
+      );
+    }
+  }
+
   /** Pool-Karte in den Plan legen; die Pool-Karte wird verbraucht. */
   placeFromPool(cardId: string, pos: PlacementPosition): Placement | null {
     const card = this.pool.remove(cardId);
     if (!card) return null;
     const placement = new Placement(this.nextId(), card.snapshot(), pos);
     this.schedule.add(placement);
+    // Gekoppelte Partner aus dem Pool auf denselben Slot mitnehmen.
+    if (placement.coupling) {
+      for (const c of this.pool.all.filter((c) => c.coupling === placement.coupling)) {
+        const classIdx = this.findColumnForClass(c.klasse, pos.day, pos.week) ?? pos.classIdx;
+        this.pool.remove(c.id);
+        this.schedule.add(
+          new Placement(this.nextId(), c.snapshot(), { day: pos.day, startPeriod: pos.startPeriod, classIdx, week: pos.week }),
+        );
+      }
+    }
     this.emit();
     return placement;
   }
 
-  /** Platzierung innerhalb des Plans verschieben. */
+  /** Platzierung innerhalb des Plans verschieben (gekoppelte Partner wandern mit). */
   movePlacement(placementId: string, pos: PlacementPosition): Placement | null {
     const old = this.schedule.remove(placementId);
     if (!old) return null;
     const placement = new Placement(this.nextId(), old.cardSnapshot(), pos);
     this.schedule.add(placement);
+    this.repositionCoupled(placement.coupling, pos, placement.id);
     this.emit();
     return placement;
   }
@@ -222,11 +260,18 @@ export class AppState {
     return placement.locked;
   }
 
-  /** Platzierung entfernen und als Karte zurück in den Pool legen. */
+  /** Platzierung entfernen und als Karte zurück in den Pool legen (Partner mit). */
   returnToPool(placementId: string): Placement | null {
     const placement = this.schedule.remove(placementId);
     if (!placement) return null;
     this.pool.add(new Card(this.nextId(), placement.cardSnapshot()));
+    // Gekoppelte Partner ebenfalls zurück in den Pool.
+    if (placement.coupling) {
+      for (const p of this.schedule.all.filter((p) => p.coupling === placement.coupling)) {
+        this.schedule.remove(p.id);
+        this.pool.add(new Card(this.nextId(), p.cardSnapshot()));
+      }
+    }
     this.emit();
     return placement;
   }
