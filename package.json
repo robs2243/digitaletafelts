@@ -40,5 +40,8 @@
       "createDesktopShortcut": true,
       "shortcutName": "Digitale Tafel"
     }
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
   }
 }

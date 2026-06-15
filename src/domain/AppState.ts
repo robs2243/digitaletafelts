@@ -75,6 +75,13 @@ export class AppState {
     this.emit();
   }
 
+  /** Erstellt mehrere Pool-Karten auf einmal (z. B. Excel-Import). */
+  importCards(list: CardProps[]): number {
+    for (const props of list) this.pool.add(new Card(this.nextId(), props));
+    if (list.length) this.emit();
+    return list.length;
+  }
+
   deleteCard(id: string): void {
     this.pool.remove(id);
     this.emit();

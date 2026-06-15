@@ -3,6 +3,8 @@ import { DAYS } from './domain/constants';
 import { semesterFactor } from './domain/semester';
 import type { CardProps, LabelField, PlacementPosition } from './domain/types';
 import { esc } from './utils/html';
+import * as XLSX from 'xlsx';
+import { parseCardRows, TEMPLATE_AOA } from './services/cardImport';
 import { FileService } from './services/FileService';
 import { StorageService } from './services/StorageService';
 import { CardModal } from './ui/CardModal';
@@ -237,6 +239,14 @@ export class App {
         this.openEditCard(row.dataset.id);
       }
     });
+    byId('pl-template').addEventListener('click', () => this.downloadTemplate());
+    const importFile = byId<HTMLInputElement>('pl-import-file');
+    byId('pl-import').addEventListener('click', () => importFile.click());
+    importFile.addEventListener('change', () => {
+      const file = importFile.files?.[0];
+      if (file) void this.handleExcelImport(file);
+      importFile.value = '';
+    });
 
     const commentsOverlay = byId('comments-modal');
     byId('cmall-close').addEventListener('click', () => this.closeComments());
@@ -411,6 +421,32 @@ export class App {
 
   private closePoolList(): void {
     byId('pool-list-modal').classList.remove('open');
+  }
+
+  /** Lädt eine Excel-/CSV-Datei und legt daraus Pool-Karten an. */
+  private async handleExcelImport(file: File): Promise<void> {
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, defval: '' }) as unknown[][];
+      const cards = parseCardRows(rows);
+      if (!cards.length) {
+        this.toast.show('Keine gültigen Zeilen gefunden (Spalte „Kürzel"?).', 'inf');
+        return;
+      }
+      this.state.importCards(cards);
+      this.renderPoolList();
+      this.toast.show(`✓ ${cards.length} Karten importiert`);
+    } catch {
+      this.toast.show('Datei konnte nicht gelesen werden (Excel/CSV?).', 'inf');
+    }
+  }
+
+  /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */
+  private downloadTemplate(): void {
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(TEMPLATE_AOA), 'Karten');
+    XLSX.writeFile(wb, 'Vorlage-Karten.xlsx');
   }
 
   // ── Zoom (Strg+Mausrad / Buttons / Strg +,-,0) ──────────────────────────
