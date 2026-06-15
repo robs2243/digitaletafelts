@@ -259,6 +259,7 @@ export class App {
     });
     byId('plan-unplace').addEventListener('click', () => this.handleUnplace());
     byId('plan-unplace-all').addEventListener('click', () => this.handleUnplaceAll());
+    byId('plan-unplace-unlocked').addEventListener('click', () => this.handleUnplaceUnlocked());
     byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     byId('plan-rules').addEventListener('click', (e) => {
@@ -853,6 +854,21 @@ export class App {
     const n = this.state.unplaceAll();
     this.closePlanning();
     this.toast.show(`↩ ${n} Karten entplant`, 'inf');
+  }
+
+  /** Entplant alle Karten außer den fixierten („Ja"-Bestätigung). */
+  private handleUnplaceUnlocked(): void {
+    const total = this.state.totalPlacedCount;
+    const locked = this.state.lockedPlacedCount;
+    const toUnplace = total - locked;
+    if (!toUnplace) {
+      this.toast.show(locked ? 'Alle platzierten Karten sind fixiert.' : 'Keine Karten platziert.', 'inf');
+      return;
+    }
+    if (!this.confirmJa(`${toUnplace} Karten entplanen? ${locked} fixierte Karte(n) bleiben liegen.`)) return;
+    const n = this.state.unplaceUnlocked();
+    this.closePlanning();
+    this.toast.show(`↩ ${n} Karten entplant (${locked} fixiert behalten)`, 'inf');
   }
 
   /** Verplant die freien Pool-Karten automatisch und meldet das Ergebnis. */

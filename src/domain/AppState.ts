@@ -240,9 +240,23 @@ export class AppState {
     return count;
   }
 
+  /** Entplant alle nicht fixierten Karten; fixierte (Schloss) bleiben im Plan. */
+  unplaceUnlocked(): number {
+    const toPool = this.schedule.all.filter((p) => !p.locked);
+    for (const p of toPool) this.pool.add(new Card(this.nextId(), p.cardSnapshot()));
+    this.schedule.replaceAll(this.schedule.all.filter((p) => p.locked));
+    if (toPool.length) this.emit();
+    return toPool.length;
+  }
+
   /** Anzahl platzierter Karten gesamt. */
   get totalPlacedCount(): number {
     return this.schedule.all.length;
+  }
+
+  /** Anzahl fixierter (mit Schloss) Platzierungen. */
+  get lockedPlacedCount(): number {
+    return this.schedule.all.filter((p) => p.locked).length;
   }
 
   /** Platzierte Karten je Kürzel (für die Entplan-Auswahl), alphabetisch. */
