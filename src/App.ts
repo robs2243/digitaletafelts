@@ -218,6 +218,7 @@ export class App {
     });
 
     byId('pool-head').addEventListener('dblclick', () => this.openPoolList());
+    byId('btn-pool-list').addEventListener('click', () => this.openPoolList());
     const poolListOverlay = byId('pool-list-modal');
     byId('pl-close').addEventListener('click', () => this.closePoolList());
     poolListOverlay.addEventListener('click', (e) => {

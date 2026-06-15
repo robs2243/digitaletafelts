@@ -58,6 +58,9 @@
           <input id="search-room" type="text" placeholder="🔍 Raum suchen…" autocomplete="off" />
           <button id="search-room-clear" title="Raum-Suche zurücksetzen" type="button">✕</button>
         </div>
+        <button id="btn-pool-list" class="pool-list-btn" type="button" title="Nicht verplante Karten mit Filter">
+          📋 Nicht verplante Karten
+        </button>
         <div class="pool" id="pool"></div>
 
         <div class="sb-sec" style="margin-top: auto">
@@ -185,8 +188,10 @@
           <input id="pl-abbr" type="text" placeholder="Kürzel" autocomplete="off" />
           <input id="pl-klasse" type="text" placeholder="Klasse" autocomplete="off" />
           <input id="pl-room" type="text" placeholder="Raum" autocomplete="off" />
-          <label><input type="checkbox" id="pl-labor" /> ⚗ Labor</label>
-          <label><input type="checkbox" id="pl-werkstatt" /> 🔧 Werkstatt</label>
+          <div class="pl-checks">
+            <label><input type="checkbox" id="pl-labor" /> ⚗ Labor</label>
+            <label><input type="checkbox" id="pl-werkstatt" /> 🔧 Werkstatt</label>
+          </div>
         </div>
         <div id="pl-sub" class="tm-sub"></div>
         <div id="pl-list" class="tm-list"></div>
