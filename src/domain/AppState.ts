@@ -347,29 +347,24 @@ export class AppState {
    * Verteilt die Pool-Karten greedy nach den Planungsregeln (PLANUNGSREGELN.md):
    * – Karte nur in eine Spalte, deren Klassenname passt.
    * – 7. Stunde frei (außer Werkstatt), Pflichtbereich 1–6 wird zuerst gefüllt.
-   * – Lehrer max. 6 Std/Tag (sonst übersprungen + Hinweis).
-   * – Hauptfächer (D/M/E/Gk/Wk) max. 2 Std je Klasse und Tag, möglichst verteilt.
+   * – Lehrer max. 6 Std/Tag, max. 4 Std am Stück je Klasse (außer Werkstatt).
+   * – Hauptfächer (D/M/E/Gk/Wk) max. 2 Std/Tag, LBT max. 6 Std/Tag, Fächer variieren.
    * – Werkstatt als Block, Stunde 5 bleibt Pause, 7. Stunde erlaubt.
    * – Gruppe a wird auf eine bereits liegende Gruppe b gelegt (Labor und Werkstatt).
-   * Bereits platzierte (ggf. fixierte) Karten bleiben unangetastet.
+   * Es werden mehrere Durchläufe mit variierter Reihenfolge probiert; das beste
+   * Ergebnis wird übernommen. Bereits platzierte (auch fixierte) Karten bleiben
+   * unangetastet.
    */
   autoPlan(): AutoPlanResult {
     const MAIN = new Set(['d', 'm', 'e', 'gk', 'wk']);
-    const skipped: { card: string; reason: string }[] = [];
-    let placed = 0;
-
-    const cell = new Set<string>(); // belegte Klassenzelle: d|w|c|p
-    const roomSet = new Set<string>(); // belegter Raum: d|w|p|raum
-    const teachSet = new Set<string>(); // Lehrer belegt: kürzel|d|w|p
-    const teachH = new Map<string, number>(); // kürzel|d|w → Stunden
-    const subjH = new Map<string, number>(); // klasse|d|w|fach → Stunden (Hauptfächer)
-    // Anker der Gruppe b (Labor und Werkstatt), auf die eine Gruppe a gestapelt wird.
-    const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
+    const MAX_STREAK = 4; // max. Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt)
+    const LBT_MAX = 6; // max. Stunden „LBT" je Klasse und Tag
 
     const cK = (d: number, w: Week, c: number, p: number) => `${d}|${w}|${c}|${p}`;
     const rK = (d: number, w: Week, p: number, room: string) => `${d}|${w}|${p}|${room.toLowerCase()}`;
     const tK = (abbr: string, d: number, w: Week, p: number) => `${abbr.toLowerCase()}|${d}|${w}|${p}`;
     const thK = (abbr: string, d: number, w: Week) => `${abbr.toLowerCase()}|${d}|${w}`;
+    const tcK = (abbr: string, c: number, d: number, w: Week, p: number) => `${abbr.toLowerCase()}|${c}|${d}|${w}|${p}`;
     const sK = (kl: string, d: number, w: Week, fach: string) =>
       `${kl.trim().toLowerCase()}|${d}|${w}|${fach.trim().toLowerCase()}`;
 
@@ -396,166 +391,209 @@ export class AppState {
       return t;
     };
 
-    type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; fach: string };
-    const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number): void => {
-      for (const p of blockedPeriods(card.isWerkstatt, start, card.duration)) {
-        cell.add(cK(d, w, c, p));
-        if (card.room) roomSet.add(rK(d, w, p, card.room));
-        teachSet.add(tK(card.abbr, d, w, p));
+    const shuffle = <T>(arr: T[], rng: () => number): T[] => {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(rng() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
       }
-      teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
-      if (MAIN.has(card.fach.trim().toLowerCase())) {
-        subjH.set(sK(kl, d, w, card.fach), (subjH.get(sK(kl, d, w, card.fach)) ?? 0) + card.duration);
-      }
+      return arr;
     };
 
-    // Bestehende (manuelle/fixierte) Platzierungen als Belegung übernehmen.
-    for (const pl of this.schedule.all) {
-      occupy(pl, pl.klasse, pl.classIdx, pl.day, pl.week, pl.startPeriod);
-      if (pl.labGroup === 'b') {
-        groupB.push({
-          c: pl.classIdx,
-          d: pl.day,
-          w: pl.week,
-          start: pl.startPeriod,
-          duration: pl.duration,
-          isWerk: pl.isWerkstatt,
-          klasse: pl.klasse,
-        });
-      }
+    type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; fach: string };
+    type Assign = { card: Card; c: number; d: number; w: Week; start: number };
+    interface Outcome {
+      assigns: Assign[];
+      skipped: { card: string; reason: string }[];
+      openMandatory: number;
     }
 
-    /** Prüft, ob die Karte an (c,d,w,start) liegen darf. */
-    const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false): string | null => {
-      const teach = teaching(card.isWerkstatt, start, card.duration);
-      if (teach.length < card.duration) return 'über Stunde 9';
-      const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
-      if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
-      if (!card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
-      for (const p of blk) {
-        if (!stackOnB && cell.has(cK(d, w, c, p))) return 'Platz belegt';
-        if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
-        if (teachSet.has(tK(card.abbr, d, w, p))) return 'Lehrer belegt';
-      }
-      if ((teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration > 6) return 'Lehrer >6 Std/Tag';
-      if (MAIN.has(card.fach.trim().toLowerCase()) && (subjH.get(sK(card.klasse, d, w, card.fach)) ?? 0) + card.duration > 2)
-        return 'Hauptfach >2/Tag';
-      return null;
-    };
+    const startsFor = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
 
-    /** Alle (Spalte, Tag, Woche), deren Klassenname zur Karte passt. */
-    const contexts = (card: Card): { c: number; d: number; w: Week }[] => {
-      const need = card.klasse.trim().toLowerCase();
-      const out: { c: number; d: number; w: Week }[] = [];
-      if (!need) return out;
+    /**
+     * Ein vollständiger Verplanungs-Durchlauf auf einer eigenen Belegungs-Simulation.
+     * Bestehende Platzierungen (auch fixierte) werden NICHT verschoben, sondern nur
+     * als Belegung berücksichtigt. shuffleOrder=true variiert die Reihenfolge.
+     */
+    const runOnce = (shuffleOrder: boolean, rng: () => number): Outcome => {
+      const cell = new Set<string>();
+      const roomSet = new Set<string>();
+      const teachSet = new Set<string>();
+      const teachClass = new Set<string>(); // Lehrer unterrichtet in dieser Klasse: kürzel|c|d|w|p
+      const teachH = new Map<string, number>();
+      const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
+      const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
+      const assigns: Assign[] = [];
+      const skipped: { card: string; reason: string }[] = [];
+
+      const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number): void => {
+        for (const p of blockedPeriods(card.isWerkstatt, start, card.duration)) {
+          cell.add(cK(d, w, c, p));
+          if (card.room) roomSet.add(rK(d, w, p, card.room));
+          teachSet.add(tK(card.abbr, d, w, p));
+        }
+        for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
+        teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
+        const f = card.fach.trim().toLowerCase();
+        if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
+      };
+
+      // Bestehende Platzierungen als Belegung übernehmen (bleiben unangetastet).
+      for (const pl of this.schedule.all) {
+        occupy(pl, pl.klasse, pl.classIdx, pl.day, pl.week, pl.startPeriod);
+        if (pl.labGroup === 'b') {
+          groupB.push({ c: pl.classIdx, d: pl.day, w: pl.week, start: pl.startPeriod, duration: pl.duration, isWerk: pl.isWerkstatt, klasse: pl.klasse });
+        }
+      }
+
+      /** Länge des zusammenhängenden Blocks derselben Lehrkraft in dieser Klasse inkl. neuer Stunden. */
+      const streak = (abbr: string, c: number, d: number, w: Week, start: number, end: number): number => {
+        let run = end - start + 1;
+        for (let p = start - 1; p >= 1 && teachClass.has(tcK(abbr, c, d, w, p)); p--) run++;
+        for (let p = end + 1; p <= PERIODS && teachClass.has(tcK(abbr, c, d, w, p)); p++) run++;
+        return run;
+      };
+
+      const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false): string | null => {
+        const teach = teaching(card.isWerkstatt, start, card.duration);
+        if (teach.length < card.duration) return 'über Stunde 9';
+        const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
+        if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
+        if (!card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
+        for (const p of blk) {
+          if (!stackOnB && cell.has(cK(d, w, c, p))) return 'Platz belegt';
+          if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
+          if (teachSet.has(tK(card.abbr, d, w, p))) return 'Lehrer belegt';
+        }
+        if ((teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration > 6) return 'Lehrer >6 Std/Tag';
+        if (!card.isWerkstatt && streak(card.abbr, c, d, w, start, start + card.duration - 1) > MAX_STREAK)
+          return 'max. 4 Std am Stück';
+        const f = card.fach.trim().toLowerCase();
+        if (MAIN.has(f) && (subj.get(sK(card.klasse, d, w, f)) ?? 0) + card.duration > 2) return 'Hauptfach >2/Tag';
+        if (f === 'lbt' && (subj.get(sK(card.klasse, d, w, f)) ?? 0) + card.duration > LBT_MAX) return 'LBT >6/Tag';
+        return null;
+      };
+
+      const contexts = (card: Card): { c: number; d: number; w: Week }[] => {
+        const need = card.klasse.trim().toLowerCase();
+        const out: { c: number; d: number; w: Week }[] = [];
+        if (!need) return out;
+        for (let c = 0; c < this.classes.count; c++) {
+          for (let d = 0; d < DAYS.length; d++) {
+            for (const w of WEEKS) {
+              if (this.classes.classNameAt(c, d, w).trim().toLowerCase() === need) out.push({ c, d, w });
+            }
+          }
+        }
+        return out;
+      };
+
+      const apply = (card: Card, c: number, d: number, w: Week, start: number): void => {
+        occupy(card, card.klasse, c, d, w, start);
+        assigns.push({ card, c, d, w, start });
+        if (card.labGroup === 'b') {
+          groupB.push({ c, d, w, start, duration: card.duration, isWerk: card.isWerkstatt, klasse: card.klasse });
+        }
+      };
+
+      const placeNormal = (card: Card): void => {
+        if (!card.klasse.trim()) {
+          skipped.push({ card: card.abbr, reason: 'keine Klasse' });
+          return;
+        }
+        const ctx = contexts(card);
+        if (!ctx.length) {
+          skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: 'keine passende Spalte' });
+          return;
+        }
+        // Fächer-Variation: Tage mit wenig gleichem Fach zuerst (Gleichstände ggf. zufällig).
+        const f = card.fach.trim().toLowerCase();
+        if (shuffleOrder) shuffle(ctx, rng);
+        ctx.sort((a, b) => (subj.get(sK(card.klasse, a.d, a.w, f)) ?? 0) - (subj.get(sK(card.klasse, b.d, b.w, f)) ?? 0));
+        let reason = 'kein freier Platz';
+        for (const { c, d, w } of ctx) {
+          for (const start of startsFor(card)) {
+            const r = check(card, c, d, w, start);
+            if (r === null) {
+              apply(card, c, d, w, start);
+              return;
+            }
+            reason = r;
+          }
+        }
+        skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
+      };
+
+      const placeGroupA = (card: Card): void => {
+        if (!card.klasse.trim()) {
+          skipped.push({ card: card.abbr, reason: 'keine Klasse' });
+          return;
+        }
+        const need = card.klasse.trim().toLowerCase();
+        for (const b of groupB) {
+          if (b.isWerk !== card.isWerkstatt) continue;
+          if (b.klasse.trim().toLowerCase() !== need) continue;
+          if (b.duration !== card.duration) continue;
+          if (check(card, b.c, b.d, b.w, b.start, true) === null) {
+            apply(card, b.c, b.d, b.w, b.start);
+            return;
+          }
+        }
+        const what = card.isWerkstatt ? 'Werkstatt b' : 'Labor b';
+        skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: `kein passendes ${what}` });
+      };
+
+      // Reihenfolge: Gruppe b (Anker) vor Gruppe a; Werkstätten vor Laboren, dann Rest.
+      const cards = [...this.pool.all];
+      const isA = (c: Card) => c.labGroup === 'a';
+      const isB = (c: Card) => c.labGroup === 'b';
+      const isGrouped = (c: Card) => isA(c) || isB(c);
+      const fach = (c: Card) => c.fach.trim().toLowerCase();
+      const step = (list: Card[], fn: (c: Card) => void): void => {
+        const seq = shuffleOrder ? shuffle([...list], rng) : list;
+        for (const card of seq) fn(card);
+      };
+      step(cards.filter((c) => c.isWerkstatt && isB(c)), placeNormal);
+      step(cards.filter((c) => c.isWerkstatt && isA(c)), placeGroupA);
+      step(cards.filter((c) => c.isWerkstatt && !isGrouped(c)), placeNormal);
+      step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isB(c)), placeNormal);
+      step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isA(c)), placeGroupA);
+      step(cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c)), placeNormal);
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && MAIN.has(fach(c))), placeNormal);
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !MAIN.has(fach(c))), placeNormal);
+
+      let openMandatory = 0;
       for (let c = 0; c < this.classes.count; c++) {
         for (let d = 0; d < DAYS.length; d++) {
           for (const w of WEEKS) {
-            if (this.classes.classNameAt(c, d, w).trim().toLowerCase() === need) out.push({ c, d, w });
+            if (!this.classes.classNameAt(c, d, w).trim()) continue;
+            for (let p = 1; p <= 6; p++) if (!cell.has(cK(d, w, c, p))) openMandatory++;
           }
         }
       }
-      return out;
+      return { assigns, skipped, openMandatory };
     };
 
-    const apply = (card: Card, c: number, d: number, w: Week, start: number): void => {
-      this.pool.remove(card.id);
-      this.schedule.add(new Placement(this.nextId(), card.snapshot(), { day: d, startPeriod: start, classIdx: c, week: w }));
-      occupy(card, card.klasse, c, d, w, start);
-      placed++;
-      if (card.labGroup === 'b') {
-        groupB.push({ c, d, w, start, duration: card.duration, isWerk: card.isWerkstatt, klasse: card.klasse });
-      }
-    };
-
-    // Startstunden: Werkstatt blockt von der 1. an, sonst Pflichtbereich zuerst, dann 8.
-    const startsFor = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
-
-    const placeNormal = (card: Card): void => {
-      if (!card.klasse.trim()) {
-        skipped.push({ card: card.abbr, reason: 'keine Klasse' });
-        return;
-      }
-      const ctx = contexts(card);
-      if (!ctx.length) {
-        skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: 'keine passende Spalte' });
-        return;
-      }
-      // Hauptfächer über die Tage verteilen: Kontexte mit wenig gleichem Fach zuerst.
-      ctx.sort((a, b) => (subjH.get(sK(card.klasse, a.d, a.w, card.fach)) ?? 0) - (subjH.get(sK(card.klasse, b.d, b.w, card.fach)) ?? 0));
-      let reason = 'kein freier Platz';
-      for (const { c, d, w } of ctx) {
-        for (const start of startsFor(card)) {
-          const r = check(card, c, d, w, start);
-          if (r === null) {
-            apply(card, c, d, w, start);
-            return;
-          }
-          reason = r;
-        }
-      }
-      skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
-    };
-
-    /** Gruppe a (Labor oder Werkstatt) auf eine passende Gruppe b stapeln. */
-    const placeGroupA = (card: Card): void => {
-      if (!card.klasse.trim()) {
-        skipped.push({ card: card.abbr, reason: 'keine Klasse' });
-        return;
-      }
-      const need = card.klasse.trim().toLowerCase();
-      for (const b of groupB) {
-        if (b.isWerk !== card.isWerkstatt) continue; // Werkstatt nur auf Werkstatt, Labor auf Labor
-        if (b.klasse.trim().toLowerCase() !== need) continue;
-        if (b.duration !== card.duration) continue; // gleiche Länge → deckungsgleicher Slot
-        if (check(card, b.c, b.d, b.w, b.start, true) === null) {
-          apply(card, b.c, b.d, b.w, b.start);
-          return;
-        }
-      }
-      const what = card.isWerkstatt ? 'Werkstatt b' : 'Labor b';
-      skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: `kein passendes ${what}` });
-    };
-
-    // Reihenfolge: zuerst Gruppe b (Anker legen), dann Gruppe a darauf stapeln –
-    // erst Werkstätten (große Blöcke), dann Labore, dann Hauptfächer, dann Rest.
-    const cards = [...this.pool.all];
-    const isA = (c: Card) => c.labGroup === 'a';
-    const isB = (c: Card) => c.labGroup === 'b';
-    const isGrouped = (c: Card) => isA(c) || isB(c);
-    const fach = (c: Card) => c.fach.trim().toLowerCase();
-    const lists = {
-      werkB: cards.filter((c) => c.isWerkstatt && isB(c)),
-      werkA: cards.filter((c) => c.isWerkstatt && isA(c)),
-      werkN: cards.filter((c) => c.isWerkstatt && !isGrouped(c)),
-      labB: cards.filter((c) => !c.isWerkstatt && c.isLabor && isB(c)),
-      labA: cards.filter((c) => !c.isWerkstatt && c.isLabor && isA(c)),
-      labN: cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c)),
-      main: cards.filter((c) => !c.isWerkstatt && !c.isLabor && MAIN.has(fach(c))),
-      rest: cards.filter((c) => !c.isWerkstatt && !c.isLabor && !MAIN.has(fach(c))),
-    };
-    for (const card of lists.werkB) placeNormal(card);
-    for (const card of lists.werkA) placeGroupA(card);
-    for (const card of lists.werkN) placeNormal(card);
-    for (const card of lists.labB) placeNormal(card);
-    for (const card of lists.labA) placeGroupA(card);
-    for (const card of lists.labN) placeNormal(card);
-    for (const card of lists.main) placeNormal(card);
-    for (const card of lists.rest) placeNormal(card);
-
-    // Offene Pflichtstunden (1–6) je vorhandener Klassen-Spalte zählen.
-    let openMandatory = 0;
-    for (let c = 0; c < this.classes.count; c++) {
-      for (let d = 0; d < DAYS.length; d++) {
-        for (const w of WEEKS) {
-          if (!this.classes.classNameAt(c, d, w).trim()) continue;
-          for (let p = 1; p <= 6; p++) if (!cell.has(cK(d, w, c, p))) openMandatory++;
-        }
-      }
+    // Mehrere Durchläufe: ersten deterministisch, weitere mit variierter Reihenfolge.
+    // Bestes Ergebnis = meiste platzierte Karten, dann wenigste offene Pflichtstunden.
+    const better = (a: Outcome, b: Outcome): boolean =>
+      a.assigns.length > b.assigns.length ||
+      (a.assigns.length === b.assigns.length && a.openMandatory < b.openMandatory);
+    const rng = Math.random;
+    let best = runOnce(false, rng);
+    const MAX_ATTEMPTS = 50;
+    for (let i = 1; i < MAX_ATTEMPTS && best.skipped.length > 0; i++) {
+      const cand = runOnce(true, rng);
+      if (better(cand, best)) best = cand;
     }
 
+    // Bestes Ergebnis anwenden: Karten aus dem Pool in den Plan übernehmen.
+    for (const a of best.assigns) {
+      const card = this.pool.remove(a.card.id);
+      if (!card) continue;
+      this.schedule.add(new Placement(this.nextId(), card.snapshot(), { day: a.d, startPeriod: a.start, classIdx: a.c, week: a.w }));
+    }
     this.emit();
-    return { placed, skipped, openMandatory };
+    return { placed: best.assigns.length, skipped: best.skipped, openMandatory: best.openMandatory };
   }
 
   // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────
