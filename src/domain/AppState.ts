@@ -181,6 +181,15 @@ export class AppState {
     return placement;
   }
 
+  /** Entplant alle Karten: jede Platzierung wandert zurück in den Pool. */
+  unplaceAll(): number {
+    const count = this.schedule.all.length;
+    for (const p of this.schedule.all) this.pool.add(new Card(this.nextId(), p.cardSnapshot()));
+    this.schedule.replaceAll([]);
+    this.emit();
+    return count;
+  }
+
   // ── Klassen ─────────────────────────────────────────────────────────────
 
   addClass(): number {

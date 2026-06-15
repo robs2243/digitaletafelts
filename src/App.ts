@@ -155,7 +155,7 @@ export class App {
   }
 
   private bindGlobalControls(): void {
-    byId('btn-add-class').addEventListener('click', () => this.handleAddClass());
+    byId('btn-unplace-all').addEventListener('click', () => this.handleUnplaceAll());
     byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
     byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
     byId('btn-comments').addEventListener('click', () => this.openComments());
@@ -672,6 +672,23 @@ export class App {
     } catch {
       this.toast.show('Speichern fehlgeschlagen.', 'inf');
     }
+  }
+
+  /** Entplant alle Felder (Karten zurück in den Pool) – mit „Ja"-Bestätigung. */
+  private handleUnplaceAll(): void {
+    const count = this.state.schedule.all.length;
+    if (!count) {
+      this.toast.show('Es sind keine Karten platziert.', 'inf');
+      return;
+    }
+    const answer = prompt(`Alle ${count} platzierten Karten zurück in den Pool (entplanen)?\n\nZum Bestätigen „Ja" eingeben:`);
+    if (answer === null) return;
+    if (answer.trim().toLowerCase() !== 'ja') {
+      this.toast.show('Abgebrochen – es wurde nicht „Ja" eingegeben.', 'inf');
+      return;
+    }
+    this.state.unplaceAll();
+    this.toast.show(`↩ ${count} Karten entplant`, 'inf');
   }
 
   private openClearCards(): void {
