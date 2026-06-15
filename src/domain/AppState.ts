@@ -226,6 +226,62 @@ export class AppState {
     return out.sort((a, b) => a.abbr.localeCompare(b.abbr, 'de'));
   }
 
+  /** Alle Karten ohne Raum (Pool + Plan), sortiert nach Klasse, dann Lehrer. */
+  roomlessCards(): (CardWithPlace & { id: string })[] {
+    const out: (CardWithPlace & { id: string })[] = [];
+    for (const c of this.pool.all) {
+      if (!c.room.trim()) out.push({ id: c.id, abbr: c.abbr, fach: c.fach, klasse: c.klasse });
+    }
+    for (const p of this.schedule.all) {
+      if (!p.room.trim()) {
+        out.push({ id: p.id, abbr: p.abbr, fach: p.fach, klasse: p.klasse, day: p.day, startPeriod: p.startPeriod, duration: p.duration, week: p.week });
+      }
+    }
+    return out.sort((a, b) => a.klasse.localeCompare(b.klasse, 'de') || a.abbr.localeCompare(b.abbr, 'de'));
+  }
+
+  /**
+   * Setzt den Raum einer Karte (Pool oder Plan). Bei platzierten Karten wird geprüft,
+   * ob der Raum zu dieser Zeit noch frei ist; ein Konflikt wird im Ergebnis gemeldet
+   * (der Raum wird trotzdem gesetzt – die Entscheidung trifft der Anwender).
+   */
+  setRoom(id: string, room: string): { ok: boolean; conflictAbbr?: string } {
+    const value = room.trim();
+    const card = this.pool.findById(id);
+    if (card) {
+      card.room = value;
+      this.emit();
+      return { ok: true };
+    }
+    const pl = this.schedule.findById(id);
+    if (!pl) return { ok: false };
+    let conflictAbbr: string | undefined;
+    if (value) {
+      const clash = this.schedule.all.find(
+        (o) =>
+          o.id !== id &&
+          o.room.trim().toLowerCase() === value.toLowerCase() &&
+          o.day === pl.day &&
+          o.week === pl.week &&
+          o.startPeriod <= pl.endPeriod &&
+          pl.startPeriod <= o.endPeriod &&
+          !(o.coupling && o.coupling === pl.coupling),
+      );
+      conflictAbbr = clash?.abbr;
+    }
+    this.schedule.remove(id);
+    this.schedule.add(
+      new Placement(
+        this.nextId(),
+        { ...pl.cardSnapshot(), room: value },
+        { day: pl.day, startPeriod: pl.startPeriod, classIdx: pl.classIdx, week: pl.week },
+        pl.locked,
+      ),
+    );
+    this.emit();
+    return { ok: true, conflictAbbr };
+  }
+
   /** Alle Karten (Pool + Plan) für den Excel-Export, sortiert nach Klasse, dann Lehrer. */
   allCardsForExport(): (CardProps & { placed: boolean; day: number | null; startPeriod: number | null; week: Week | null })[] {
     const rows = [

@@ -290,6 +290,25 @@ export class App {
     byId('plan-unplace-unlocked').addEventListener('click', () => this.handleUnplaceUnlocked());
     byId('plan-reset-classes').addEventListener('click', () => this.handleResetClasses());
     byId('plan-export').addEventListener('click', () => this.downloadCardsExport());
+    byId('plan-rooms').addEventListener('click', () => this.openRooms());
+
+    const roomsOverlay = byId('rooms-modal');
+    byId('rm-close').addEventListener('click', () => roomsOverlay.classList.remove('open'));
+    roomsOverlay.addEventListener('click', (e) => {
+      if (e.target === roomsOverlay) roomsOverlay.classList.remove('open');
+    });
+    byId('rm-list').addEventListener('change', (e) => {
+      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.room-set');
+      if (inp?.dataset.id) this.handleSetRoom(inp.dataset.id, inp.value);
+    });
+    byId('rm-template').addEventListener('click', () => this.downloadRoomTemplate());
+    const roomFile = byId<HTMLInputElement>('rm-import-file');
+    byId('rm-import').addEventListener('click', () => roomFile.click());
+    roomFile.addEventListener('change', () => {
+      const file = roomFile.files?.[0];
+      if (file) void this.handleRoomImport(file);
+      roomFile.value = '';
+    });
     byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     byId('plan-replan').addEventListener('click', () => this.handleReplan());
@@ -522,6 +541,95 @@ export class App {
           .join('')
       : '<div class="tm-empty">Keine Karten mit aktiver Kollision.<br>Beim Erstellen einer Karte die Checkbox „💥 Kollision erlaubt" aktivieren.</div>';
     byId('collisions-modal').classList.add('open');
+  }
+
+  // ── Räume (Karten ohne Raum) ────────────────────────────────────────────
+
+  private openRooms(): void {
+    this.renderRooms();
+    byId('rooms-modal').classList.add('open');
+  }
+
+  private renderRooms(): void {
+    const cards = this.state.roomlessCards();
+    byId('rm-sub').textContent = cards.length
+      ? `${cards.length} Karte(n) ohne Raum – Raum eintragen (verplante werden auf Verfügbarkeit geprüft)`
+      : '';
+    byId('rm-list').innerHTML = cards.length
+      ? cards
+          .map(
+            (m) => `<div class="pl-item" style="cursor:default">
+              <span class="pl-meta" style="flex:1">${this.memberLine(m)}</span>
+              <input class="room-set" data-id="${esc(m.id)}" placeholder="Raum" autocomplete="off" />
+            </div>`,
+          )
+          .join('')
+      : '<div class="tm-empty">Alle Karten haben einen Raum. 🎉</div>';
+  }
+
+  /** Setzt den Raum einer Karte und meldet ggf. einen Belegungs-Konflikt. */
+  private handleSetRoom(id: string, room: string): void {
+    const res = this.state.setRoom(id, room);
+    if (!res.ok) return;
+    if (res.conflictAbbr) {
+      this.toast.show(`⚠️ Raum „${room.trim()}" ist zu dieser Zeit schon bei ${res.conflictAbbr} belegt.`, 'inf');
+    } else if (room.trim()) {
+      this.toast.show(`✓ Raum „${room.trim()}" gesetzt`);
+    }
+    this.renderRooms();
+  }
+
+  /** Excel-Vorlage mit allen Karten ohne Raum (Spalte „Raum" zum Ausfüllen). */
+  private downloadRoomTemplate(): void {
+    const cards = this.state.roomlessCards();
+    if (!cards.length) {
+      this.toast.show('Keine Karten ohne Raum.', 'inf');
+      return;
+    }
+    const aoa: (string | number)[][] = [['ID', 'Kürzel', 'Klasse', 'Fach', 'Tag', 'Stunde', 'Woche', 'Raum']];
+    for (const m of cards) {
+      const stunde =
+        m.startPeriod === undefined ? '' : m.duration && m.duration > 1 ? `${m.startPeriod}–${m.startPeriod + m.duration - 1}` : `${m.startPeriod}`;
+      aoa.push([m.id, m.abbr, m.klasse, m.fach, m.day === undefined ? '' : DAYS[m.day], stunde, m.week ?? '', '']);
+    }
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Räume');
+    XLSX.writeFile(wb, 'Raeume-Vorlage.xlsx');
+  }
+
+  /** Liest eine Excel-Tabelle (Spalten ID + Raum) und weist die Räume zu. */
+  private async handleRoomImport(file: File): Promise<void> {
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false, defval: '' }) as unknown[][];
+      if (!rows.length) {
+        this.toast.show('Leere Tabelle.', 'inf');
+        return;
+      }
+      const head = (rows[0] ?? []).map((h) => String(h ?? '').trim().toLowerCase());
+      const idIdx = head.indexOf('id');
+      const roomIdx = head.findIndex((h) => h === 'raum' || h === 'room');
+      if (idIdx < 0 || roomIdx < 0) {
+        this.toast.show('Spalten „ID" und „Raum" werden benötigt.', 'inf');
+        return;
+      }
+      let set = 0;
+      let conflicts = 0;
+      for (let r = 1; r < rows.length; r++) {
+        const id = String(rows[r]?.[idIdx] ?? '').trim();
+        const room = String(rows[r]?.[roomIdx] ?? '').trim();
+        if (!id || !room) continue;
+        const res = this.state.setRoom(id, room);
+        if (res.ok) {
+          set++;
+          if (res.conflictAbbr) conflicts++;
+        }
+      }
+      this.renderRooms();
+      this.toast.show(`✓ ${set} Räume gesetzt${conflicts ? ` · ${conflicts} mit Belegungs-Konflikt` : ''}`, conflicts ? 'inf' : 'ok');
+    } catch {
+      this.toast.show('Datei konnte nicht gelesen werden (Excel/CSV?).', 'inf');
+    }
   }
 
   // ── Pool-Liste (nicht verplante Karten, mit Filter) ─────────────────────

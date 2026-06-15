@@ -406,6 +406,14 @@ body.rooms-only .p-room {
 }
 body.rooms-only .placed .p-room { font-size: 18px; letter-spacing: .5px; }
 body.rooms-only .placed-mini .p-room { font-size: 12px; }
+/* In der „Nur Räume“-Ansicht Karten ohne Raum mit rotem Rahmen markieren. */
+body.rooms-only .placed.no-room, body.rooms-only .placed-mini.no-room {
+  outline: 3px solid #e53935; outline-offset: -3px;
+  box-shadow: inset 0 0 0 9999px rgba(229,57,53,.16);
+}
+body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::after {
+  content: '?'; font-weight: 800; color: #e53935;
+}
 .p-half {
   align-self: flex-start; opacity: .95; font-weight: 800;
   background: rgba(0,0,0,.2); border-radius: 5px; padding: 0 4px; margin-top: 1px;
@@ -657,6 +665,11 @@ body.rooms-only .placed-mini .p-room { font-size: 12px; }
   border: 1.5px solid var(--border); border-radius: 6px; background: #fff; outline: none;
 }
 .pl-coupling:focus { border-color: var(--accent); }
+.room-set {
+  flex-shrink: 0; width: 110px; padding: 4px 7px; font-size: 12px;
+  border: 1.5px solid var(--border); border-radius: 6px; background: #fff; outline: none;
+}
+.room-set:focus { border-color: var(--accent); }
 
 /* ── KOLLISIONS-MODAL ── */
 .warn-modal { max-width: 420px; width: 100%; }

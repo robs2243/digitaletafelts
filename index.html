@@ -268,6 +268,10 @@
           <div id="plan-sub" style="font-size: 12px; color: #555; margin-top: 6px"></div>
         </div>
         <div class="fg" style="border-top: 1px solid #e0e0e0; padding-top: 12px">
+          <label>Räume – Karten ohne Raum prüfen und zuweisen</label>
+          <button class="btn btn-ok" id="plan-rooms" style="width: 100%">🚪 Karten ohne Raum</button>
+        </div>
+        <div class="fg">
           <label>Excel-Export – alle Karten (sortiert nach Klasse und Lehrer)</label>
           <button class="btn btn-ok" id="plan-export" style="width: 100%">📤 Alle Karten als Excel exportieren</button>
         </div>
@@ -332,6 +336,21 @@
         <div id="col-list" class="tm-list"></div>
         <div class="mbtns">
           <button class="btn btn-ok" id="col-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KARTEN-OHNE-RAUM-MODAL (Button in Planung) ═══ -->
+    <div class="overlay" id="rooms-modal">
+      <div class="modal teacher-modal-box" style="width: 620px">
+        <h2 style="color: #1a237e">🚪 Karten ohne Raum</h2>
+        <div id="rm-sub" class="tm-sub"></div>
+        <div id="rm-list" class="tm-list"></div>
+        <input type="file" id="rm-import-file" accept=".xlsx,.xls,.csv" hidden />
+        <div class="mbtns">
+          <button class="btn btn-sec" id="rm-template" title="Excel-Vorlage mit allen Karten ohne Raum">📄 Vorlage</button>
+          <button class="btn btn-ok" id="rm-import">📥 Räume importieren</button>
+          <button class="btn btn-sec" id="rm-close" style="margin-left: auto">Schließen</button>
         </div>
       </div>
     </div>
