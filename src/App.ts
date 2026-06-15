@@ -834,7 +834,7 @@ export class App {
         .map(
           (pl) =>
             `<span class="rp-chip${arr.length > 1 ? ' rp-multi' : ''}" style="background:${pl.color};color:${ink(pl.color)}"` +
-            ` title="${esc(pl.abbr)}${pl.klasse ? ` · ${esc(pl.klasse)}` : ''}${pl.fach ? ` · ${esc(pl.fach)}` : ''} – ${DAYS[pl.day]} ${pl.startPeriod}. Std (${pl.week})">${esc(pl.abbr)}</span>`,
+            ` title="${esc(pl.klasse || pl.abbr)}${pl.abbr ? ` · ${esc(pl.abbr)}` : ''}${pl.fach ? ` · ${esc(pl.fach)}` : ''} – ${DAYS[pl.day]} ${pl.startPeriod}. Std (${pl.week})">${esc(pl.klasse || pl.abbr)}</span>`,
         )
         .join('');
     let body =
