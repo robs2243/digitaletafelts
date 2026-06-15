@@ -117,6 +117,10 @@ export class TimetableView {
       if (color && !inp.classList.contains('dh-comb-muted')) {
         inp.style.background = color;
         inp.style.color = ink(color);
+      } else if (!inp.value.trim()) {
+        // Feld geleert → auch die Farbe zurücksetzen (Standard-Look).
+        inp.style.background = '';
+        inp.style.color = '';
       }
       this.refreshCombinedMuted(c, d, inp);
     });

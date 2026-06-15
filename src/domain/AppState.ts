@@ -301,6 +301,12 @@ export class AppState {
     return this.schedule.all.some((p) => p.classIdx === idx);
   }
 
+  /** Setzt alle Klassen-Spalten auf den leeren Standard (Platzhalter u+g / u / g). */
+  resetAllClasses(): void {
+    this.classes.resetAll();
+    this.emit();
+  }
+
   deleteClass(idx: number): void {
     this.schedule.removeClass(idx);
     this.classes.removeAt(idx);

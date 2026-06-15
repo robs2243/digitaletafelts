@@ -262,6 +262,7 @@ export class App {
     byId('plan-unplace').addEventListener('click', () => this.handleUnplace());
     byId('plan-unplace-all').addEventListener('click', () => this.handleUnplaceAll());
     byId('plan-unplace-unlocked').addEventListener('click', () => this.handleUnplaceUnlocked());
+    byId('plan-reset-classes').addEventListener('click', () => this.handleResetClasses());
     byId('plan-abbr').addEventListener('input', () => this.updatePlanHint());
     byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     byId('plan-replan').addEventListener('click', () => this.handleReplan());
@@ -863,6 +864,19 @@ export class App {
     const n = this.state.unplaceAll();
     this.closePlanning();
     this.toast.show(`↩ ${n} Karten entplant`, 'inf');
+  }
+
+  /** Setzt alle Klassen-Spalten auf den leeren Standard zurück („Ja"-Bestätigung). */
+  private handleResetClasses(): void {
+    if (
+      !this.confirmJa(
+        'Alle Klassennamen und -farben zurücksetzen?\nDie Spalten zeigen dann wieder den Standard (u+g / u / g). Platzierte Karten bleiben erhalten.',
+      )
+    )
+      return;
+    this.state.resetAllClasses();
+    this.closePlanning();
+    this.toast.show('🧹 Klassen zurückgesetzt', 'inf');
   }
 
   /** Entplant alle Karten außer den fixierten („Ja"-Bestätigung). */

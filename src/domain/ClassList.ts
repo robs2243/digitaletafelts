@@ -38,7 +38,8 @@ export class ClassList {
   }
 
   static withDefaults(count = 10): ClassList {
-    return new ClassList(Array.from({ length: count }, (_, i) => columnWith(`Klasse ${i + 1}`)));
+    // Standard: leere Spalten → es erscheinen die Platzhalter „u + g" / „u" / „g".
+    return new ClassList(Array.from({ length: count }, () => columnWith('')));
   }
 
   /** Liest Alt-Format (string[]) und Neu-Format (ClassColumn[]). */
@@ -114,16 +115,23 @@ export class ClassList {
     return `Spalte ${classIdx + 1}`;
   }
 
-  /** Fügt eine Spalte hinzu und gibt deren Index zurück. */
+  /** Fügt eine leere Spalte hinzu und gibt deren Index zurück. */
   add(): number {
-    this.columns.push(columnWith(`Klasse ${this.columns.length + 1}`));
+    this.columns.push(columnWith(''));
     return this.columns.length - 1;
   }
 
-  /** Setzt den Text eines Beschriftungsfeldes (leer erlaubt). */
+  /** Setzt alle Spalten auf den leeren Standard zurück (Platzhalter u+g / u / g). */
+  resetAll(): void {
+    this.columns = this.columns.map(() => columnWith(''));
+  }
+
+  /** Setzt den Text eines Beschriftungsfeldes (leer erlaubt). Leeres Feld → auch Farbe weg. */
   setLabel(classIdx: number, day: number, field: LabelField, value: string): void {
     const dl = this.columns[classIdx]?.[day];
-    if (dl) dl[field] = value;
+    if (!dl) return;
+    dl[field] = value;
+    if (!value.trim()) dl[COLOR_KEY[field]] = '';
   }
 
   /** Setzt die Hintergrundfarbe eines Beschriftungsfeldes (leer = keine). */
