@@ -495,6 +495,7 @@ export class App {
         this.toast.show('Keine gültigen Zeilen gefunden (Spalte „Kürzel"?).', 'inf');
         return;
       }
+      this.state.fillCardColors(cards);
       this.state.importCards(cards);
       this.renderPoolList();
       this.toast.show(`✓ ${cards.length} Karten importiert`);

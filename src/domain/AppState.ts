@@ -75,6 +75,46 @@ export class AppState {
     this.emit();
   }
 
+  /**
+   * Weist Karten ohne Farbe je Kürzel eine Farbe zu: konsistent zu bereits
+   * vorhandenen Karten desselben Kürzels und ausgewogen über die Palette
+   * (jeweils die am seltensten genutzte Farbe). Mutiert die übergebenen Karten.
+   */
+  fillCardColors(list: CardProps[]): void {
+    const usage = new Map<string, number>();
+    for (const c of PALETTE) usage.set(c, 0);
+    const byAbbr = new Map<string, string>();
+    const register = (color: string, abbr: string): void => {
+      if (usage.has(color)) usage.set(color, (usage.get(color) ?? 0) + 1);
+      if (!byAbbr.has(abbr)) byAbbr.set(abbr, color);
+    };
+    for (const c of this.pool.all) register(c.color, c.abbr);
+    for (const p of this.schedule.all) register(p.color, p.abbr);
+
+    const leastUsed = (): string => {
+      let best: string = PALETTE[0];
+      let min = Infinity;
+      for (const color of PALETTE) {
+        const u = usage.get(color) ?? 0;
+        if (u < min) {
+          min = u;
+          best = color;
+        }
+      }
+      return best;
+    };
+
+    for (const card of list) {
+      let color = byAbbr.get(card.abbr);
+      if (!color) {
+        color = card.color || leastUsed();
+        byAbbr.set(card.abbr, color);
+        if (usage.has(color)) usage.set(color, (usage.get(color) ?? 0) + 1);
+      }
+      card.color = color;
+    }
+  }
+
   /** Erstellt mehrere Pool-Karten auf einmal (z. B. Excel-Import). */
   importCards(list: CardProps[]): number {
     for (const props of list) this.pool.add(new Card(this.nextId(), props));
