@@ -31,19 +31,25 @@ Quelle: Vorgaben des Anwenders.
    unterschiedliche Tage.
 9. **LBT:** am **gleichen Tag höchstens 6 Stunden** „LBT" (pro Klasse).
 
+## Wochen-Ausgleich (u/g)
+
+10. Die Stunden einer Lehrkraft sollen zwischen **u-Woche und g-Woche ausgeglichen**
+    sein. Die **Differenz darf höchstens 2 Stunden** betragen. Liegt sie höher,
+    **erscheint eine Meldung** (Hinweis zum Ausgleichen von Hand).
+
 ## Werkstatt
 
-10. Werkstatt darf **4–8 Stunden am Stück** sein.
-11. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
-12. Werkstatt darf **auch in der 7. Stunde** stattfinden.
-13. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
+11. Werkstatt darf **4–8 Stunden am Stück** sein.
+12. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
+13. Werkstatt darf **auch in der 7. Stunde** stattfinden.
+14. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
     **Gruppe a** muss immer auf eine Werkstatt der **Gruppe b** gelegt werden
     (gestapelt, gleicher Slot) – analog zu den Laboren.
 
 ## Labore
 
-14. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
-15. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
+15. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
+16. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
     werden (gestapelt). Das **Fach muss nicht übereinstimmen**.
 
 ## Entscheidungen zur Umsetzung
@@ -66,5 +72,9 @@ Quelle: Vorgaben des Anwenders.
   Klasse werden gezählt (inkl. angrenzender Blöcke); >4 ist nur bei Werkstatt erlaubt.
 - **Fächer-Variation:** gleiche Fächer werden bevorzugt auf unterschiedliche Tage
   verteilt.
+- **u/g-Ausgleich:** der Planer bevorzugt beim Verplanen die für die Lehrkraft
+  „leichtere" Woche und optimiert über die Durchläufe auf geringe u/g-Differenz.
+  Bleibt die Differenz am Ende > 2 Stunden, wird die Lehrkraft in einer Meldung
+  aufgeführt (harte Sperre wäre zu streng, daher Hinweis statt Verbot).
 - **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
   D, M, E, Gk, Wk). **LBT** wird ebenfalls über das Feld „Fach" erkannt (max. 6/Tag).

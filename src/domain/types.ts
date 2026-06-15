@@ -93,6 +93,8 @@ export interface AutoPlanResult {
   skipped: { card: string; reason: string }[];
   /** Anzahl offener Pflichtstunden (1–6) nach dem Verplanen. */
   openMandatory: number;
+  /** Lehrkräfte mit u/g-Differenz > 2 Stunden (u-/g-Stunden zur Meldung). */
+  weekImbalance: { abbr: string; u: number; g: number }[];
 }
 
 /** Zeile der Stunden-Übersicht. */

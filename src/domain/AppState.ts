@@ -405,6 +405,8 @@ export class AppState {
       assigns: Assign[];
       skipped: { card: string; reason: string }[];
       openMandatory: number;
+      /** Summe der Überschreitungen der erlaubten u/g-Differenz (2) über alle Lehrkräfte. */
+      imbalance: number;
     }
 
     const baseStarts = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
@@ -420,6 +422,7 @@ export class AppState {
       const teachSet = new Set<string>();
       const teachClass = new Set<string>(); // Lehrer unterrichtet in dieser Klasse: kürzel|c|d|w|p
       const teachH = new Map<string, number>();
+      const teachWeek = new Map<string, [number, number]>(); // kürzel → [u-Stunden, g-Stunden]
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
@@ -433,9 +436,17 @@ export class AppState {
         }
         for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
         teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
+        const a = card.abbr.toLowerCase();
+        const tw = teachWeek.get(a) ?? [0, 0];
+        tw[w === 'u' ? 0 : 1] += card.duration;
+        teachWeek.set(a, tw);
         const f = card.fach.trim().toLowerCase();
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
       };
+
+      /** Aktuelle Stunden der Lehrkraft in der angegebenen Woche (für den Ausgleich). */
+      const teacherWeekLoad = (abbr: string, w: Week): number =>
+        (teachWeek.get(abbr.toLowerCase()) ?? [0, 0])[w === 'u' ? 0 : 1];
 
       // Bestehende Platzierungen als Belegung übernehmen (bleiben unangetastet).
       for (const pl of this.schedule.all) {
@@ -505,10 +516,15 @@ export class AppState {
           skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: 'keine passende Spalte' });
           return;
         }
-        // Fächer-Variation: Tage mit wenig gleichem Fach zuerst (Gleichstände ggf. zufällig).
+        // Sortier-Präferenz: Fächer-Variation (wenig gleiches Fach am Tag), danach
+        // u/g-Ausgleich (die für die Lehrkraft leichtere Woche zuerst). Gleichstände ggf. zufällig.
         const f = card.fach.trim().toLowerCase();
         if (shuffleOrder) shuffle(ctx, rng);
-        ctx.sort((a, b) => (subj.get(sK(card.klasse, a.d, a.w, f)) ?? 0) - (subj.get(sK(card.klasse, b.d, b.w, f)) ?? 0));
+        ctx.sort(
+          (a, b) =>
+            (subj.get(sK(card.klasse, a.d, a.w, f)) ?? 0) - (subj.get(sK(card.klasse, b.d, b.w, f)) ?? 0) ||
+            teacherWeekLoad(card.abbr, a.w) - teacherWeekLoad(card.abbr, b.w),
+        );
         const starts = shuffleOrder ? shuffle([...baseStarts(card)], rng) : baseStarts(card);
         let reason = 'kein freier Platz';
         for (const { c, d, w } of ctx) {
@@ -572,16 +588,20 @@ export class AppState {
           }
         }
       }
-      return { assigns, skipped, openMandatory };
+      let imbalance = 0;
+      for (const [u, g] of teachWeek.values()) imbalance += Math.max(0, Math.abs(u - g) - 2);
+      return { assigns, skipped, openMandatory, imbalance };
     };
 
     // Mehrere Durchläufe: ersten deterministisch (Heuristik), weitere mit variierter
     // Reihenfolge/Startstunden. Es wird so lange probiert, bis alle Karten verplant
     // sind ODER das Zeit-/Versuchsbudget erschöpft ist. Bestes Ergebnis = meiste
-    // platzierte Karten, dann wenigste offene Pflichtstunden.
-    const better = (a: Outcome, b: Outcome): boolean =>
-      a.assigns.length > b.assigns.length ||
-      (a.assigns.length === b.assigns.length && a.openMandatory < b.openMandatory);
+    // platzierte Karten, dann beste u/g-Balance, dann wenigste offene Pflichtstunden.
+    const better = (a: Outcome, b: Outcome): boolean => {
+      if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
+      if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
+      return a.openMandatory < b.openMandatory;
+    };
     const rng = Math.random;
     let best = runOnce(false, rng);
     const MAX_ATTEMPTS = 20000;
@@ -599,7 +619,24 @@ export class AppState {
       this.schedule.add(new Placement(this.nextId(), card.snapshot(), { day: a.d, startPeriod: a.start, classIdx: a.c, week: a.w }));
     }
     this.emit();
-    return { placed: best.assigns.length, skipped: best.skipped, openMandatory: best.openMandatory };
+
+    // u/g-Ausgleich prüfen: Lehrkräfte mit Differenz > 2 Stunden melden.
+    const weekImbalance = this.teacherWeekImbalance();
+    return { placed: best.assigns.length, skipped: best.skipped, openMandatory: best.openMandatory, weekImbalance };
+  }
+
+  /** Lehrkräfte, deren u-/g-Stunden um mehr als 2 auseinanderliegen (für die Warnung). */
+  teacherWeekImbalance(): { abbr: string; u: number; g: number }[] {
+    const map = new Map<string, [number, number]>();
+    for (const p of this.schedule.all) {
+      const tw = map.get(p.abbr) ?? [0, 0];
+      tw[p.week === 'u' ? 0 : 1] += p.duration;
+      map.set(p.abbr, tw);
+    }
+    return [...map.entries()]
+      .filter(([, [u, g]]) => Math.abs(u - g) > 2)
+      .map(([abbr, [u, g]]) => ({ abbr, u, g }))
+      .sort((a, b) => Math.abs(b.u - b.g) - Math.abs(a.u - a.g));
   }
 
   // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────

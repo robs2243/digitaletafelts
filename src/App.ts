@@ -883,6 +883,16 @@ export class App {
       const lines = [...byReason.entries()].map(([reason, cards]) => `• ${reason}: ${cards.join(', ')}`);
       alert(`Nicht platzierbare Karten (bleiben im Pool):\n\n${lines.join('\n')}`);
     }
+
+    if (res.weekImbalance.length) {
+      const lines = res.weekImbalance.map(
+        (t) => `• ${t.abbr}: u ${t.u} Std / g ${t.g} Std (Differenz ${Math.abs(t.u - t.g)})`,
+      );
+      alert(
+        `⚠️ Unausgeglichene u/g-Verteilung (Differenz > 2 Stunden):\n\n${lines.join('\n')}\n\n` +
+          'Bitte diese Lehrkräfte von Hand ausgleichen.',
+      );
+    }
   }
 
   private openClearCards(): void {
