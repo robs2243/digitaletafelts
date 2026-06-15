@@ -228,6 +228,7 @@ export class App {
       if (e.target === planningOverlay) this.closePlanning();
     });
     byId('plan-unplace').addEventListener('click', () => this.handleUnplace());
+    byId('plan-auto').addEventListener('click', () => this.handleAutoPlan());
     const poolListOverlay = byId('pool-list-modal');
     byId('pl-close').addEventListener('click', () => this.closePoolList());
     poolListOverlay.addEventListener('click', (e) => {
@@ -731,6 +732,36 @@ export class App {
       this.toast.show(`↩ ${n} Karten von „${value}" entplant`, 'inf');
     }
     this.closePlanning();
+  }
+
+  /** Verplant die freien Pool-Karten automatisch und meldet das Ergebnis. */
+  private handleAutoPlan(): void {
+    if (this.state.pool.isEmpty) {
+      this.toast.show('Keine freien Karten im Pool.', 'inf');
+      return;
+    }
+    const free = this.state.pool.all.length;
+    if (!confirm(`${free} freie Karten automatisch nach den Planungsregeln verplanen?`)) return;
+
+    const res = this.state.autoPlan();
+    this.closePlanning();
+
+    const parts = [`✓ ${res.placed} von ${free} verplant`];
+    if (res.skipped.length) parts.push(`${res.skipped.length} nicht platzierbar`);
+    if (res.openMandatory) parts.push(`${res.openMandatory} Pflichtstunden offen`);
+    this.toast.show(parts.join(' · '), res.skipped.length || res.openMandatory ? 'inf' : 'ok');
+
+    if (res.skipped.length) {
+      // Gründe gebündelt ausgeben, damit der Nutzer nachbessern kann.
+      const byReason = new Map<string, string[]>();
+      for (const s of res.skipped) {
+        const list = byReason.get(s.reason) ?? [];
+        list.push(s.card);
+        byReason.set(s.reason, list);
+      }
+      const lines = [...byReason.entries()].map(([reason, cards]) => `• ${reason}: ${cards.join(', ')}`);
+      alert(`Nicht platzierbare Karten (bleiben im Pool):\n\n${lines.join('\n')}`);
+    }
   }
 
   private openClearCards(): void {

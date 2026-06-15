@@ -1,11 +1,11 @@
 import { Card } from './Card';
 import { CardPool } from './CardPool';
 import { ClassList } from './ClassList';
-import { PALETTE } from './constants';
+import { DAYS, PALETTE, PERIODS, WEEKS } from './constants';
 import { Placement } from './Placement';
 import { Schedule } from './Schedule';
 import { semesterFactor } from './semester';
-import type { CardProps, LabelField, PersistedState, PlacementPosition, StatRow } from './types';
+import type { AutoPlanResult, CardProps, LabelField, PersistedState, PlacementPosition, StatRow, Week } from './types';
 
 export interface ChangeEvent {
   /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
@@ -289,6 +289,211 @@ export class AppState {
       }
     }
     return [...map.values()].sort((a, b) => a.abbr.localeCompare(b.abbr));
+  }
+
+  // ── Automatisches Verplanen ─────────────────────────────────────────────
+
+  /**
+   * Verteilt die Pool-Karten greedy nach den Planungsregeln (PLANUNGSREGELN.md):
+   * – Karte nur in eine Spalte, deren Klassenname passt.
+   * – 7. Stunde frei (außer Werkstatt), Pflichtbereich 1–6 wird zuerst gefüllt.
+   * – Lehrer max. 6 Std/Tag (sonst übersprungen + Hinweis).
+   * – Hauptfächer (D/M/E/Gk/Wk) max. 2 Std je Klasse und Tag, möglichst verteilt.
+   * – Werkstatt als Block, Stunde 5 bleibt Pause, 7. Stunde erlaubt.
+   * – Labor-Gruppe a wird auf eine bereits liegende Gruppe b gelegt.
+   * Bereits platzierte (ggf. fixierte) Karten bleiben unangetastet.
+   */
+  autoPlan(): AutoPlanResult {
+    const MAIN = new Set(['d', 'm', 'e', 'gk', 'wk']);
+    const skipped: { card: string; reason: string }[] = [];
+    let placed = 0;
+
+    const cell = new Set<string>(); // belegte Klassenzelle: d|w|c|p
+    const roomSet = new Set<string>(); // belegter Raum: d|w|p|raum
+    const teachSet = new Set<string>(); // Lehrer belegt: kürzel|d|w|p
+    const teachH = new Map<string, number>(); // kürzel|d|w → Stunden
+    const subjH = new Map<string, number>(); // klasse|d|w|fach → Stunden (Hauptfächer)
+    const bLabs: { c: number; d: number; w: Week; start: number; periods: number[]; klasse: string }[] = [];
+
+    const cK = (d: number, w: Week, c: number, p: number) => `${d}|${w}|${c}|${p}`;
+    const rK = (d: number, w: Week, p: number, room: string) => `${d}|${w}|${p}|${room.toLowerCase()}`;
+    const tK = (abbr: string, d: number, w: Week, p: number) => `${abbr.toLowerCase()}|${d}|${w}|${p}`;
+    const thK = (abbr: string, d: number, w: Week) => `${abbr.toLowerCase()}|${d}|${w}`;
+    const sK = (kl: string, d: number, w: Week, fach: string) =>
+      `${kl.trim().toLowerCase()}|${d}|${w}|${fach.trim().toLowerCase()}`;
+
+    /** Tatsächlich unterrichtete Stunden (ohne Werkstatt-Pause in der 5.). */
+    const teaching = (isWerk: boolean, start: number, dur: number): number[] => {
+      if (!isWerk) {
+        const a: number[] = [];
+        for (let i = 0; i < dur; i++) a.push(start + i);
+        return a;
+      }
+      const t: number[] = [];
+      let p = start;
+      while (t.length < dur && p <= PERIODS) {
+        if (p !== 5) t.push(p);
+        p++;
+      }
+      return t;
+    };
+
+    /** Belegte Stunden inkl. Werkstatt-Pause (5.), wenn sie im Block liegt. */
+    const blockedPeriods = (isWerk: boolean, start: number, dur: number): number[] => {
+      const t = teaching(isWerk, start, dur);
+      if (isWerk && t.length && start <= 5 && t[t.length - 1] >= 5) return [...t, 5].sort((a, b) => a - b);
+      return t;
+    };
+
+    type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; fach: string };
+    const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number): void => {
+      for (const p of blockedPeriods(card.isWerkstatt, start, card.duration)) {
+        cell.add(cK(d, w, c, p));
+        if (card.room) roomSet.add(rK(d, w, p, card.room));
+        teachSet.add(tK(card.abbr, d, w, p));
+      }
+      teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
+      if (MAIN.has(card.fach.trim().toLowerCase())) {
+        subjH.set(sK(kl, d, w, card.fach), (subjH.get(sK(kl, d, w, card.fach)) ?? 0) + card.duration);
+      }
+    };
+
+    // Bestehende (manuelle/fixierte) Platzierungen als Belegung übernehmen.
+    for (const pl of this.schedule.all) {
+      occupy(pl, pl.klasse, pl.classIdx, pl.day, pl.week, pl.startPeriod);
+      if (pl.isLabor && pl.labGroup === 'b') {
+        bLabs.push({
+          c: pl.classIdx,
+          d: pl.day,
+          w: pl.week,
+          start: pl.startPeriod,
+          periods: teaching(pl.isWerkstatt, pl.startPeriod, pl.duration),
+          klasse: pl.klasse,
+        });
+      }
+    }
+
+    /** Prüft, ob die Karte an (c,d,w,start) liegen darf. */
+    const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false): string | null => {
+      const teach = teaching(card.isWerkstatt, start, card.duration);
+      if (teach.length < card.duration) return 'über Stunde 9';
+      const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
+      if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
+      if (!card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
+      for (const p of blk) {
+        if (!stackOnB && cell.has(cK(d, w, c, p))) return 'Platz belegt';
+        if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
+        if (teachSet.has(tK(card.abbr, d, w, p))) return 'Lehrer belegt';
+      }
+      if ((teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration > 6) return 'Lehrer >6 Std/Tag';
+      if (MAIN.has(card.fach.trim().toLowerCase()) && (subjH.get(sK(card.klasse, d, w, card.fach)) ?? 0) + card.duration > 2)
+        return 'Hauptfach >2/Tag';
+      return null;
+    };
+
+    /** Alle (Spalte, Tag, Woche), deren Klassenname zur Karte passt. */
+    const contexts = (card: Card): { c: number; d: number; w: Week }[] => {
+      const need = card.klasse.trim().toLowerCase();
+      const out: { c: number; d: number; w: Week }[] = [];
+      if (!need) return out;
+      for (let c = 0; c < this.classes.count; c++) {
+        for (let d = 0; d < DAYS.length; d++) {
+          for (const w of WEEKS) {
+            if (this.classes.classNameAt(c, d, w).trim().toLowerCase() === need) out.push({ c, d, w });
+          }
+        }
+      }
+      return out;
+    };
+
+    const apply = (card: Card, c: number, d: number, w: Week, start: number): void => {
+      this.pool.remove(card.id);
+      this.schedule.add(new Placement(this.nextId(), card.snapshot(), { day: d, startPeriod: start, classIdx: c, week: w }));
+      occupy(card, card.klasse, c, d, w, start);
+      placed++;
+      if (card.isLabor && card.labGroup === 'b') {
+        bLabs.push({ c, d, w, start, periods: teaching(card.isWerkstatt, start, card.duration), klasse: card.klasse });
+      }
+    };
+
+    // Startstunden: Werkstatt blockt von der 1. an, sonst Pflichtbereich zuerst, dann 8.
+    const startsFor = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
+
+    const placeNormal = (card: Card): void => {
+      if (!card.klasse.trim()) {
+        skipped.push({ card: card.abbr, reason: 'keine Klasse' });
+        return;
+      }
+      const ctx = contexts(card);
+      if (!ctx.length) {
+        skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: 'keine passende Spalte' });
+        return;
+      }
+      // Hauptfächer über die Tage verteilen: Kontexte mit wenig gleichem Fach zuerst.
+      ctx.sort((a, b) => (subjH.get(sK(card.klasse, a.d, a.w, card.fach)) ?? 0) - (subjH.get(sK(card.klasse, b.d, b.w, card.fach)) ?? 0));
+      let reason = 'kein freier Platz';
+      for (const { c, d, w } of ctx) {
+        for (const start of startsFor(card)) {
+          const r = check(card, c, d, w, start);
+          if (r === null) {
+            apply(card, c, d, w, start);
+            return;
+          }
+          reason = r;
+        }
+      }
+      skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
+    };
+
+    const placeLabA = (card: Card): void => {
+      if (!card.klasse.trim()) {
+        skipped.push({ card: card.abbr, reason: 'keine Klasse' });
+        return;
+      }
+      const need = card.klasse.trim().toLowerCase();
+      for (const b of bLabs) {
+        if (b.klasse.trim().toLowerCase() !== need) continue;
+        if (b.periods.length !== card.duration) continue; // gleiche Länge wie Gruppe b
+        if (check(card, b.c, b.d, b.w, b.start, true) === null) {
+          apply(card, b.c, b.d, b.w, b.start);
+          return;
+        }
+      }
+      skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: 'kein passendes Labor b' });
+    };
+
+    // Reihenfolge: Werkstatt → Labor b → Labor a → übrige Labore → Hauptfächer → Rest.
+    const cards = [...this.pool.all];
+    const isLabA = (c: Card) => c.isLabor && c.labGroup === 'a';
+    const isLabB = (c: Card) => c.isLabor && c.labGroup === 'b';
+    const order = [
+      cards.filter((c) => c.isWerkstatt),
+      cards.filter((c) => isLabB(c) && !c.isWerkstatt),
+      cards.filter((c) => isLabA(c) && !c.isWerkstatt),
+      cards.filter((c) => c.isLabor && !c.labGroup && !c.isWerkstatt),
+      cards.filter((c) => !c.isLabor && !c.isWerkstatt && MAIN.has(c.fach.trim().toLowerCase())),
+      cards.filter((c) => !c.isLabor && !c.isWerkstatt && !MAIN.has(c.fach.trim().toLowerCase())),
+    ];
+    for (const card of order[0]) placeNormal(card);
+    for (const card of order[1]) placeNormal(card);
+    for (const card of order[2]) placeLabA(card);
+    for (const card of order[3]) placeNormal(card);
+    for (const card of order[4]) placeNormal(card);
+    for (const card of order[5]) placeNormal(card);
+
+    // Offene Pflichtstunden (1–6) je vorhandener Klassen-Spalte zählen.
+    let openMandatory = 0;
+    for (let c = 0; c < this.classes.count; c++) {
+      for (let d = 0; d < DAYS.length; d++) {
+        for (const w of WEEKS) {
+          if (!this.classes.classNameAt(c, d, w).trim()) continue;
+          for (let p = 1; p <= 6; p++) if (!cell.has(cK(d, w, c, p))) openMandatory++;
+        }
+      }
+    }
+
+    this.emit();
+    return { placed, skipped, openMandatory };
   }
 
   // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────

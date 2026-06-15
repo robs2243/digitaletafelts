@@ -86,6 +86,15 @@ export interface PersistedState {
   nid: number;
 }
 
+/** Ergebnis des automatischen Verplanens. */
+export interface AutoPlanResult {
+  placed: number;
+  /** Nicht platzierbare Karten mit Grund. */
+  skipped: { card: string; reason: string }[];
+  /** Anzahl offener Pflichtstunden (1–6) nach dem Verplanen. */
+  openMandatory: number;
+}
+
 /** Zeile der Stunden-Übersicht. */
 export interface StatRow {
   abbr: string;
