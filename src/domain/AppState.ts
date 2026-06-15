@@ -888,6 +888,8 @@ export class AppState {
           return;
         }
         const need = card.klasse.trim().toLowerCase();
+        // Auf eine passende Gruppe b stapeln – aber nur einer ANDEREN Lehrkraft
+        // (check() verhindert das Stapeln auf dieselbe Lehrkraft über die Belegung).
         for (const b of groupB) {
           if (b.isWerk !== card.isWerkstatt) continue;
           if (b.klasse.trim().toLowerCase() !== need) continue;
@@ -897,8 +899,9 @@ export class AppState {
             return;
           }
         }
-        const what = card.isWerkstatt ? 'Werkstatt b' : 'Labor b';
-        skipped.push({ card: `${card.abbr} (${card.klasse})`, reason: `kein passendes ${what}` });
+        // Kein passender (anderer) Gruppe-b-Partner (Klasse hat nur Gruppe a, oder a+b
+        // gehören derselben Lehrkraft → dürfen nicht aufeinander) → ganz normal verplanen.
+        placeNormal(card);
       };
 
       // Gekoppelte Karten gesondert (als Gruppen) verplanen; alles andere einzeln.

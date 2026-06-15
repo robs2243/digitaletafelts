@@ -55,10 +55,22 @@ Quelle: Vorgaben des Anwenders.
 17. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
     werden (gestapelt). Das **Fach muss nicht übereinstimmen**.
 
+## Gruppen a/b – Ausnahmen (Labor & Werkstatt)
+
+18. **Nur eine Gruppe vorhanden:** Gibt es zu einer Gruppe-a-Karte **keinen passenden
+    Gruppe-b-Partner** (manche Klassen haben nur Gruppe a), wird die **Gruppe-a-Karte
+    einfach normal verplant** – kein Stapeln, kein Überspringen.
+19. **Gleiche Lehrkraft für a und b:** Wenn **dieselbe Lehrkraft** Gruppe a *und* b
+    hat, dürfen diese **nicht aufeinander** liegen (sie kann nicht gleichzeitig an
+    beiden Gruppen sein). Sie werden dann zu **verschiedenen Zeiten** verplant.
+    Gestapelt wird nur, wenn die Gruppe b von einer **anderen Lehrkraft** kommt.
+
 ## Entscheidungen zur Umsetzung
 
 - **Labor-Gruppe a/b:** eigenes Feld an der Karte (Gruppe a / b). Der Planer legt
-  ein Labor der Gruppe a immer auf ein Labor der Gruppe b (gleicher Slot).
+  ein Labor der Gruppe a auf ein Labor der Gruppe b einer **anderen Lehrkraft**
+  (gleicher Slot). Gibt es keinen solchen Partner (nur Gruppe a vorhanden, oder a+b
+  derselben Lehrkraft), wird die Gruppe-a-Karte **normal verplant** (siehe Regeln 18/19).
 - **Werkstatt:** eine Karte mit Dauer; der Planer lässt Stunde 5 automatisch frei
   und darf die 7. Stunde nutzen. Die **Gruppe a/b** wird wie bei Laboren gestapelt
   (Werkstatt a auf Werkstatt b, gleicher Slot).
