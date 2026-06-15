@@ -254,6 +254,13 @@ export class App {
     byId('pool-head').addEventListener('dblclick', () => this.openPoolList());
     byId('btn-pool-list').addEventListener('click', () => this.openPoolList());
 
+    byId('btn-couplings').addEventListener('click', () => this.openCouplings());
+    const couplingsOverlay = byId('couplings-modal');
+    byId('cpl-close').addEventListener('click', () => couplingsOverlay.classList.remove('open'));
+    couplingsOverlay.addEventListener('click', (e) => {
+      if (e.target === couplingsOverlay) couplingsOverlay.classList.remove('open');
+    });
+
     const planningOverlay = byId('planning-modal');
     byId('plan-cancel').addEventListener('click', () => this.closePlanning());
     planningOverlay.addEventListener('click', (e) => {
@@ -288,11 +295,17 @@ export class App {
       byId(id).addEventListener('change', () => this.renderPoolList());
     }
     byId('pl-list').addEventListener('click', (e) => {
+      // Klick ins Kopplungs-Feld nicht als „Karte bearbeiten" werten.
+      if ((e.target as HTMLElement).closest('.pl-coupling')) return;
       const row = (e.target as HTMLElement).closest<HTMLElement>('.pl-item');
       if (row?.dataset.id) {
         this.closePoolList();
         this.openEditCard(row.dataset.id);
       }
+    });
+    byId('pl-list').addEventListener('change', (e) => {
+      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.pl-coupling');
+      if (inp?.dataset.id) this.state.setCardCoupling(inp.dataset.id, inp.value);
     });
     byId('pl-template').addEventListener('click', () => this.downloadTemplate());
     const importFile = byId<HTMLInputElement>('pl-import-file');
@@ -432,6 +445,40 @@ export class App {
     byId('comments-modal').classList.remove('open');
   }
 
+  // ── Kopplungen ──────────────────────────────────────────────────────────
+
+  private openCouplings(): void {
+    this.renderCouplings();
+    byId('couplings-modal').classList.add('open');
+  }
+
+  private renderCouplings(): void {
+    const groups = this.state.couplingGroups();
+    byId('cpl-sub').textContent = groups.length
+      ? `${groups.length} Kopplung(en) – gleiche ID = gleiche Lehrkraft gleichzeitig in mehreren Klassen`
+      : '';
+    const list = byId('cpl-list');
+    list.innerHTML = groups.length
+      ? groups
+          .map((g) => {
+            const members = g.members
+              .map(
+                (m) =>
+                  `${esc(m.abbr)}${m.fach ? ` ${esc(m.fach)}` : ''}${m.klasse ? ` · ${esc(m.klasse)}` : ''} ` +
+                  `<span style="color:var(--muted)">(${m.placed ? 'im Plan' : 'Pool'})</span>`,
+              )
+              .join('<br>');
+            return `<div class="cmall-item">
+              <div class="cmall-body">
+                <div class="cmall-head">🔗 ${esc(g.id)}</div>
+                <div class="cmall-text">${members}</div>
+              </div>
+            </div>`;
+          })
+          .join('')
+      : '<div class="tm-empty">Keine Kopplungen vorhanden.<br>Im Fenster „Nicht verplante Karten" je Karte hinten eine Kopplungs-ID vergeben (gleiche ID = gekoppelt).</div>';
+  }
+
   // ── Pool-Liste (nicht verplante Karten, mit Filter) ─────────────────────
 
   private openPoolList(): void {
@@ -472,6 +519,8 @@ export class App {
             <span class="pl-abbr">${esc(c.abbr)}</span>
             <span class="pl-meta">${meta}</span>
             <span class="pl-badges">${badges} ${c.duration}h</span>
+            <input class="pl-coupling" data-id="${esc(c.id)}" value="${esc(c.coupling)}" placeholder="🔗 Kopplung" autocomplete="off"
+                   title="Kopplungs-ID – gleiche ID = gleichzeitig in mehreren Klassen (zählt 1×)" />
           </div>`;
       })
       .join('');

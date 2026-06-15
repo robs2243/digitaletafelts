@@ -184,6 +184,31 @@ export class AppState {
     this.emit();
   }
 
+  /** Setzt die Kopplungs-ID einer Pool-Karte (zum Erstellen von Kopplungen). */
+  setCardCoupling(id: string, coupling: string): void {
+    const card = this.pool.findById(id);
+    if (!card) return;
+    card.coupling = coupling.trim();
+    this.emit();
+  }
+
+  /** Alle Kopplungen (ID → beteiligte Karten, Pool + Plan), alphabetisch. */
+  couplingGroups(): { id: string; members: { abbr: string; fach: string; klasse: string; placed: boolean }[] }[] {
+    const map = new Map<string, { abbr: string; fach: string; klasse: string; placed: boolean }[]>();
+    const push = (c: { coupling: string; abbr: string; fach: string; klasse: string }, placed: boolean): void => {
+      const id = c.coupling.trim();
+      if (!id) return;
+      const list = map.get(id) ?? [];
+      list.push({ abbr: c.abbr, fach: c.fach, klasse: c.klasse, placed });
+      map.set(id, list);
+    };
+    for (const c of this.pool.all) push(c, false);
+    for (const p of this.schedule.all) push(p, true);
+    return [...map.entries()]
+      .map(([id, members]) => ({ id, members }))
+      .sort((a, b) => a.id.localeCompare(b.id, 'de'));
+  }
+
   /** Entfernt alle Kommentare (Pool + Plan). */
   clearAllComments(): void {
     for (const c of this.pool.all) c.comment = '';

@@ -14,8 +14,9 @@
     <!-- ═══ HEADER ═══ -->
     <header>
       <h1>📋 Digitale Tafel</h1>
-      <button class="hdr-btn" id="btn-planning" title="Planung: entplanen (alle oder nach Kürzel)">📅 Planung</button>
-      <button class="hdr-btn" id="btn-comments" title="Alle Kommentare anzeigen">💬 Kommentare</button>
+      <button class="hdr-btn hdr-icon" id="btn-planning" title="Planung (automatisch verplanen / entplanen)" aria-label="Planung">📅</button>
+      <button class="hdr-btn hdr-icon" id="btn-couplings" title="Kopplungen anzeigen" aria-label="Kopplungen">🔗</button>
+      <button class="hdr-btn hdr-icon" id="btn-comments" title="Alle Kommentare anzeigen" aria-label="Kommentare">💬</button>
       <div class="hdr-filter">
         <span class="hdr-filter-lbl">Anzeigen:</span>
         <label><input type="checkbox" id="filter-hj1" checked /> 1. HJ</label>
@@ -33,9 +34,9 @@
         <button class="hdr-btn hdr-zoom-btn" id="zoom-in" title="Vergrößern (Strg + Mausrad / Strg & +)">+</button>
       </div>
       <div class="hsp"></div>
-      <button class="hdr-btn" id="btn-open" title="Plan aus Datei laden">📂 Öffnen…</button>
-      <button class="hdr-btn" id="btn-save" title="In Datei speichern">💾 Speichern</button>
-      <button class="hdr-btn" id="btn-save-as" title="Als neue Datei speichern">Speichern unter…</button>
+      <button class="hdr-btn hdr-icon" id="btn-open" title="Öffnen – Plan aus Datei laden" aria-label="Öffnen">📂</button>
+      <button class="hdr-btn hdr-icon" id="btn-save" title="Speichern – in Datei speichern" aria-label="Speichern">💾</button>
+      <button class="hdr-btn hdr-icon" id="btn-save-as" title="Speichern unter – als neue Datei speichern" aria-label="Speichern unter">🗂️</button>
       <div class="sbadge" id="sbadge">✓ Gespeichert</div>
     </header>
 
@@ -291,6 +292,18 @@
         <div class="mbtns">
           <button class="btn btn-del" id="cmall-clear-all" style="margin-right: auto">Alle löschen</button>
           <button class="btn btn-ok" id="cmall-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KOPPLUNGEN-MODAL (Button in der Kopfzeile) ═══ -->
+    <div class="overlay" id="couplings-modal">
+      <div class="modal teacher-modal-box">
+        <h2 style="color: #1a237e">🔗 Kopplungen</h2>
+        <div id="cpl-sub" class="tm-sub"></div>
+        <div id="cpl-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="cpl-close">Schließen</button>
         </div>
       </div>
     </div>

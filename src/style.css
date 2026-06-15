@@ -58,6 +58,8 @@ header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
 }
 .hdr-btn:hover { background: rgba(255,255,255,.25); }
 .hdr-btn span { font-size: 16px; line-height: 1; }
+/* Nur-Symbol-Buttons: quadratisch, etwas größeres Icon. */
+.hdr-icon { padding: 5px 9px; font-size: 16px; line-height: 1; }
 .hdr-filter {
   display: flex; align-items: center; gap: 10px;
   margin-left: 6px; padding: 4px 10px;
@@ -638,6 +640,11 @@ body.rooms-only .placed-mini .p-room { font-size: 12px; }
 .pl-abbr { font-weight: 800; min-width: 36px; }
 .pl-meta { flex: 1; min-width: 0; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-badges { flex-shrink: 0; color: var(--muted); font-weight: 700; }
+.pl-coupling {
+  flex-shrink: 0; width: 96px; padding: 4px 7px; font-size: 12px;
+  border: 1.5px solid var(--border); border-radius: 6px; background: #fff; outline: none;
+}
+.pl-coupling:focus { border-color: var(--accent); }
 
 /* ── KOLLISIONS-MODAL ── */
 .warn-modal { max-width: 420px; width: 100%; }
