@@ -297,6 +297,13 @@ export class App {
     roomsOverlay.addEventListener('click', (e) => {
       if (e.target === roomsOverlay) roomsOverlay.classList.remove('open');
     });
+    byId('rm-list').addEventListener('input', (e) => {
+      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.room-set');
+      if (!inp?.dataset.id) return;
+      // Vorschläge: Räume, die mit der Eingabe beginnen und zu dieser Zeit frei sind.
+      const rooms = this.state.availableRooms(inp.dataset.id, inp.value);
+      byId('rm-room-list').innerHTML = rooms.map((r) => `<option value="${esc(r)}"></option>`).join('');
+    });
     byId('rm-list').addEventListener('change', (e) => {
       const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.room-set');
       if (inp?.dataset.id) this.handleSetRoom(inp.dataset.id, inp.value);
@@ -560,7 +567,7 @@ export class App {
           .map(
             (m) => `<div class="pl-item" style="cursor:default">
               <span class="pl-meta" style="flex:1">${this.memberLine(m)}</span>
-              <input class="room-set" data-id="${esc(m.id)}" placeholder="Raum" autocomplete="off" />
+              <input class="room-set" data-id="${esc(m.id)}" placeholder="Raum (tippen: freie Räume)" list="rm-room-list" autocomplete="off" />
             </div>`,
           )
           .join('')

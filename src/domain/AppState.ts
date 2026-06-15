@@ -282,6 +282,40 @@ export class AppState {
     return { ok: true, conflictAbbr };
   }
 
+  /** Alle bekannten (irgendwo verwendeten) Raumnamen. */
+  private knownRooms(): string[] {
+    const set = new Set<string>();
+    for (const c of this.pool.all) if (c.room.trim()) set.add(c.room.trim());
+    for (const p of this.schedule.all) if (p.room.trim()) set.add(p.room.trim());
+    return [...set];
+  }
+
+  /**
+   * Räume, die mit dem Präfix beginnen und – bei einer platzierten Karte – zu deren
+   * Zeit noch frei sind (Vorschläge fürs Raum-Eingabefeld).
+   */
+  availableRooms(id: string, prefix: string): string[] {
+    const pre = prefix.trim().toLowerCase();
+    let rooms = this.knownRooms().filter((r) => !pre || r.toLowerCase().startsWith(pre));
+    const pl = this.schedule.findById(id);
+    if (pl) {
+      rooms = rooms.filter(
+        (room) =>
+          !this.schedule.all.some(
+            (o) =>
+              o.id !== id &&
+              o.room.trim().toLowerCase() === room.toLowerCase() &&
+              o.day === pl.day &&
+              o.week === pl.week &&
+              o.startPeriod <= pl.endPeriod &&
+              pl.startPeriod <= o.endPeriod &&
+              !(o.coupling && o.coupling === pl.coupling),
+          ),
+      );
+    }
+    return rooms.sort((a, b) => a.localeCompare(b, 'de'));
+  }
+
   /** Alle Karten (Pool + Plan) für den Excel-Export, sortiert nach Klasse, dann Lehrer. */
   allCardsForExport(): (CardProps & { placed: boolean; day: number | null; startPeriod: number | null; week: Week | null })[] {
     const rows = [
