@@ -207,8 +207,8 @@ export class AppState {
   freeRoomsForPlacement(id: string): string[] {
     const pl = this.schedule.findById(id);
     if (!pl) return this.roomList();
-    const periods: number[] = [];
-    for (let i = 0; i < pl.duration; i++) periods.push(pl.startPeriod + i);
+    // Tatsächlich belegte Stunden (Werkstatt-Pause berücksichtigt) als Menge.
+    const periods = new Set(pl.occupiedPeriods());
     const occupied = new Set<string>();
     for (const other of this.schedule.all) {
       if (other.id === id) continue;
@@ -216,7 +216,7 @@ export class AppState {
       const room = other.room.trim();
       if (!room) continue;
       if (!pl.weeks.some((w) => other.occupiesWeek(w))) continue;
-      if (!periods.some((p) => other.covers(p))) continue;
+      if (!other.occupiedPeriods().some((p) => periods.has(p))) continue;
       occupied.add(room.toLowerCase());
     }
     return this.roomList().filter((r) => !occupied.has(r.toLowerCase()));
