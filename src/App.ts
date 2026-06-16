@@ -328,13 +328,6 @@ export class App {
     teamOverlay.addEventListener('click', (e) => {
       if (e.target === teamOverlay) teamOverlay.classList.remove('open');
     });
-    byId('tt-list').addEventListener('change', (e) => {
-      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.tt-set');
-      if (inp?.dataset.id) {
-        this.state.setCardTeam(inp.dataset.id, inp.value);
-        this.renderTeam();
-      }
-    });
 
     const planningOverlay = byId('planning-modal');
     byId('plan-cancel').addEventListener('click', () => this.closePlanning());
@@ -690,19 +683,21 @@ export class App {
   }
 
   private renderTeam(): void {
-    this.fillTeamDatalist('tt-id-list');
-    const cards = this.state.allCardsWithPlace();
-    const withTeam = cards.filter((c) => c.teamTeaching).length;
-    byId('tt-sub').textContent =
-      `Gleiche Team-ID (z. B. T1) bei mehreren Karten = liegen aufeinander (zählen normal). ${withTeam} zugeordnet.`;
-    byId('tt-list').innerHTML = cards
-      .map(
-        (m) => `<div class="pl-item" style="cursor:default">
-          <span class="pl-meta" style="flex:1">${this.memberLine(m)}</span>
-          <input class="room-set tt-set" data-id="${esc(m.id)}" value="${esc(m.teamTeaching)}" placeholder="Team-ID" list="tt-id-list" autocomplete="off" />
-        </div>`,
-      )
-      .join('');
+    const groups = this.state.teamGroups();
+    byId('tt-sub').textContent = groups.length
+      ? `${groups.length} Teamteaching-Gruppe(n) – Zuordnung über die Karte oder die Excel-Tabelle (Spalte „Teamteaching").`
+      : '';
+    byId('tt-list').innerHTML = groups.length
+      ? groups
+          .map((g) => {
+            const members = g.members.map((m) => this.memberLine(m)).join('<br>');
+            return `<div class="cmall-item"><div class="cmall-body">
+              <div class="cmall-head">👥 ${esc(g.id)}</div>
+              <div class="cmall-text">${members}</div>
+            </div></div>`;
+          })
+          .join('')
+      : '<div class="tm-empty">Keine Teamteaching-Stunden.<br>Zuordnung beim Erstellen einer Karte (👥 Teamteaching) oder per Excel-Spalte „Teamteaching".</div>';
   }
 
   // ── Räume (Karten ohne Raum) ────────────────────────────────────────────

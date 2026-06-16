@@ -265,6 +265,32 @@ export class AppState {
       .sort((a, b) => a.id.localeCompare(b.id, 'de'));
   }
 
+  /** Alle Teamteaching-Gruppen (ID → beteiligte Karten, Pool + Plan), alphabetisch. */
+  teamGroups(): { id: string; members: CardWithPlace[] }[] {
+    const map = new Map<string, CardWithPlace[]>();
+    for (const c of this.pool.all) {
+      if (!c.teamTeaching.trim()) continue;
+      (map.get(c.teamTeaching.trim()) ?? map.set(c.teamTeaching.trim(), []).get(c.teamTeaching.trim())!).push({
+        abbr: c.abbr,
+        fach: c.fach,
+        klasse: c.klasse,
+      });
+    }
+    for (const p of this.schedule.all) {
+      if (!p.teamTeaching.trim()) continue;
+      (map.get(p.teamTeaching.trim()) ?? map.set(p.teamTeaching.trim(), []).get(p.teamTeaching.trim())!).push({
+        abbr: p.abbr,
+        fach: p.fach,
+        klasse: p.klasse,
+        day: p.day,
+        startPeriod: p.startPeriod,
+        duration: p.duration,
+        week: p.week,
+      });
+    }
+    return [...map.entries()].map(([id, members]) => ({ id, members })).sort((a, b) => a.id.localeCompare(b.id, 'de'));
+  }
+
   /** Alle Karten mit aktivierter Kollision (Pool + Plan), nach Kürzel sortiert. */
   collisionCards(): CardWithPlace[] {
     const out: CardWithPlace[] = [];

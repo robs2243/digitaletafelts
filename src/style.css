@@ -60,9 +60,9 @@ header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
 .hdr-btn span { font-size: 16px; line-height: 1; }
 /* Nur-Symbol-Buttons: quadratisch, etwas größeres Icon. */
 .hdr-icon { padding: 5px 9px; font-size: 16px; line-height: 1; }
-/* Teamteaching-Symbol (👥) ist dunkel → heller Button für besseren Kontrast. */
-#btn-teamteaching { background: rgba(255,255,255,.9); border-color: rgba(255,255,255,.9); }
-#btn-teamteaching:hover { background: #fff; }
+/* Teamteaching-Symbol (👥) ist dunkel → nur das Symbol hell (weiß) einfärben,
+   Button-Hintergrund bleibt wie bei den anderen. */
+.tt-ico { filter: brightness(0) invert(1); }
 .hdr-filter {
   display: flex; align-items: center; gap: 10px;
   margin-left: 6px; padding: 4px 10px;
