@@ -1080,14 +1080,16 @@ export class AppState {
           return false;
         };
         let best: { c: number; d: number; weeks: Week[]; start: number; score: number[] } | null = null;
-        let reason = 'kein freier Platz';
+        // Gründe über ALLE geprüften Slots zählen (nicht nur den letzten), damit die
+        // Skip-Meldung erklärt, woran es wirklich lag (z. B. „Lehrer >6 Std/Tag").
+        const reasonCounts = new Map<string, number>();
         for (const { c, d, weeks } of ctx) {
           const w0 = weeks[0];
           const weekly = weeks.length === 2;
           for (const start of starts) {
             const r = checkWeeks(card, c, d, weeks, start);
             if (r !== null) {
-              reason = r;
+              reasonCounts.set(r, (reasonCounts.get(r) ?? 0) + 1);
               continue;
             }
             // Hauptfach möglichst mit einem Tag Pause: Nachbartage mit gleichem Fach meiden.
@@ -1111,8 +1113,20 @@ export class AppState {
             if (!best || better(score, best.score)) best = { c, d, weeks, start, score };
           }
         }
-        if (best) apply(card, best.c, best.d, best.weeks, best.start);
-        else skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
+        if (best) {
+          apply(card, best.c, best.d, best.weeks, best.start);
+          return;
+        }
+        // Die häufigsten Hindernisse zusammenfassen (max. 2), sonst Standardtext.
+        const reason =
+          reasonCounts.size === 0
+            ? 'kein freier Platz'
+            : [...reasonCounts.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 2)
+                .map(([r, n]) => `${r} (${n}×)`)
+                .join(', ');
+        skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
       };
 
       const placeGroupA = (card: Card): void => {
