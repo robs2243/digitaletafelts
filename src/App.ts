@@ -850,6 +850,14 @@ export class App {
 
   private renderColorsList(): void {
     const list = this.state.teacherColorList();
+    // Verwendungs-Legende: wie oft ist jede Palettenfarbe vergeben (für gleichmäßige Verteilung).
+    const counts = new Map<string, number>();
+    for (const t of list) counts.set(t.color, (counts.get(t.color) ?? 0) + 1);
+    byId('co-legend').innerHTML =
+      `<span class="co-legend-lbl">Verwendung je Farbe:</span>` +
+      PALETTE.map(
+        (c) => `<div class="co-leg-sw" style="background:${c};color:${ink(c)}" title="${esc(c)}: ${counts.get(c) ?? 0}×">${counts.get(c) ?? 0}</div>`,
+      ).join('');
     byId('co-list').innerHTML = list.length
       ? list
           .map((t) => {
