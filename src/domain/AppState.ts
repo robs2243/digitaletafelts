@@ -936,13 +936,29 @@ export class AppState {
         const starts = shuffleOrder ? shuffle([...baseStarts(members[0])], rng) : baseStarts(members[0]);
         // Team: jede Karte zählt (countTeacher=true); Kopplung: nur die erste.
         const countTeacher = (i: number): boolean => kind === 'team' || i === 0;
+        const mainGroup = members.some((m) => isMain(m));
+        const lexLt = (a: number[], b: number[]): boolean => {
+          for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
+          return false;
+        };
+        // Beste gemeinsame Lücke wählen: Hauptfach-Gruppe → Stunden 1–6, dann
+        // u/g-Spiegelung (gleicher Slot in der anderen Woche), dann frühe Stunde.
+        let best: { d: number; w: Week; cols: number[]; start: number; score: number[] } | null = null;
         for (const { d, w, cols } of slots) {
           for (const start of starts) {
-            if (members.every((m, i) => check(m, cols[i], d, w, start) === null)) {
-              members.forEach((m, i) => apply(m, cols[i], d, w, start, countTeacher(i)));
-              return;
-            }
+            if (!members.every((m, i) => check(m, cols[i], d, w, start) === null)) continue;
+            const score = [
+              mainGroup && start > 6 ? 1 : 0,
+              members.some((m) => hasMirror(m, d, w, start)) ? 0 : 1,
+              start,
+            ];
+            if (!best || lexLt(score, best.score)) best = { d, w, cols, start, score };
           }
+        }
+        if (best) {
+          const chosen = best;
+          members.forEach((m, i) => apply(m, chosen.cols[i], chosen.d, chosen.w, chosen.start, countTeacher(i)));
+          return;
         }
         skipped.push({ card: label, reason: `${what}: kein gemeinsamer freier Slot` });
       };
@@ -995,8 +1011,8 @@ export class AppState {
             const score = [
               imbalancePush, // u/g-Differenz ≤ 2 hat Vorrang
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
-              mainAdj, // Hauptfach: mind. ein Tag Pause – Nachbartag nur als Ausweg
-              hasMirror(card, d, w, start) ? 0 : 1, // u/g-Parallelität (gleicher Slot in u/g)
+              hasMirror(card, d, w, start) ? 0 : 1, // u/g-Parallelität (gleicher Slot in u/g) – hoch
+              mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
               subj.get(sK(card.klasse, d, w, f)) ?? 0, // Fächer-Variation am Tag
               teacherWeekLoad(card.abbr, w), // u/g-Ausgleich
               start, // frühe Stunde
