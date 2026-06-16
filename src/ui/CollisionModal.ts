@@ -3,6 +3,9 @@ export interface CollisionModalOptions {
   /** true: Klassen-Kollision, Nutzer darf stapeln. */
   canStack: boolean;
   onStack?: () => void;
+  /** true: harte Sperre (Lehrer/Raum) darf bewusst übergangen werden. */
+  canForce?: boolean;
+  onForce?: () => void;
 }
 
 /** Warn-Dialog bei Kollisionen; bietet bei Klassen-Kollisionen „Stapeln“ an. */
@@ -45,6 +48,19 @@ export class CollisionModal {
         this.button('btn btn-sec', 'Abbrechen', () => this.close()),
         this.button('btn btn-stack', '↕ Stapeln', () => {
           opts.onStack?.();
+          this.close();
+        }),
+      );
+    } else if (opts.canForce) {
+      this.hintBox.innerHTML = `<div class="warn-hint">
+          ⚠️ <strong>Trotzdem platzieren</strong> übergeht bewusst eine harte Regel
+          (Lehrkraft/Raum doppelt). Nur nutzen, wenn du das so willst – der
+          „✅ Plan prüfen"-Bericht weist den Konflikt danach aus.
+        </div>`;
+      this.btns.append(
+        this.button('btn btn-sec', 'Abbrechen', () => this.close()),
+        this.button('btn btn-del', '⚠ Trotzdem platzieren', () => {
+          opts.onForce?.();
           this.close();
         }),
       );

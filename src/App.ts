@@ -1322,7 +1322,15 @@ export class App {
     const msg = collisionMessage(collision, pos, dragData.card.abbr, (c, d, w) =>
       this.state.classes.displayLabel(c, d, w),
     );
-    this.collisionModal.show({ messageHtml: msg, canStack: false });
+    // Harte Sperren (Lehrer/Raum) dürfen bewusst übergangen werden – Überlauf
+    // (über Stunde 9) nicht, dort gibt es physisch keinen Platz.
+    const canForce = collision.type === 'teacher' || collision.type === 'room';
+    this.collisionModal.show({
+      messageHtml: msg,
+      canStack: false,
+      canForce,
+      onForce: canForce ? () => this.placeDrag(dragData, pos) : undefined,
+    });
   }
 
   private placeDrag(dragData: DragData, pos: PlacementPosition): void {
