@@ -28,6 +28,13 @@ export class AppState {
   rooms: string[];
   private nid: number;
   private listeners: ChangeListener[] = [];
+  // Undo/Redo: Snapshots des gesamten Zustands (JSON). lastSnapshot ist immer der
+  // aktuell sichtbare Stand; undoStack hält frühere, redoStack zurückgenommene.
+  private undoStack: string[] = [];
+  private redoStack: string[] = [];
+  private lastSnapshot = '';
+  private restoring = false;
+  private static readonly HISTORY_MAX = 80;
 
   constructor(pool: CardPool, classes: ClassList, schedule: Schedule, nid = 1, rooms: string[] = []) {
     this.pool = pool;
@@ -35,6 +42,7 @@ export class AppState {
     this.schedule = schedule;
     this.nid = nid;
     this.rooms = rooms;
+    this.lastSnapshot = JSON.stringify(this.toJSON());
   }
 
   static createDefault(): AppState {
@@ -49,7 +57,13 @@ export class AppState {
     this.schedule = fresh.schedule;
     this.nid = fresh.nid;
     this.rooms = fresh.rooms;
+    // Verlauf nach „Datei öffnen" zurücksetzen – nicht über den Ladevorgang hinweg undo-bar.
+    this.undoStack = [];
+    this.redoStack = [];
+    this.lastSnapshot = JSON.stringify(this.toJSON());
+    this.restoring = true;
     this.emit();
+    this.restoring = false;
   }
 
   // ── Beobachter ──────────────────────────────────────────────────────────
@@ -59,7 +73,58 @@ export class AppState {
   }
 
   private emit(render = true): void {
+    if (!this.restoring) {
+      if (render) {
+        this.undoStack.push(this.lastSnapshot);
+        if (this.undoStack.length > AppState.HISTORY_MAX) this.undoStack.shift();
+        this.redoStack = [];
+      }
+      this.lastSnapshot = JSON.stringify(this.toJSON());
+    }
     for (const fn of this.listeners) fn({ render });
+  }
+
+  // ── Undo / Redo (Snapshot-basiert) ────────────────────────────────────────
+
+  get canUndo(): boolean {
+    return this.undoStack.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.redoStack.length > 0;
+  }
+
+  /** Macht die letzte Änderung rückgängig. Gibt false zurück, wenn nichts da ist. */
+  undo(): boolean {
+    const prev = this.undoStack.pop();
+    if (prev === undefined) return false;
+    this.redoStack.push(this.lastSnapshot);
+    this.lastSnapshot = prev;
+    this.applySnapshot(prev);
+    return true;
+  }
+
+  /** Stellt die zuletzt rückgängig gemachte Änderung wieder her. */
+  redo(): boolean {
+    const next = this.redoStack.pop();
+    if (next === undefined) return false;
+    this.undoStack.push(this.lastSnapshot);
+    this.lastSnapshot = next;
+    this.applySnapshot(next);
+    return true;
+  }
+
+  /** Setzt den Zustand auf einen Snapshot und benachrichtigt die UI (ohne neuen Verlaufseintrag). */
+  private applySnapshot(json: string): void {
+    const raw = JSON.parse(json) as PersistedState;
+    this.pool.replaceAll((raw.cards ?? []).map(Card.fromJSON));
+    this.schedule.replaceAll((raw.placed ?? []).map(Placement.fromJSON));
+    this.classes = ClassList.fromPersisted(raw.classes);
+    this.nid = raw.nid ?? 1;
+    this.rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
+    this.restoring = true;
+    this.emit();
+    this.restoring = false;
   }
 
   private nextId(): string {

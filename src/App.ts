@@ -516,7 +516,31 @@ export class App {
         this.closePlanning();
       }
       if (e.key === 'Enter' && this.cardModal.isOpen) this.cardModal.submit();
+
+      // Undo/Redo – nicht, während in einem Textfeld getippt wird.
+      const target = e.target as HTMLElement | null;
+      const typing = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if ((e.ctrlKey || e.metaKey) && !typing) {
+        const k = e.key.toLowerCase();
+        if (k === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          this.handleUndo();
+        } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+          e.preventDefault();
+          this.handleRedo();
+        }
+      }
     });
+  }
+
+  private handleUndo(): void {
+    if (this.state.undo()) this.toast.show('↶ Rückgängig', 'inf');
+    else this.toast.show('Nichts zum Rückgängigmachen.', 'inf');
+  }
+
+  private handleRedo(): void {
+    if (this.state.redo()) this.toast.show('↷ Wiederhergestellt', 'inf');
+    else this.toast.show('Nichts zum Wiederherstellen.', 'inf');
   }
 
   // ── Lehrer-Stundenliste ─────────────────────────────────────────────────
