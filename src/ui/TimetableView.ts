@@ -469,6 +469,7 @@ export class TimetableView {
             <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
             ${pl.klasse ? `<div class="p-klasse">${esc(pl.klasse)}</div>` : ''}
             <div class="p-abbr">${esc(pl.abbr)}</div>
+            ${(pl.isLabor || pl.isWerkstatt) && pl.labGroup ? `<div class="p-grp" title="Gruppe ${esc(pl.labGroup)}">${esc(pl.labGroup)}</div>` : ''}
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
             ${pl.room ? `<div class="p-room">${esc(pl.room)}</div>` : ''}
             ${half ? `<div class="p-range p-half">${half}</div>` : ''}

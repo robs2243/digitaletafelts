@@ -1092,10 +1092,6 @@ export class AppState {
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
       const mirrorSlots = new Map<string, Set<string>>(); // kürzel|klasse|fach → belegte „tag|start|woche" (für u/g-Parallelität)
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
-      // Bereits mit einer Gruppe-a-Karte gepaarte b-Anker (Slot c|d|w|start) –
-      // verhindert, dass mehrere a-Karten auf dieselbe b-Karte gestapelt werden
-      // (Regel: genau eine a auf eine b → max. 2 Karten je Stapel).
-      const usedAnchors = new Set<string>();
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
 
@@ -1251,10 +1247,10 @@ export class AppState {
        * – Kopplung: gleiche Lehrkraft, andere Klassen → Lehrerstunden zählen nur 1×.
        * – Team: mehrere Lehrkräfte, gleiche Klasse → jede Karte zählt normal.
        */
-      const placeGroup = (members: Card[], kind: 'coupling' | 'team'): void => {
-        const id = kind === 'coupling' ? members[0].coupling : members[0].teamTeaching;
-        const tag = kind === 'coupling' ? '⛓' : '👥';
-        const what = kind === 'coupling' ? 'Kopplung' : 'Teamteaching';
+      const placeGroup = (members: Card[], kind: 'coupling' | 'team' | 'lab'): void => {
+        const id = kind === 'coupling' ? members[0].coupling : kind === 'team' ? members[0].teamTeaching : members[0].klasse;
+        const tag = kind === 'coupling' ? '⛓' : kind === 'team' ? '👥' : '⚗';
+        const what = kind === 'coupling' ? 'Kopplung' : kind === 'team' ? 'Teamteaching' : 'Labor a/b';
         const label = `${tag} ${id} (${members.map((m) => m.abbr).join(',')})`;
         if (members.some((m) => !m.klasse.trim())) {
           skipped.push({ card: label, reason: `${what}: Klasse fehlt` });
@@ -1418,31 +1414,6 @@ export class AppState {
         skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
       };
 
-      const placeGroupA = (card: Card): void => {
-        if (!card.klasse.trim()) {
-          skipped.push({ card: card.abbr, reason: 'keine Klasse' });
-          return;
-        }
-        const need = card.klasse.trim().toLowerCase();
-        // Auf eine passende (gleiche Klasse/Dauer, andere Lehrkraft) Gruppe-b-Karte
-        // in derselben Woche stapeln – aber jede b-Karte nur EINMAL (max. 2 je Stapel).
-        for (const b of groupB) {
-          if (b.isWerk !== card.isWerkstatt) continue;
-          if (b.klasse.trim().toLowerCase() !== need) continue;
-          if (b.duration !== card.duration) continue;
-          const anchor = `${b.c}|${b.d}|${b.w}|${b.start}`;
-          if (usedAnchors.has(anchor)) continue; // b ist schon mit einer a gepaart
-          if (check(card, b.c, b.d, b.w, b.start, true) === null) {
-            apply(card, b.c, b.d, b.w, b.start);
-            usedAnchors.add(anchor);
-            return;
-          }
-        }
-        // Kein passender (anderer) Gruppe-b-Partner (Klasse hat nur Gruppe a, oder a+b
-        // gehören derselben Lehrkraft → dürfen nicht aufeinander) → ganz normal verplanen.
-        placeNormal(card);
-      };
-
       // Gekoppelte und Team-Karten gesondert (als Gruppen); alles andere einzeln.
       const all = [...this.pool.all];
       const cards = all.filter((c) => !c.coupling.trim() && !c.teamTeaching.trim());
@@ -1465,15 +1436,51 @@ export class AppState {
         const seq = shuffleOrder ? shuffle([...list], rng) : [...list].sort((a, b) => b.duration - a.duration);
         for (const card of seq) fn(card);
       };
-      // Reihenfolge: Werkstatt-Blöcke (Anker) → HAUPTFÄCHER (sichern sich den Morgen
-      // 1–6) → Labore → Kopplungen → Teamteaching → restliche Fächer.
-      step(cards.filter((c) => c.isWerkstatt && isB(c)), placeNormal);
-      step(cards.filter((c) => c.isWerkstatt && isA(c)), placeGroupA);
-      step(cards.filter((c) => c.isWerkstatt && !isGrouped(c)), placeNormal);
+      // Labor/Werkstatt a/b VORAB zu Paaren bündeln: je eine a- mit einer b-Karte
+      // (gleiche Klasse+Dauer, ANDERE Lehrkraft, anderer Raum). Jedes Paar wird
+      // gemeinsam auf einen freien Slot gelegt → maximale Parallelität, max. 2 je
+      // Stapel. Überzählige (ohne Partner) werden einzeln verplant.
+      const pairAB = (list: Card[]): { pairs: Card[][]; rest: Card[] } => {
+        const groups = new Map<string, { a: Card[]; b: Card[] }>();
+        for (const c of list) {
+          const k = `${c.klasse.trim().toLowerCase()}|${c.duration}|${c.isWerkstatt ? 'w' : 'l'}`;
+          const g = groups.get(k) ?? { a: [], b: [] };
+          (isA(c) ? g.a : g.b).push(c);
+          groups.set(k, g);
+        }
+        const pairs: Card[][] = [];
+        const rest: Card[] = [];
+        for (const { a, b } of groups.values()) {
+          const bPool = [...b];
+          for (const ac of a) {
+            const ar = ac.room.trim().toLowerCase();
+            const idx = bPool.findIndex((bc) => {
+              if (bc.abbr.trim().toLowerCase() === ac.abbr.trim().toLowerCase()) return false; // gleiche Lehrkraft → nicht stapeln
+              const br = bc.room.trim().toLowerCase();
+              return !ar || !br || ar !== br; // gleicher Raum → nicht stapeln
+            });
+            if (idx >= 0) {
+              pairs.push([bPool[idx], ac]);
+              bPool.splice(idx, 1);
+            } else rest.push(ac);
+          }
+          rest.push(...bPool);
+        }
+        return { pairs, rest };
+      };
+      const stepPairs = (ps: Card[][]): void => {
+        const seq = shuffleOrder ? shuffle([...ps], rng) : ps;
+        for (const pair of seq) placeGroup(pair, 'lab');
+      };
+      const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => (c.isLabor || c.isWerkstatt) && isGrouped(c)));
+
+      // Reihenfolge: Werkstatt-Paare/-Reste (Anker) → HAUPTFÄCHER (sichern den Morgen)
+      // → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
+      stepPairs(abPairs.filter((p) => p[0].isWerkstatt));
+      step([...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))], placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
-      step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isB(c)), placeNormal);
-      step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isA(c)), placeGroupA);
-      step(cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c)), placeNormal);
+      stepPairs(abPairs.filter((p) => !p[0].isWerkstatt));
+      step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c))], placeNormal);
       const groups = [...couplingMap.values()];
       if (shuffleOrder) shuffle(groups, rng);
       for (const members of groups) placeGroup(members, 'coupling');
