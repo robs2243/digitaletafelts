@@ -44,6 +44,12 @@ Quelle: Vorgaben des Anwenders.
     unterscheiden; es wird **nicht** automatisch gespiegelt.
 10b. Soll eine Stunde **jede Woche** stattfinden, wird sie als **zwei** Karten
     angelegt (eine für u, eine für g) bzw. in beide Wochen-Spalten gelegt.
+10c. **u/g möglichst parallel (wichtigstes Ziel):** Der Planer legt so viele Stunden
+    wie möglich **parallel** – gleiche Lehrkraft+Klasse+Fach am **selben Tag + derselben
+    Stunde in u UND g**. Aus mehreren gleichartigen Karten bildet er **Paare** (ein
+    u- + ein g-Slot an derselben Stelle); eine **ungerade** Stunde bleibt einzeln in u
+    oder g (wo es besser passt). Bei vollständiger Planung darf ein solcher Block
+    aufgerissen werden, wenn sonst nicht alle Stunden unterzubringen sind.
 
 ## Wochen-Ausgleich (u/g)
 

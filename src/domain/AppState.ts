@@ -927,6 +927,9 @@ export class AppState {
     // Hauptfach: explizit angehakt ODER über das Fach erkannt (D/M/E/Gk/Wk).
     const isMain = (c: { mainSubject: boolean; fach: string }): boolean =>
       c.mainSubject || MAIN.has(c.fach.trim().toLowerCase());
+    // Schlüssel für u/g-Parallelität: gleiche Lehrkraft + Klasse + Fach.
+    const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
+      `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
 
     const cK = (d: number, w: Week, c: number, p: number) => `${d}|${w}|${c}|${p}`;
     const rK = (d: number, w: Week, p: number, room: string) => `${d}|${w}|${p}|${room.toLowerCase()}`;
@@ -977,6 +980,9 @@ export class AppState {
       imbalance: number;
       /** Summe der Hohlstunden über dem Limit (6) über alle Lehrkraft-Wochen. */
       gaps: number;
+      /** Nicht-parallele Stunden: gleiche Lehrkraft+Klasse+Fach, die nur in einer
+       *  Woche liegen (kleiner = mehr u/g parallel). */
+      mirrorMismatch: number;
     }
 
     const baseStarts = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
@@ -996,6 +1002,7 @@ export class AppState {
       const teachDayPeriods = new Map<string, Set<number>>(); // kürzel|d|w → belegte Stunden (für Hohlstunden)
       const teachDaysUsed = new Map<string, Set<number>>(); // kürzel → genutzte Wochentage (für max. Anwesenheitstage)
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
+      const mirrorSlots = new Map<string, Set<string>>(); // kürzel|klasse|fach → belegte „tag|start|woche" (für u/g-Parallelität)
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
@@ -1028,11 +1035,20 @@ export class AppState {
         }
         const f = card.fach.trim().toLowerCase();
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
+        const mk = mirrorKey({ abbr: card.abbr, klasse: kl, fach: card.fach });
+        (mirrorSlots.get(mk) ?? mirrorSlots.set(mk, new Set()).get(mk)!).add(`${d}|${start}|${w}`);
       };
 
       /** Aktuelle Stunden der Lehrkraft in der angegebenen Woche (für den Ausgleich). */
       const teacherWeekLoad = (abbr: string, w: Week): number =>
         (teachWeek.get(abbr.toLowerCase()) ?? [0, 0])[w === 'u' ? 0 : 1];
+
+      /** Liegt dieselbe Lehrkraft+Klasse+Fach in der ANDEREN Woche schon auf (d, start)?
+       *  → dann ist die Platzierung an diesem Slot parallel (u und g gleich). */
+      const hasMirror = (card: { abbr: string; klasse: string; fach: string }, d: number, w: Week, start: number): boolean => {
+        const other: Week = w === 'u' ? 'g' : 'u';
+        return mirrorSlots.get(mirrorKey(card))?.has(`${d}|${start}|${other}`) ?? false;
+      };
 
       // Bestehende Platzierungen als Belegung übernehmen (bleiben unangetastet).
       const seenSeedCoupling = new Set<string>();
@@ -1205,9 +1221,13 @@ export class AppState {
                 classGapPush += classGaps(cols[i], d, w, new Set(blockedPeriods(m.isWerkstatt, start, m.duration)));
               });
             }
+            // u/g-Parallelität: liegt (irgend)ein Mitglied in der anderen Woche schon
+            // am selben Slot → 0 (parallel bevorzugt), sonst 1.
+            const mirrorPush = members.some((m) => hasMirror(m, d, w, start)) ? 0 : 1;
             const score = [
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
               mainGroup && start > 6 ? 1 : 0,
+              mirrorPush, // u/g-PARALLEL: möglichst gleicher Slot in u und g
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
               start,
             ];
@@ -1272,10 +1292,15 @@ export class AppState {
             // Teilzeit-Bündelung (nur limitierte Lehrkräfte): bereits genutzte Tage bevorzugen.
             const bundlePush =
               maxDaysOf(card.abbr) > 0 && !(teachDaysUsed.get(card.abbr.toLowerCase())?.has(d) ?? false) ? 1 : 0;
+            // u/g-Parallelität: gleiche Lehrkraft+Klasse+Fach in der anderen Woche am
+            // selben Slot → 0 (parallel, bevorzugt); sonst 1. Bildet aus mehreren
+            // Karten Paare (gleicher Slot in u und g); ungerade Stunde bleibt einzeln.
+            const mirrorPush = hasMirror(card, d, w, start) ? 0 : 1;
             const score = [
               imbalancePush, // u/g-Differenz ≤ Limit hat Vorrang
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
+              mirrorPush, // u/g-PARALLEL: möglichst gleicher Slot in u und g
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
               bundlePush, // Teilzeit: Tage bündeln (0, wenn unbegrenzt)
               subj.get(sK(card.klasse, d, w, f)) ?? 0, // Fächer-Variation am Tag
@@ -1387,14 +1412,29 @@ export class AppState {
       let gaps = 0;
       for (const g of weekGap.values()) gaps += Math.max(0, g - GAP_LIMIT);
 
-      return { assigns, skipped, openMandatory, imbalance, gaps };
+      // u/g-Parallelität: je Lehrkraft+Klasse+Fach die Slots, die nur in EINER Woche
+      // liegen (symmetrische Differenz der u-/g-Slots). Klein = viel parallel.
+      let mirrorMismatch = 0;
+      for (const slots of mirrorSlots.values()) {
+        const uSet = new Set<string>();
+        const gSet = new Set<string>();
+        for (const s of slots) {
+          const i = s.lastIndexOf('|');
+          (s.slice(i + 1) === 'u' ? uSet : gSet).add(s.slice(0, i));
+        }
+        for (const x of uSet) if (!gSet.has(x)) mirrorMismatch++;
+        for (const x of gSet) if (!uSet.has(x)) mirrorMismatch++;
+      }
+
+      return { assigns, skipped, openMandatory, imbalance, gaps, mirrorMismatch };
     };
 
     // Auswahlkriterium (Priorität): meiste platzierte Karten → u/g-Stunden-Balance
-    // → wenigste Hohlstunden → wenigste offene Pflichtstunden.
+    // → meiste u/g-Parallelität → wenigste Hohlstunden → wenigste offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean => {
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
+      if (a.mirrorMismatch !== b.mirrorMismatch) return a.mirrorMismatch < b.mirrorMismatch;
       if (a.gaps !== b.gaps) return a.gaps < b.gaps;
       return a.openMandatory < b.openMandatory;
     };
