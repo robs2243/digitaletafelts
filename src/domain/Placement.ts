@@ -26,7 +26,6 @@ export class Placement {
   readonly teamTeaching: string;
   readonly collision: boolean;
   readonly mainSubject: boolean;
-  readonly cycle: 'w' | 'u' | 'g';
   /** Freitext-Kommentar; per Doppelklick auf die platzierte Karte änderbar. */
   comment: string;
   /** Gegen versehentliches Verschieben/Entfernen fixiert. */
@@ -58,7 +57,6 @@ export class Placement {
     this.teamTeaching = card.teamTeaching;
     this.collision = card.collision;
     this.mainSubject = card.mainSubject;
-    this.cycle = card.cycle;
     this.comment = card.comment;
     this.locked = locked;
     this.day = pos.day;
@@ -72,14 +70,14 @@ export class Placement {
     return this.startPeriod + this.duration - 1;
   }
 
-  /** Wochen, in denen die Platzierung liegt ('w' = beide). */
+  /** Wochen, in denen die Platzierung liegt (genau die eine Woche). */
   get weeks(): Week[] {
-    return this.cycle === 'w' ? ['u', 'g'] : [this.cycle];
+    return [this.week];
   }
 
   /** Liegt die Platzierung in dieser Woche? */
   occupiesWeek(w: Week): boolean {
-    return this.cycle === 'w' || this.cycle === w;
+    return this.week === w;
   }
 
   /** Belegt diese Platzierung die angegebene Stunde? */
@@ -99,8 +97,8 @@ export class Placement {
 
   /** Kopie der Karten-Eigenschaften (z. B. für Rückgabe in den Pool). */
   cardSnapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, cycle, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, cycle, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, comment };
   }
 
   toJSON(): PersistedPlacement {
@@ -137,8 +135,6 @@ export class Placement {
         teamTeaching: raw.teamTeaching ?? '',
         collision: !!raw.collision,
         mainSubject: !!raw.mainSubject,
-        // Altdaten ohne Turnus: bisheriges Verhalten (Einzelwoche der Platzierung).
-        cycle: raw.cycle === 'w' || raw.cycle === 'u' || raw.cycle === 'g' ? raw.cycle : raw.week,
         comment: raw.comment ?? '',
       },
       {

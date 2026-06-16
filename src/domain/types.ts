@@ -42,9 +42,6 @@ export interface CardProps {
   collision: boolean;
   /** Hauptfach: beim Planen bevorzugt (möglichst Stunden 1–6, max. 2/Tag). */
   mainSubject: boolean;
-  /** Turnus: 'w' = wöchentlich (liegt in u UND g am gleichen Slot, Standard),
-   *  'u' = nur ungerade Woche, 'g' = nur gerade Woche (z. B. 14-täglich). */
-  cycle: 'w' | 'u' | 'g';
   /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
   comment: string;
 }

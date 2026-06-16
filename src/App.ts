@@ -1129,7 +1129,7 @@ export class App {
     const yn = (b: boolean): string => (b ? 'x' : '');
     const header = [
       'Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Gruppe a/b', 'Werkstatt', '4-wöchig',
-      '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Turnus', 'Nicht zählen', 'Kollision', 'Status', 'Tag', 'Stunde', 'Woche', 'Kommentar',
+      '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Nicht zählen', 'Kollision', 'Status', 'Tag', 'Stunde', 'Woche', 'Kommentar',
     ];
     const aoa: (string | number)[][] = [header];
     for (const r of rows) {
@@ -1137,7 +1137,7 @@ export class App {
         r.startPeriod === null ? '' : r.duration > 1 ? `${r.startPeriod}–${r.startPeriod + r.duration - 1}` : `${r.startPeriod}`;
       aoa.push([
         r.klasse, r.abbr, r.fach, r.room, r.duration, yn(r.isLabor), r.labGroup, yn(r.isWerkstatt), yn(r.isVierwoechig),
-        yn(r.firstHalf), yn(r.secondHalf), r.coupling, r.teamTeaching, yn(r.mainSubject), r.cycle === 'w' ? '' : r.cycle, yn(r.noCount), yn(r.collision),
+        yn(r.firstHalf), yn(r.secondHalf), r.coupling, r.teamTeaching, yn(r.mainSubject), yn(r.noCount), yn(r.collision),
         r.placed ? 'verplant' : 'Pool', r.day === null ? '' : DAYS[r.day], stunde, r.week ?? '', r.comment,
       ]);
     }
@@ -1606,7 +1606,6 @@ export class App {
     const label = pl.fach ? `${pl.abbr} – ${pl.fach}` : pl.abbr;
     const periods =
       pl.duration > 1 ? `${pl.startPeriod}.–${pl.startPeriod + pl.duration - 1}. Std` : `${pl.startPeriod}. Std`;
-    const cycleText = pl.cycle === 'w' ? 'wöchentlich (u + g)' : pl.cycle === 'u' ? 'nur ungerade Woche (u)' : 'nur gerade Woche (g)';
     const rows: { label: string; value: string }[] = [
       { label: 'Klasse', value: pl.klasse || '–' },
       { label: 'Kürzel', value: pl.abbr || '–' },
@@ -1616,7 +1615,7 @@ export class App {
       { label: 'Fach', value: pl.fach || '–' },
       { label: 'Tag / Stunde', value: `${DAYS[pl.day]}, ${periods}` },
       { label: 'Dauer', value: `${pl.duration} Std` },
-      { label: 'Turnus', value: cycleText },
+      { label: 'Woche', value: pl.week === 'u' ? 'ungerade (u)' : 'gerade (g)' },
     );
     const flags: string[] = [];
     if (pl.isLabor) flags.push(`Labor${pl.labGroup ? ` (Gruppe ${pl.labGroup})` : ''}`);

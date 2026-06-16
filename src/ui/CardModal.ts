@@ -34,7 +34,6 @@ export class CardModal {
   private readonly couplingInput: HTMLInputElement;
   private readonly teamCheckbox: HTMLInputElement;
   private readonly teamInput: HTMLInputElement;
-  private readonly cycleSelect: HTMLSelectElement;
   private readonly swatchesEl: HTMLElement;
   private readonly deleteBtn: HTMLButtonElement;
   private readonly handlers: CardModalHandlers;
@@ -66,7 +65,6 @@ export class CardModal {
     this.couplingInput = document.getElementById('am-coupling') as HTMLInputElement;
     this.teamCheckbox = document.getElementById('am-teamteaching') as HTMLInputElement;
     this.teamInput = document.getElementById('am-team') as HTMLInputElement;
-    this.cycleSelect = document.getElementById('am-cycle') as HTMLSelectElement;
     this.swatchesEl = document.getElementById('am-swatches')!;
     this.deleteBtn = document.getElementById('am-delbtn') as HTMLButtonElement;
 
@@ -127,7 +125,6 @@ export class CardModal {
     this.couplingInput.value = '';
     this.teamCheckbox.checked = false;
     this.teamInput.value = '';
-    this.cycleSelect.value = 'w';
     this.renderSwatches(suggestedColor);
     this.open();
   }
@@ -155,7 +152,6 @@ export class CardModal {
     this.couplingInput.value = card.coupling;
     this.teamCheckbox.checked = !!card.teamTeaching;
     this.teamInput.value = card.teamTeaching;
-    this.cycleSelect.value = card.cycle;
     this.renderSwatches(card.color);
     this.open();
   }
@@ -180,7 +176,6 @@ export class CardModal {
       teamTeaching: this.teamCheckbox.checked ? this.teamInput.value.trim() : '',
       collision: this.collisionCheckbox.checked,
       mainSubject: this.mainSubjectCheckbox.checked,
-      cycle: this.cycleSelect.value as 'w' | 'u' | 'g',
       comment: this.existingComment,
     };
     if (this.handlers.onSave(this.editingId, props)) this.close();

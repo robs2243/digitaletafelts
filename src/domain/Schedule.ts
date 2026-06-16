@@ -56,8 +56,8 @@ export class Schedule {
    * überschneiden sich zeitlich nicht und kollidieren daher nie.
    */
   checkSlot(card: CardProps, pos: PlacementPosition, excludeId?: string): Collision | null {
-    // Wochen, die die neue Karte belegt ('w' = beide).
-    const newWeeks: Week[] = card.cycle === 'w' ? ['u', 'g'] : [card.cycle];
+    // Eine Karte belegt genau die Woche der Zielspalte.
+    const newWeeks: Week[] = [pos.week];
     // Tatsächlich belegte Stunden der neuen Karte (Werkstatt-Pause berücksichtigt).
     const teach = teachingPeriods(card.isWerkstatt, pos.startPeriod, card.duration);
     const blocked = blockedPeriods(card.isWerkstatt, pos.startPeriod, card.duration);

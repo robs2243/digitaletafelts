@@ -35,17 +35,15 @@ Quelle: Vorgaben des Anwenders.
     gleiche Stunde) liegen. Geht es nicht auf (ungerade Gesamtzahl), hat eine Woche
     eben mehr Stunden (z. B. u 6 / g 4).
 
-## Turnus (Wochenrhythmus)
+## Wochenmodell (u/g)
 
-10a. **Wöchentlich = Standard:** Eine Karte gilt standardmäßig als **wöchentlich** –
-    sie belegt **u-Woche und g-Woche am gleichen Slot** (gleicher Tag + gleiche
-    Stunde). Eine wöchentliche Karte ist **eine Karte**, die in beiden Wochen
-    angezeigt wird, in beiden kollidiert und in beiden zählt. Dadurch werden u- und
-    g-Plan automatisch gleich. Beim Ziehen/Entplanen wandert sie in beiden Wochen mit.
-10b. **14-täglich (nur u / nur g):** Über das Karten-Feld „Turnus" bzw. die
-    Excel-Spalte „Turnus" (Werte `u` / `g`; leer = wöchentlich) lassen sich
-    **Sonderfälle** anlegen, die nur in der ungeraden **oder** nur der geraden Woche
-    liegen. Diese belegen/zählen nur in ihrer Woche.
+10a. **Eine Karte = eine Stunde in EINER Woche.** Es gibt **keinen** Turnus mehr.
+    Jede Stunde liegt entweder in der u- oder der g-Woche – beim **automatischen
+    Verplanen wählt der Planer** die Woche selbst (nach u/g-Ausgleich), beim **Ziehen**
+    bestimmt die Spalte (u oder g), in die abgelegt wird. u- und g-Woche dürfen sich
+    unterscheiden; es wird **nicht** automatisch gespiegelt.
+10b. Soll eine Stunde **jede Woche** stattfinden, wird sie als **zwei** Karten
+    angelegt (eine für u, eine für g) bzw. in beide Wochen-Spalten gelegt.
 
 ## Wochen-Ausgleich (u/g)
 
