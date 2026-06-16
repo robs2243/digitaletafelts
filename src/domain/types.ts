@@ -101,6 +101,8 @@ export interface PersistedState {
   nid: number;
   /** Manuell gepflegte Raumliste (zentrale Quelle für Raum-Vorschläge & Raumplan). */
   rooms?: string[];
+  /** Lehrer-Sperrzeiten: Kürzel → Liste gesperrter Slots als `tag|woche|stunde`. */
+  teacherBlocks?: Record<string, string[]>;
 }
 
 /** Ergebnis des automatischen Verplanens. */

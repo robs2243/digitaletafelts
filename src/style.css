@@ -595,6 +595,19 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .va-item.va-error { background: #fdecea; color: #8e1c12; }
 .va-item.va-warn { background: #fff6e0; color: #7a5600; }
 .va-ico { flex: 0 0 auto; }
+/* Lehrer-Sperrzeiten-Raster. */
+.bl-bar { display: flex; align-items: center; gap: 10px; margin: 6px 0 12px; }
+.bl-bar label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--muted); }
+.bl-bar select { padding: 6px 9px; border: 1.5px solid var(--border); border-radius: 7px; font-size: 14px; }
+.bl-grid-wrap { overflow-x: auto; }
+.bl-grid { border-collapse: collapse; width: 100%; }
+.bl-grid th, .bl-grid td { border: 1px solid var(--border); text-align: center; }
+.bl-grid th { background: #f1f3f7; font-size: 11px; padding: 3px 4px; color: #333; }
+.bl-grid .bl-w { font-weight: 600; color: var(--muted); }
+.bl-per { background: #f1f3f7; font-weight: 700; font-size: 12px; width: 34px; }
+.bl-cell { height: 26px; min-width: 30px; cursor: pointer; user-select: none; transition: background .1s; }
+.bl-cell:hover { background: #ffe9e9; }
+.bl-cell.bl-on { background: #fdecea; }
 .swatches { display: flex; flex-wrap: wrap; gap: 7px; }
 .sw {
   width: 28px; height: 28px; border-radius: 50%; cursor: pointer;

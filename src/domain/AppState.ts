@@ -26,6 +26,8 @@ export class AppState {
   schedule: Schedule;
   /** Manuell gepflegte Raumliste (zentrale Quelle für Vorschläge & Raumplan). */
   rooms: string[];
+  /** Lehrer-Sperrzeiten: Kürzel (lowercase) → Set gesperrter Slots `tag|woche|stunde`. */
+  private teacherBlocks: Map<string, Set<string>>;
   private nid: number;
   private listeners: ChangeListener[] = [];
   // Undo/Redo: Snapshots des gesamten Zustands (JSON). lastSnapshot ist immer der
@@ -36,12 +38,20 @@ export class AppState {
   private restoring = false;
   private static readonly HISTORY_MAX = 80;
 
-  constructor(pool: CardPool, classes: ClassList, schedule: Schedule, nid = 1, rooms: string[] = []) {
+  constructor(
+    pool: CardPool,
+    classes: ClassList,
+    schedule: Schedule,
+    nid = 1,
+    rooms: string[] = [],
+    teacherBlocks: Map<string, Set<string>> = new Map(),
+  ) {
     this.pool = pool;
     this.classes = classes;
     this.schedule = schedule;
     this.nid = nid;
     this.rooms = rooms;
+    this.teacherBlocks = teacherBlocks;
     this.lastSnapshot = JSON.stringify(this.toJSON());
   }
 
@@ -57,6 +67,7 @@ export class AppState {
     this.schedule = fresh.schedule;
     this.nid = fresh.nid;
     this.rooms = fresh.rooms;
+    this.teacherBlocks = fresh.teacherBlocks;
     // Verlauf nach „Datei öffnen" zurücksetzen – nicht über den Ladevorgang hinweg undo-bar.
     this.undoStack = [];
     this.redoStack = [];
@@ -122,6 +133,7 @@ export class AppState {
     this.classes = ClassList.fromPersisted(raw.classes);
     this.nid = raw.nid ?? 1;
     this.rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
+    this.teacherBlocks = AppState.parseTeacherBlocks(raw.teacherBlocks);
     this.restoring = true;
     this.emit();
     this.restoring = false;
@@ -230,6 +242,63 @@ export class AppState {
     this.pool.replaceAll(this.pool.all.filter((c) => c.abbr !== abbr));
     this.schedule.replaceAll(this.schedule.all.filter((p) => p.abbr !== abbr));
     this.emit();
+  }
+
+  // ── Lehrer-Sperrzeiten ────────────────────────────────────────────────────
+
+  private static blockKey(day: number, week: Week, period: number): string {
+    return `${day}|${week}|${period}`;
+  }
+
+  /** Alle Kürzel (aus Pool + Plan), alphabetisch – für die Auswahl im Sperrzeiten-Fenster. */
+  teacherAbbrs(): string[] {
+    const set = new Set<string>();
+    for (const c of this.pool.all) if (c.abbr.trim()) set.add(c.abbr.trim());
+    for (const p of this.schedule.all) if (p.abbr.trim()) set.add(p.abbr.trim());
+    return [...set].sort((a, b) => a.localeCompare(b, 'de'));
+  }
+
+  /** Ist die Lehrkraft zu (Tag, Woche, Stunde) gesperrt? */
+  isTeacherBlocked(abbr: string, day: number, week: Week, period: number): boolean {
+    return this.teacherBlocks.get(abbr.trim().toLowerCase())?.has(AppState.blockKey(day, week, period)) ?? false;
+  }
+
+  /** Gesperrte Stunden einer Lehrkraft an (Tag, Woche) – für das Bearbeiten-Raster. */
+  teacherBlockedPeriods(abbr: string, day: number, week: Week): Set<number> {
+    const set = this.teacherBlocks.get(abbr.trim().toLowerCase());
+    const out = new Set<number>();
+    if (set) for (let p = 1; p <= PERIODS; p++) if (set.has(AppState.blockKey(day, week, p))) out.add(p);
+    return out;
+  }
+
+  /** Schaltet eine Sperrzeit-Stunde um. */
+  toggleTeacherBlock(abbr: string, day: number, week: Week, period: number): void {
+    const key = abbr.trim().toLowerCase();
+    if (!key) return;
+    const set = this.teacherBlocks.get(key) ?? new Set<string>();
+    const slot = AppState.blockKey(day, week, period);
+    if (set.has(slot)) set.delete(slot);
+    else set.add(slot);
+    if (set.size) this.teacherBlocks.set(key, set);
+    else this.teacherBlocks.delete(key);
+    this.emit();
+  }
+
+  /** Entfernt alle Sperrzeiten einer Lehrkraft. */
+  clearTeacherBlocks(abbr: string): void {
+    if (this.teacherBlocks.delete(abbr.trim().toLowerCase())) this.emit();
+  }
+
+  /** Anzahl gesperrter Stunden je Lehrkraft (für die Liste im Fenster). */
+  teacherBlockCount(abbr: string): number {
+    return this.teacherBlocks.get(abbr.trim().toLowerCase())?.size ?? 0;
+  }
+
+  /** Würde die Karte an dieser Position in eine Sperrzeit der Lehrkraft fallen? */
+  cardHitsBlock(card: CardProps, pos: PlacementPosition): boolean {
+    const weeks: Week[] = card.cycle === 'w' ? [...WEEKS] : [card.cycle];
+    const periods = teachingPeriods(card.isWerkstatt, pos.startPeriod, card.duration);
+    return weeks.some((w) => periods.some((p) => this.isTeacherBlocked(card.abbr, pos.day, w, p)));
   }
 
   /** Löscht mehrere nicht verplante (Pool-)Karten anhand ihrer IDs. */
@@ -976,6 +1045,7 @@ export class AppState {
         const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
         if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
         if (!card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
+        for (const p of teach) if (this.isTeacherBlocked(card.abbr, d, w, p)) return 'Lehrer-Sperrzeit';
         for (const p of blk) {
           if (!stackOnB && cell.has(cK(d, w, c, p))) return 'Platz belegt';
           if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
@@ -1539,6 +1609,21 @@ export class AppState {
       }
     }
 
+    // Platzierungen auf Lehrer-Sperrzeiten (z. B. per „Trotzdem platzieren").
+    const seenBlock = new Set<string>();
+    for (const p of pls) {
+      for (const w of p.weeks) {
+        for (const per of teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration)) {
+          if (this.isTeacherBlocked(p.abbr, p.day, w, per)) {
+            const sig = `${p.abbr}|${p.day}|${w}`;
+            if (seenBlock.has(sig)) continue;
+            seenBlock.add(sig);
+            out.push({ severity: 'error', text: `${p.abbr} unterrichtet in einer Sperrzeit (${DAYS[p.day]}, ${w}-Woche): ${lbl(p)}` });
+          }
+        }
+      }
+    }
+
     // u/g-Differenz > 2 (Warnung).
     for (const { abbr, u, g } of this.teacherWeekImbalance()) {
       out.push({ severity: 'warn', text: `${abbr}: u/g-Differenz ${Math.abs(u - g)} (u ${u} · g ${g}) – Ziel ≤ 2.` });
@@ -1571,13 +1656,23 @@ export class AppState {
   // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────
 
   toJSON(): PersistedState {
+    const teacherBlocks: Record<string, string[]> = {};
+    for (const [abbr, set] of this.teacherBlocks) if (set.size) teacherBlocks[abbr] = [...set];
     return {
       classes: this.classes.toPersisted(),
       cards: this.pool.all.map((c) => c.toJSON()),
       placed: this.schedule.all.map((p) => p.toJSON()),
       nid: this.nid,
       rooms: [...this.rooms],
+      teacherBlocks,
     };
+  }
+
+  /** Deserialisiert die Lehrer-Sperrzeiten aus dem Persistenzformat. */
+  static parseTeacherBlocks(raw: Record<string, string[]> | undefined): Map<string, Set<string>> {
+    const map = new Map<string, Set<string>>();
+    if (raw) for (const [abbr, slots] of Object.entries(raw)) if (Array.isArray(slots) && slots.length) map.set(abbr, new Set(slots));
+    return map;
   }
 
   static fromJSON(raw: PersistedState): AppState {
@@ -1587,6 +1682,6 @@ export class AppState {
     schedule.replaceAll((raw.placed ?? []).map(Placement.fromJSON));
     const classes = ClassList.fromPersisted(raw.classes);
     const rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
-    return new AppState(pool, classes, schedule, raw.nid ?? 1, rooms);
+    return new AppState(pool, classes, schedule, raw.nid ?? 1, rooms, AppState.parseTeacherBlocks(raw.teacherBlocks));
   }
 }

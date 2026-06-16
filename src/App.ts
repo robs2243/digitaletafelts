@@ -1,5 +1,5 @@
 import { AppState } from './domain/AppState';
-import { DAYS, PERIODS } from './domain/constants';
+import { DAYS, PERIODS, WEEKS } from './domain/constants';
 import type { Placement } from './domain/Placement';
 import { ink } from './utils/color';
 import { semesterFactor } from './domain/semester';
@@ -337,6 +337,28 @@ export class App {
     byId('va-close').addEventListener('click', () => validateOverlay.classList.remove('open'));
     validateOverlay.addEventListener('click', (e) => {
       if (e.target === validateOverlay) validateOverlay.classList.remove('open');
+    });
+
+    byId('btn-blocks').addEventListener('click', () => this.openBlocks());
+    const blocksOverlay = byId('blocks-modal');
+    byId('bl-close').addEventListener('click', () => blocksOverlay.classList.remove('open'));
+    blocksOverlay.addEventListener('click', (e) => {
+      if (e.target === blocksOverlay) blocksOverlay.classList.remove('open');
+    });
+    byId<HTMLSelectElement>('bl-teacher').addEventListener('change', () => this.renderBlocksGrid());
+    byId('bl-clear').addEventListener('click', () => {
+      const abbr = byId<HTMLSelectElement>('bl-teacher').value;
+      if (abbr) {
+        this.state.clearTeacherBlocks(abbr);
+        this.renderBlocksGrid();
+      }
+    });
+    byId('bl-grid').addEventListener('click', (e) => {
+      const cell = (e.target as HTMLElement).closest<HTMLElement>('.bl-cell');
+      const abbr = byId<HTMLSelectElement>('bl-teacher').value;
+      if (!cell || !abbr || cell.dataset.d === undefined) return;
+      this.state.toggleTeacherBlock(abbr, Number(cell.dataset.d), cell.dataset.w as 'u' | 'g', Number(cell.dataset.p));
+      this.renderBlocksGrid();
     });
 
     const planningOverlay = byId('planning-modal');
@@ -749,6 +771,47 @@ export class App {
       ? [...errors, ...warns].map(row).join('')
       : '<div class="tm-empty">✅ Alles in Ordnung – keine Regelverstöße gefunden.</div>';
     byId('validate-modal').classList.add('open');
+  }
+
+  // ── Lehrer-Sperrzeiten ─────────────────────────────────────────────────────
+
+  private openBlocks(): void {
+    const sel = byId<HTMLSelectElement>('bl-teacher');
+    const prev = sel.value;
+    const abbrs = this.state.teacherAbbrs();
+    sel.innerHTML = abbrs.length
+      ? abbrs.map((a) => `<option value="${esc(a)}">${esc(a)}</option>`).join('')
+      : '<option value="">– keine Lehrkräfte –</option>';
+    if (prev && abbrs.includes(prev)) sel.value = prev;
+    this.renderBlocksGrid();
+    byId('blocks-modal').classList.add('open');
+  }
+
+  private renderBlocksGrid(): void {
+    const abbr = byId<HTMLSelectElement>('bl-teacher').value;
+    byId('bl-count').textContent = abbr ? `${this.state.teacherBlockCount(abbr)} Stunde(n) gesperrt` : '';
+    if (!abbr) {
+      byId('bl-grid').innerHTML = '<div class="tm-empty">Keine Lehrkräfte vorhanden.</div>';
+      return;
+    }
+    // Kopfzeile: je Tag zwei Spalten (u | g).
+    let head = '<tr><th class="bl-corner">Std</th>';
+    for (const d of DAYS) head += `<th class="bl-day" colspan="2">${esc(d)}</th>`;
+    head += '</tr><tr><th></th>';
+    for (let i = 0; i < DAYS.length; i++) head += '<th class="bl-w">u</th><th class="bl-w">g</th>';
+    head += '</tr>';
+    let body = '';
+    for (let p = 1; p <= PERIODS; p++) {
+      body += `<tr><td class="bl-per">${p}</td>`;
+      for (let d = 0; d < DAYS.length; d++) {
+        for (const w of WEEKS) {
+          const on = this.state.isTeacherBlocked(abbr, d, w, p);
+          body += `<td class="bl-cell${on ? ' bl-on' : ''}" data-d="${d}" data-w="${w}" data-p="${p}" title="${esc(DAYS[d])} ${w}, Std ${p}">${on ? '🚫' : ''}</td>`;
+        }
+      }
+      body += '</tr>';
+    }
+    byId('bl-grid').innerHTML = `<table class="bl-grid"><thead>${head}</thead><tbody>${body}</tbody></table>`;
   }
 
   // ── Räume (Karten ohne Raum) ────────────────────────────────────────────
@@ -1315,6 +1378,17 @@ export class App {
     // Klassenbindung: Karte darf nur in eine Spalte mit passendem Klassennamen.
     if (!this.state.cardFitsColumn(dragData.card, pos)) {
       this.collisionModal.show({ messageHtml: classMismatchMessage(dragData.card.klasse), canStack: false });
+      return;
+    }
+
+    // Lehrer-Sperrzeit: bewusst übergehbar (Trotzdem platzieren).
+    if (this.state.cardHitsBlock(dragData.card, pos)) {
+      this.collisionModal.show({
+        messageHtml: `🚫 <strong>${esc(dragData.card.abbr)}</strong> hat zu dieser Zeit eine <strong>Sperrzeit</strong> (${DAYS[pos.day]}, ${pos.week}-Woche).`,
+        canStack: false,
+        canForce: true,
+        onForce: () => this.placeDrag(dragData, pos),
+      });
       return;
     }
 

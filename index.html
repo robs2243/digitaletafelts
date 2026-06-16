@@ -19,6 +19,7 @@
       <button class="hdr-btn hdr-icon" id="btn-comments" title="Alle Kommentare anzeigen" aria-label="Kommentare">💬</button>
       <button class="hdr-btn hdr-icon" id="btn-collisions" title="Kollisionen anzeigen (Karten mit erlaubter Kollision)" aria-label="Kollisionen">💥</button>
       <button class="hdr-btn hdr-icon" id="btn-teamteaching" title="Teamteaching anzeigen" aria-label="Teamteaching"><span class="tt-ico">👥</span></button>
+      <button class="hdr-btn hdr-icon" id="btn-blocks" title="Lehrer-Sperrzeiten (Verfügbarkeit)" aria-label="Lehrer-Sperrzeiten">🚫</button>
       <button class="hdr-btn hdr-icon" id="btn-validate" title="Plan prüfen (Regelverstöße &amp; Warnungen)" aria-label="Plan prüfen">✅</button>
       <div class="hdr-filter">
         <span class="hdr-filter-lbl">Anzeigen:</span>
@@ -499,6 +500,24 @@
           <button class="btn btn-sec" id="cm-cancel">Abbrechen</button>
           <button class="btn btn-del" id="cm-clear" style="display: none">Entfernen</button>
           <button class="btn btn-ok" id="cm-save">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ LEHRER-SPERRZEITEN-MODAL ═══ -->
+    <div class="overlay" id="blocks-modal">
+      <div class="modal" style="width: 720px">
+        <h2 style="color: #1a237e">🚫 Lehrer-Sperrzeiten</h2>
+        <div class="tm-sub">Klick auf eine Stunde sperrt sie – der Planer lässt gesperrte Slots für diese Lehrkraft frei.</div>
+        <div class="bl-bar">
+          <label for="bl-teacher">Lehrkraft</label>
+          <select id="bl-teacher"></select>
+          <span id="bl-count" class="rm-free-cnt"></span>
+          <button class="btn btn-del" id="bl-clear" style="padding:4px 12px">Alle löschen</button>
+        </div>
+        <div id="bl-grid" class="bl-grid-wrap"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="bl-close">Schließen</button>
         </div>
       </div>
     </div>
