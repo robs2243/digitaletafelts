@@ -1,7 +1,7 @@
 import { PERIODS } from './constants';
 import { Placement } from './Placement';
 import { sharesSemester } from './semester';
-import type { CardProps, PlacementPosition } from './types';
+import type { CardProps, PlacementPosition, Week } from './types';
 
 /** Ergebnis der Kollisionsprüfung – strukturiert, die UI formatiert die Meldung. */
 export type Collision =
@@ -55,6 +55,8 @@ export class Schedule {
    * überschneiden sich zeitlich nicht und kollidieren daher nie.
    */
   checkSlot(card: CardProps, pos: PlacementPosition, excludeId?: string): Collision | null {
+    // Wochen, die die neue Karte belegt ('w' = beide).
+    const newWeeks: Week[] = card.cycle === 'w' ? ['u', 'g'] : [card.cycle];
     let classConflict: Placement | null = null;
     for (let i = 0; i < card.duration; i++) {
       const period = pos.startPeriod + i;
@@ -62,7 +64,9 @@ export class Schedule {
 
       for (const pl of this.placements) {
         if (pl.id === excludeId) continue;
-        if (pl.day !== pos.day || pl.week !== pos.week) continue;
+        if (pl.day !== pos.day) continue;
+        // Überschneiden sich die Wochen? (wöchentlich belegt u und g)
+        if (!newWeeks.some((w) => pl.occupiesWeek(w))) continue;
         if (!pl.covers(period)) continue;
         if (!sharesSemester(card, pl)) continue;
         // Gekoppelte Karten (gleiche Kopplungs-ID) dürfen sich überschneiden

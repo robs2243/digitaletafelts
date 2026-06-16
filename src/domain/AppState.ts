@@ -671,8 +671,11 @@ export class AppState {
       }
       if (countIt) {
         const h = p.duration * semesterFactor(p) * (p.isVierwoechig ? 0.5 : 1);
-        if (p.week === 'u') row.hoursU += h;
-        else row.hoursG += h;
+        // Wöchentlich zählt in beiden Wochen; u-/g-Stunden nur in ihrer Woche.
+        for (const w of p.weeks) {
+          if (w === 'u') row.hoursU += h;
+          else row.hoursG += h;
+        }
       }
       map.set(p.abbr, row);
     }
@@ -714,6 +717,8 @@ export class AppState {
     // Schlüssel für u/g-Konstanz: gleiche Lehrkraft + Klasse + Fach.
     const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
       `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
+    // Wochen, die eine Karte belegt: 'w' = beide (wöchentlich), sonst nur u bzw. g.
+    const cardWeeks = (c: { cycle: 'w' | 'u' | 'g' }): Week[] => (c.cycle === 'w' ? ['u', 'g'] : [c.cycle]);
 
     const cK = (d: number, w: Week, c: number, p: number) => `${d}|${w}|${c}|${p}`;
     const rK = (d: number, w: Week, p: number, room: string) => `${d}|${w}|${p}|${room.toLowerCase()}`;
@@ -755,7 +760,7 @@ export class AppState {
     };
 
     type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; fach: string };
-    type Assign = { card: Card; c: number; d: number; w: Week; start: number };
+    type Assign = { card: Card; c: number; d: number; weeks: Week[]; start: number };
     interface Outcome {
       assigns: Assign[];
       skipped: { card: string; reason: string }[];
@@ -836,15 +841,17 @@ export class AppState {
       // Bestehende Platzierungen als Belegung übernehmen (bleiben unangetastet).
       const seenSeedCoupling = new Set<string>();
       for (const pl of this.schedule.all) {
-        let countTeacher = true;
-        if (pl.coupling) {
-          const key = `${pl.coupling}|${pl.abbr.toLowerCase()}|${pl.day}|${pl.startPeriod}|${pl.week}`;
-          if (seenSeedCoupling.has(key)) countTeacher = false;
-          else seenSeedCoupling.add(key);
-        }
-        occupy(pl, pl.klasse, pl.classIdx, pl.day, pl.week, pl.startPeriod, countTeacher);
-        if (pl.labGroup === 'b') {
-          groupB.push({ c: pl.classIdx, d: pl.day, w: pl.week, start: pl.startPeriod, duration: pl.duration, isWerk: pl.isWerkstatt, klasse: pl.klasse });
+        for (const w of pl.weeks) {
+          let countTeacher = true;
+          if (pl.coupling) {
+            const key = `${pl.coupling}|${pl.abbr.toLowerCase()}|${pl.day}|${pl.startPeriod}|${w}`;
+            if (seenSeedCoupling.has(key)) countTeacher = false;
+            else seenSeedCoupling.add(key);
+          }
+          occupy(pl, pl.klasse, pl.classIdx, pl.day, w, pl.startPeriod, countTeacher);
+          if (pl.labGroup === 'b') {
+            groupB.push({ c: pl.classIdx, d: pl.day, w, start: pl.startPeriod, duration: pl.duration, isWerk: pl.isWerkstatt, klasse: pl.klasse });
+          }
         }
       }
 
@@ -876,26 +883,40 @@ export class AppState {
         return null;
       };
 
-      const contexts = (card: Card): { c: number; d: number; w: Week }[] => {
+      // Prüft alle Wochen, die die Karte belegt (wöchentlich = u und g).
+      const checkWeeks = (card: Card, c: number, d: number, weeks: Week[], start: number, stackOnB = false): string | null => {
+        for (const w of weeks) {
+          const r = check(card, c, d, w, start, stackOnB);
+          if (r) return r;
+        }
+        return null;
+      };
+
+      // Kontexte: (Spalte, Tag) mit den Wochen, die die Karte dort belegen kann.
+      const contexts = (card: Card): { c: number; d: number; weeks: Week[] }[] => {
         const need = card.klasse.trim().toLowerCase();
-        const out: { c: number; d: number; w: Week }[] = [];
+        const out: { c: number; d: number; weeks: Week[] }[] = [];
         if (!need) return out;
+        const want = cardWeeks(card);
         for (let c = 0; c < this.classes.count; c++) {
           for (let d = 0; d < DAYS.length; d++) {
-            for (const w of WEEKS) {
-              if (this.classes.classNameAt(c, d, w).trim().toLowerCase() === need) out.push({ c, d, w });
-            }
+            const weeks = want.filter((w) => this.classes.classNameAt(c, d, w).trim().toLowerCase() === need);
+            if (weeks.length) out.push({ c, d, weeks });
           }
         }
         return out;
       };
 
-      const apply = (card: Card, c: number, d: number, w: Week, start: number, countTeacher = true): void => {
-        occupy(card, card.klasse, c, d, w, start, countTeacher);
-        assigns.push({ card, c, d, w, start });
-        if (card.labGroup === 'b') {
-          groupB.push({ c, d, w, start, duration: card.duration, isWerk: card.isWerkstatt, klasse: card.klasse });
+      const apply = (card: Card, c: number, d: number, weeks: Week[], start: number, countTeacher = true): void => {
+        // In jeder belegten Woche markieren (wöchentlich = u und g), aber nur EINE
+        // Platzierung erzeugen (ein Assign mit allen Wochen).
+        for (const w of weeks) {
+          occupy(card, card.klasse, c, d, w, start, countTeacher);
+          if (card.labGroup === 'b') {
+            groupB.push({ c, d, w, start, duration: card.duration, isWerk: card.isWerkstatt, klasse: card.klasse });
+          }
         }
+        assigns.push({ card, c, d, weeks, start });
       };
 
       /** Spalte, deren Klassenname an (Tag, Woche) zur Karte passt (für Kopplung). */
@@ -923,12 +944,15 @@ export class AppState {
           skipped.push({ card: label, reason: `${what}: Klasse fehlt` });
           return;
         }
-        const slots: { d: number; w: Week; cols: number[] }[] = [];
+        // Wochen der Gruppe (wöchentlich = u und g). Pro Tag die Wochen, in denen
+        // ALLE Mitglieder eine passende Spalte haben.
+        const want = cardWeeks(members[0]);
+        const slots: { d: number; weeks: Week[]; cols: number[] }[] = [];
         for (let d = 0; d < DAYS.length; d++) {
-          for (const w of WEEKS) {
-            const cols = members.map((m) => columnFor(m, d, w));
-            if (cols.every((x) => x !== null)) slots.push({ d, w, cols: cols as number[] });
-          }
+          const weeks = want.filter((w) => members.every((m) => columnFor(m, d, w) !== null));
+          if (!weeks.length) continue;
+          const cols = members.map((m) => columnFor(m, d, weeks[0]) as number);
+          slots.push({ d, weeks, cols });
         }
         if (!slots.length) {
           skipped.push({ card: label, reason: `${what}: keine gemeinsame Spalte` });
@@ -954,21 +978,22 @@ export class AppState {
         };
         // Beste gemeinsame Lücke wählen: Hauptfach-Gruppe → Stunden 1–6, dann
         // u/g-Spiegelung (gleicher Slot in der anderen Woche), dann frühe Stunde.
-        let best: { d: number; w: Week; cols: number[]; start: number; score: number[] } | null = null;
-        for (const { d, w, cols } of slots) {
+        let best: { d: number; weeks: Week[]; cols: number[]; start: number; score: number[] } | null = null;
+        for (const { d, weeks, cols } of slots) {
           for (const start of starts) {
-            if (!members.every((m, i) => check(m, cols[i], d, w, start) === null)) continue;
+            if (!members.every((m, i) => checkWeeks(m, cols[i], d, weeks, start) === null)) continue;
             const score = [
               mainGroup && start > 6 ? 1 : 0,
-              members.some((m) => hasMirror(m, d, w, start)) ? 0 : 1,
+              // wöchentlich liegt in beiden Wochen → automatisch gespiegelt
+              weeks.length === 2 || members.some((m) => hasMirror(m, d, weeks[0], start)) ? 0 : 1,
               start,
             ];
-            if (!best || lexLt(score, best.score)) best = { d, w, cols, start, score };
+            if (!best || lexLt(score, best.score)) best = { d, weeks, cols, start, score };
           }
         }
         if (best) {
           const chosen = best;
-          members.forEach((m, i) => apply(m, chosen.cols[i], chosen.d, chosen.w, chosen.start, countTeacher(i)));
+          members.forEach((m, i) => apply(m, chosen.cols[i], chosen.d, chosen.weeks, chosen.start, countTeacher(i)));
           return;
         }
         skipped.push({ card: label, reason: `${what}: kein gemeinsamer freier Slot` });
@@ -1000,38 +1025,39 @@ export class AppState {
           for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
           return false;
         };
-        let best: { c: number; d: number; w: Week; start: number; score: number[] } | null = null;
+        let best: { c: number; d: number; weeks: Week[]; start: number; score: number[] } | null = null;
         let reason = 'kein freier Platz';
-        for (const { c, d, w } of ctx) {
+        for (const { c, d, weeks } of ctx) {
+          const w0 = weeks[0];
+          const weekly = weeks.length === 2;
           for (const start of starts) {
-            const r = check(card, c, d, w, start);
+            const r = checkWeeks(card, c, d, weeks, start);
             if (r !== null) {
               reason = r;
               continue;
             }
             // Hauptfach möglichst mit einem Tag Pause: Nachbartage mit gleichem Fach meiden.
             const mainAdj =
-              main && ((subj.get(sK(card.klasse, d - 1, w, f)) ?? 0) > 0 || (subj.get(sK(card.klasse, d + 1, w, f)) ?? 0) > 0)
+              main && weeks.some((w) => (subj.get(sK(card.klasse, d - 1, w, f)) ?? 0) > 0 || (subj.get(sK(card.klasse, d + 1, w, f)) ?? 0) > 0)
                 ? 1
                 : 0;
-            // u/g-Differenz hat Vorrang: würde diese Platzierung die Differenz der
-            // Lehrkraft über 2 treiben, wird der Slot abgewertet (vor der Parallelität).
-            const loadW = teacherWeekLoad(card.abbr, w);
-            const loadOther = teacherWeekLoad(card.abbr, w === 'u' ? 'g' : 'u');
-            const imbalancePush = Math.max(0, Math.abs(loadW + card.duration - loadOther) - 2);
+            // u/g-Differenz: nur Einzelwochen-Karten erzeugen Unwucht (wöchentlich wirkt auf beide).
+            const imbalancePush = weekly
+              ? 0
+              : Math.max(0, Math.abs(teacherWeekLoad(card.abbr, w0) + card.duration - teacherWeekLoad(card.abbr, w0 === 'u' ? 'g' : 'u')) - 2);
             const score = [
               imbalancePush, // u/g-Differenz ≤ 2 hat Vorrang
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
-              hasMirror(card, d, w, start) ? 0 : 1, // u/g-Parallelität (gleicher Slot in u/g) – hoch
+              weekly || hasMirror(card, d, w0, start) ? 0 : 1, // u/g-Parallelität (wöchentlich ist es immer)
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
-              subj.get(sK(card.klasse, d, w, f)) ?? 0, // Fächer-Variation am Tag
-              teacherWeekLoad(card.abbr, w), // u/g-Ausgleich
+              subj.get(sK(card.klasse, d, w0, f)) ?? 0, // Fächer-Variation am Tag
+              weekly ? 0 : teacherWeekLoad(card.abbr, w0), // u/g-Ausgleich
               start, // frühe Stunde
             ];
-            if (!best || better(score, best.score)) best = { c, d, w, start, score };
+            if (!best || better(score, best.score)) best = { c, d, weeks, start, score };
           }
         }
-        if (best) apply(card, best.c, best.d, best.w, best.start);
+        if (best) apply(card, best.c, best.d, best.weeks, best.start);
         else skipped.push({ card: `${card.abbr} (${card.klasse})`, reason });
       };
 
@@ -1041,14 +1067,23 @@ export class AppState {
           return;
         }
         const need = card.klasse.trim().toLowerCase();
-        // Auf eine passende Gruppe b stapeln – aber nur einer ANDEREN Lehrkraft
-        // (check() verhindert das Stapeln auf dieselbe Lehrkraft über die Belegung).
+        const want = cardWeeks(card);
+        // b-Anker je Slot (c|d|start) → vorhandene Wochen sammeln.
+        const bySlot = new Map<string, { c: number; d: number; start: number; weeks: Set<Week> }>();
         for (const b of groupB) {
           if (b.isWerk !== card.isWerkstatt) continue;
           if (b.klasse.trim().toLowerCase() !== need) continue;
           if (b.duration !== card.duration) continue;
-          if (check(card, b.c, b.d, b.w, b.start, true) === null) {
-            apply(card, b.c, b.d, b.w, b.start);
+          const key = `${b.c}|${b.d}|${b.start}`;
+          const e = bySlot.get(key) ?? { c: b.c, d: b.d, start: b.start, weeks: new Set<Week>() };
+          e.weeks.add(b.w);
+          bySlot.set(key, e);
+        }
+        // Auf eine passende Gruppe b stapeln (anderer Lehrer; gleiche Wochen wie die a-Karte).
+        for (const e of bySlot.values()) {
+          if (!want.every((w) => e.weeks.has(w))) continue;
+          if (checkWeeks(card, e.c, e.d, want, e.start, true) === null) {
+            apply(card, e.c, e.d, want, e.start);
             return;
           }
         }
@@ -1189,7 +1224,11 @@ export class AppState {
     for (const a of best.assigns) {
       const card = this.pool.remove(a.card.id);
       if (!card) continue;
-      this.schedule.add(new Placement(this.nextId(), card.snapshot(), { day: a.d, startPeriod: a.start, classIdx: a.c, week: a.w }));
+      // Turnus aus den belegten Wochen: beide → wöchentlich ('w'), sonst die Einzelwoche.
+      const cycle = a.weeks.length === 2 ? 'w' : a.weeks[0];
+      this.schedule.add(
+        new Placement(this.nextId(), { ...card.snapshot(), cycle }, { day: a.d, startPeriod: a.start, classIdx: a.c, week: a.weeks[0] }),
+      );
     }
     this.emit();
 
@@ -1213,7 +1252,8 @@ export class AppState {
     const map = new Map<string, [number, number]>();
     for (const p of this.schedule.all) {
       const tw = map.get(p.abbr) ?? [0, 0];
-      tw[p.week === 'u' ? 0 : 1] += p.duration;
+      // Wöchentliche Karten zählen in beide Wochen.
+      for (const w of p.weeks) tw[w === 'u' ? 0 : 1] += p.duration;
       map.set(p.abbr, tw);
     }
     return [...map.entries()]
@@ -1243,10 +1283,14 @@ export class AppState {
   teacherWeekGaps(): { abbr: string; week: Week; gaps: number }[] {
     const byDay = new Map<string, number[]>(); // kürzel|tag|woche → belegte Stunden
     for (const p of this.schedule.all) {
-      const key = `${p.abbr}|${p.day}|${p.week}`;
-      const arr = byDay.get(key) ?? [];
-      arr.push(...this.occupiedPeriodsOf(p));
-      byDay.set(key, arr);
+      const periods = this.occupiedPeriodsOf(p);
+      // Wöchentliche Karten belegen u und g.
+      for (const w of p.weeks) {
+        const key = `${p.abbr}|${p.day}|${w}`;
+        const arr = byDay.get(key) ?? [];
+        arr.push(...periods);
+        byDay.set(key, arr);
+      }
     }
     const weekly = new Map<string, number>(); // kürzel|woche → Hohlstunden gesamt
     for (const [key, periods] of byDay) {

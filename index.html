@@ -212,6 +212,14 @@
           <input id="am-team" type="text" placeholder="Team-ID, z. B. T1" list="am-team-list" autocomplete="off" style="margin-top: 4px" />
           <datalist id="am-team-list"></datalist>
         </div>
+        <div class="fg">
+          <label for="am-cycle">Turnus</label>
+          <select id="am-cycle">
+            <option value="w">Wöchentlich (u + g)</option>
+            <option value="u">Nur ungerade Woche (u)</option>
+            <option value="g">Nur gerade Woche (g)</option>
+          </select>
+        </div>
         <div class="mbtns">
           <button class="btn btn-sec" id="am-cancel">Abbrechen</button>
           <button class="btn btn-del" id="am-delbtn" style="display: none">Löschen</button>

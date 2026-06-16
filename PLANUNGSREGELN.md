@@ -35,6 +35,18 @@ Quelle: Vorgaben des Anwenders.
     gleiche Stunde) liegen. Geht es nicht auf (ungerade Gesamtzahl), hat eine Woche
     eben mehr Stunden (z. B. u 6 / g 4).
 
+## Turnus (Wochenrhythmus)
+
+10a. **Wöchentlich = Standard:** Eine Karte gilt standardmäßig als **wöchentlich** –
+    sie belegt **u-Woche und g-Woche am gleichen Slot** (gleicher Tag + gleiche
+    Stunde). Eine wöchentliche Karte ist **eine Karte**, die in beiden Wochen
+    angezeigt wird, in beiden kollidiert und in beiden zählt. Dadurch werden u- und
+    g-Plan automatisch gleich. Beim Ziehen/Entplanen wandert sie in beiden Wochen mit.
+10b. **14-täglich (nur u / nur g):** Über das Karten-Feld „Turnus" bzw. die
+    Excel-Spalte „Turnus" (Werte `u` / `g`; leer = wöchentlich) lassen sich
+    **Sonderfälle** anlegen, die nur in der ungeraden **oder** nur der geraden Woche
+    liegen. Diese belegen/zählen nur in ihrer Woche.
+
 ## Wochen-Ausgleich (u/g)
 
 11. Die Stunden einer Lehrkraft sollen zwischen **u-Woche und g-Woche ausgeglichen**
@@ -128,9 +140,12 @@ Quelle: Vorgaben des Anwenders.
   dürfen frei gestapelt werden.
 - **Kopplung (gleiche Lehrkraft, mehrere Klassen gleichzeitig):** Karten mit gleicher
   **Kopplungs-ID** (Feld „Kopplung" / Excel-Spalte „Kopplung", z. B. „K1") dürfen sich
-  **zeitlich überschneiden** (gleiche Lehrkraft, andere Klasse, ggf. gleicher Raum) und
-  **zählen nur einmal** im Deputat. Anwendung: zwei Klassen sind z. B. in Deutsch
-  zusammengelegt – je eine Karte pro Klasse mit derselben Kopplungs-ID anlegen.
+  **zeitlich überschneiden** (andere Klasse, ggf. gleicher Raum). Gezählt wird **pro
+  Lehrkraft**: dieselbe Lehrkraft in mehreren gekoppelten Klassen zählt **einmal**;
+  sind in der Kopplung **verschiedene Lehrkräfte** (z. B. D der einen Klasse mit M
+  einer anderen), zählt **jede Lehrkraft** ihre Stunden. Anwendung: zwei Klassen sind
+  z. B. in Deutsch zusammengelegt – je eine Karte pro Klasse mit derselben
+  Kopplungs-ID anlegen.
   - **Automatisches Verplanen:** Gekoppelte Karten werden als **Gruppe gemeinsam** auf
     denselben Slot gelegt (jede in ihrer Klassenspalte, gleiche Startstunde). Findet
     sich kein gemeinsamer freier Slot, bleibt die Gruppe offen und wird gemeldet.

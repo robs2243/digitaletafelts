@@ -365,10 +365,13 @@ export class TimetableView {
     const byColumn = new Map<string, Placement[]>();
     for (const pl of this.state.schedule.forDay(day)) {
       if (!this.passesFilter(pl)) continue;
-      const key = `${pl.classIdx}_${pl.week}`;
-      const list = byColumn.get(key) ?? [];
-      list.push(pl);
-      byColumn.set(key, list);
+      // Wöchentlich erscheint in u UND g; sonst nur in seiner Woche.
+      for (const w of pl.weeks) {
+        const key = `${pl.classIdx}_${w}`;
+        const list = byColumn.get(key) ?? [];
+        list.push(pl);
+        byColumn.set(key, list);
+      }
     }
 
     const clusterAt = new Map<string, PlacementCluster>();

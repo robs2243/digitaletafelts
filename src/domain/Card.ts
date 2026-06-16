@@ -24,6 +24,7 @@ export class Card {
   teamTeaching: string;
   collision: boolean;
   mainSubject: boolean;
+  cycle: 'w' | 'u' | 'g';
   comment: string;
 
   constructor(id: string, props: CardProps) {
@@ -46,6 +47,7 @@ export class Card {
     this.teamTeaching = props.teamTeaching;
     this.collision = props.collision;
     this.mainSubject = props.mainSubject;
+    this.cycle = props.cycle;
     this.comment = props.comment;
   }
 
@@ -68,13 +70,14 @@ export class Card {
     this.teamTeaching = props.teamTeaching;
     this.collision = props.collision;
     this.mainSubject = props.mainSubject;
+    this.cycle = props.cycle;
     this.comment = props.comment;
   }
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, cycle, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, cycle, comment };
   }
 
   toJSON(): PersistedCard {
@@ -101,6 +104,7 @@ export class Card {
       teamTeaching: raw.teamTeaching ?? '',
       collision: !!raw.collision,
       mainSubject: !!raw.mainSubject,
+      cycle: raw.cycle === 'u' || raw.cycle === 'g' ? raw.cycle : 'w',
       comment: raw.comment ?? '',
     });
   }
