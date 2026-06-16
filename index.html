@@ -22,6 +22,7 @@
       <button class="hdr-btn hdr-icon" id="btn-blocks" title="Lehrer-Sperrzeiten (Verfügbarkeit)" aria-label="Lehrer-Sperrzeiten">🚫</button>
       <button class="hdr-btn hdr-icon" id="btn-validate" title="Plan prüfen (Regelverstöße &amp; Warnungen)" aria-label="Plan prüfen">✅</button>
       <button class="hdr-btn hdr-icon" id="btn-util" title="Auslastung (Lehrer-Tageslast &amp; Räume)" aria-label="Auslastung">📊</button>
+      <button class="hdr-btn hdr-icon" id="btn-settings" title="Planungsregeln (Bedingungen)" aria-label="Planungsregeln">⚙️</button>
       <div class="hdr-filter">
         <span class="hdr-filter-lbl">Anzeigen:</span>
         <label><input type="checkbox" id="filter-hj1" checked /> 1. HJ</label>
@@ -501,6 +502,25 @@
           <button class="btn btn-sec" id="cm-cancel">Abbrechen</button>
           <button class="btn btn-del" id="cm-clear" style="display: none">Entfernen</button>
           <button class="btn btn-ok" id="cm-save">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PLANUNGSREGELN-MODAL (Bedingungs-Editor) ═══ -->
+    <div class="overlay" id="settings-modal">
+      <div class="modal" style="width: 540px">
+        <h2 style="color: #1a237e">⚙️ Planungsregeln</h2>
+        <div class="tm-sub">Diese Bedingungen gelten beim automatischen Verplanen. Standardwerte = bisheriges Verhalten.</div>
+        <div class="se-row"><label for="se-streak">Max. Stunden am Stück (außer Werkstatt)</label><input id="se-streak" type="number" min="1" max="9" /></div>
+        <div class="se-row"><label for="se-lbt">Max. „LBT"-Stunden je Klasse und Tag</label><input id="se-lbt" type="number" min="1" max="9" /></div>
+        <div class="se-row"><label for="se-imbal">Erlaubte u/g-Differenz je Lehrkraft</label><input id="se-imbal" type="number" min="0" max="10" /></div>
+        <div class="se-row"><label for="se-gap">Erlaubte Hohlstunden je Lehrkraft &amp; Woche</label><input id="se-gap" type="number" min="0" max="20" /></div>
+        <div class="se-check"><label><input type="checkbox" id="se-seventh" /> 7. Stunde frei halten (außer Werkstatt)</label></div>
+        <div class="se-check"><label><input type="checkbox" id="se-mainlate" /> Hauptfächer in der 8./9. Stunde hart verbieten</label></div>
+        <div class="mbtns">
+          <button class="btn btn-sec" id="se-reset">Standard</button>
+          <button class="btn btn-sec" id="se-cancel">Abbrechen</button>
+          <button class="btn btn-ok" id="se-save">Speichern</button>
         </div>
       </div>
     </div>

@@ -3,7 +3,8 @@ import { DAYS, PERIODS, WEEKS } from './domain/constants';
 import type { Placement } from './domain/Placement';
 import { ink } from './utils/color';
 import { semesterFactor } from './domain/semester';
-import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgress, PlanRunResult } from './domain/types';
+import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgress, PlanRunResult, PlanSettings } from './domain/types';
+import { DEFAULT_PLAN_SETTINGS } from './domain/types';
 import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
 import { parseCardRows, TEMPLATE_AOA } from './services/cardImport';
@@ -338,6 +339,15 @@ export class App {
     validateOverlay.addEventListener('click', (e) => {
       if (e.target === validateOverlay) validateOverlay.classList.remove('open');
     });
+
+    byId('btn-settings').addEventListener('click', () => this.openSettings());
+    const settingsOverlay = byId('settings-modal');
+    byId('se-cancel').addEventListener('click', () => settingsOverlay.classList.remove('open'));
+    settingsOverlay.addEventListener('click', (e) => {
+      if (e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+    });
+    byId('se-reset').addEventListener('click', () => this.fillSettings(DEFAULT_PLAN_SETTINGS));
+    byId('se-save').addEventListener('click', () => this.saveSettings());
 
     byId('btn-util').addEventListener('click', () => this.openUtil());
     const utilOverlay = byId('util-modal');
@@ -778,6 +788,39 @@ export class App {
       ? [...errors, ...warns].map(row).join('')
       : '<div class="tm-empty">✅ Alles in Ordnung – keine Regelverstöße gefunden.</div>';
     byId('validate-modal').classList.add('open');
+  }
+
+  // ── Planungsregeln (Bedingungs-Editor) ──────────────────────────────────
+
+  private openSettings(): void {
+    this.fillSettings(this.state.getPlanSettings());
+    byId('settings-modal').classList.add('open');
+  }
+
+  private fillSettings(s: PlanSettings): void {
+    byId<HTMLInputElement>('se-streak').value = String(s.maxStreak);
+    byId<HTMLInputElement>('se-lbt').value = String(s.lbtMax);
+    byId<HTMLInputElement>('se-imbal').value = String(s.imbalanceLimit);
+    byId<HTMLInputElement>('se-gap').value = String(s.gapLimit);
+    byId<HTMLInputElement>('se-seventh').checked = s.forbidSeventh;
+    byId<HTMLInputElement>('se-mainlate').checked = s.mainNoLate;
+  }
+
+  private saveSettings(): void {
+    const num = (id: string, def: number, min: number, max: number): number => {
+      const v = parseInt(byId<HTMLInputElement>(id).value, 10);
+      return Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : def;
+    };
+    this.state.setPlanSettings({
+      maxStreak: num('se-streak', DEFAULT_PLAN_SETTINGS.maxStreak, 1, 9),
+      lbtMax: num('se-lbt', DEFAULT_PLAN_SETTINGS.lbtMax, 1, 9),
+      imbalanceLimit: num('se-imbal', DEFAULT_PLAN_SETTINGS.imbalanceLimit, 0, 10),
+      gapLimit: num('se-gap', DEFAULT_PLAN_SETTINGS.gapLimit, 0, 20),
+      forbidSeventh: byId<HTMLInputElement>('se-seventh').checked,
+      mainNoLate: byId<HTMLInputElement>('se-mainlate').checked,
+    });
+    byId('settings-modal').classList.remove('open');
+    this.toast.show('⚙️ Planungsregeln gespeichert', 'ok');
   }
 
   // ── Auslastungs-Übersicht ───────────────────────────────────────────────

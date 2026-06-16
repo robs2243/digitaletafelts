@@ -6,7 +6,8 @@ import { Placement } from './Placement';
 import { teachingPeriods } from './periods';
 import { Schedule } from './Schedule';
 import { semesterFactor } from './semester';
-import type { CardProps, CardWithPlace, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, StatRow, Week } from './types';
+import { DEFAULT_PLAN_SETTINGS } from './types';
+import type { CardProps, CardWithPlace, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, PlanSettings, StatRow, Week } from './types';
 
 export interface ChangeEvent {
   /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
@@ -28,6 +29,8 @@ export class AppState {
   rooms: string[];
   /** Lehrer-Sperrzeiten: Kürzel (lowercase) → Set gesperrter Slots `tag|woche|stunde`. */
   private teacherBlocks: Map<string, Set<string>>;
+  /** Konfigurierbare Planungsregeln. */
+  private planSettings: PlanSettings = { ...DEFAULT_PLAN_SETTINGS };
   private nid: number;
   private listeners: ChangeListener[] = [];
   // Undo/Redo: Snapshots des gesamten Zustands (JSON). lastSnapshot ist immer der
@@ -68,6 +71,7 @@ export class AppState {
     this.nid = fresh.nid;
     this.rooms = fresh.rooms;
     this.teacherBlocks = fresh.teacherBlocks;
+    this.planSettings = fresh.planSettings;
     // Verlauf nach „Datei öffnen" zurücksetzen – nicht über den Ladevorgang hinweg undo-bar.
     this.undoStack = [];
     this.redoStack = [];
@@ -134,6 +138,7 @@ export class AppState {
     this.nid = raw.nid ?? 1;
     this.rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
     this.teacherBlocks = AppState.parseTeacherBlocks(raw.teacherBlocks);
+    this.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
     this.restoring = true;
     this.emit();
     this.restoring = false;
@@ -292,6 +297,17 @@ export class AppState {
   /** Anzahl gesperrter Stunden je Lehrkraft (für die Liste im Fenster). */
   teacherBlockCount(abbr: string): number {
     return this.teacherBlocks.get(abbr.trim().toLowerCase())?.size ?? 0;
+  }
+
+  // ── Planungseinstellungen ─────────────────────────────────────────────────
+
+  getPlanSettings(): PlanSettings {
+    return { ...this.planSettings };
+  }
+
+  setPlanSettings(s: PlanSettings): void {
+    this.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...s };
+    this.emit();
   }
 
   /** Würde die Karte an dieser Position in eine Sperrzeit der Lehrkraft fallen? */
@@ -885,8 +901,11 @@ export class AppState {
     onProgress?: (p: PlanProgress) => void;
   }): Promise<PlanRunResult> {
     const MAIN = new Set(['d', 'm', 'e', 'gk', 'wk']);
-    const MAX_STREAK = 4; // max. Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt)
-    const LBT_MAX = 6; // max. Stunden „LBT" je Klasse und Tag
+    const cfg = this.planSettings;
+    const MAX_STREAK = cfg.maxStreak; // max. Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt)
+    const LBT_MAX = cfg.lbtMax; // max. Stunden „LBT" je Klasse und Tag
+    const IMBAL = cfg.imbalanceLimit; // erlaubte u/g-Differenz
+    const GAP_LIMIT = cfg.gapLimit; // erlaubte Hohlstunden je Lehrkraft+Woche
     // Hauptfach: explizit angehakt ODER über das Fach erkannt (D/M/E/Gk/Wk).
     const isMain = (c: { mainSubject: boolean; fach: string }): boolean =>
       c.mainSubject || MAIN.has(c.fach.trim().toLowerCase());
@@ -1044,7 +1063,8 @@ export class AppState {
         if (teach.length < card.duration) return 'über Stunde 9';
         const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
         if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
-        if (!card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
+        if (cfg.forbidSeventh && !card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
+        if (cfg.mainNoLate && isMain(card) && teach.some((p) => p > 6)) return 'Hauptfach 8./9. gesperrt';
         for (const p of teach) if (this.isTeacherBlocked(card.abbr, d, w, p)) return 'Lehrer-Sperrzeit';
         for (const p of blk) {
           if (!stackOnB && cell.has(cK(d, w, c, p))) return 'Platz belegt';
@@ -1236,7 +1256,7 @@ export class AppState {
             // u/g-Differenz: nur Einzelwochen-Karten erzeugen Unwucht (wöchentlich wirkt auf beide).
             const imbalancePush = weekly
               ? 0
-              : Math.max(0, Math.abs(teacherWeekLoad(card.abbr, w0) + card.duration - teacherWeekLoad(card.abbr, w0 === 'u' ? 'g' : 'u')) - 2);
+              : Math.max(0, Math.abs(teacherWeekLoad(card.abbr, w0) + card.duration - teacherWeekLoad(card.abbr, w0 === 'u' ? 'g' : 'u')) - IMBAL);
             const score = [
               imbalancePush, // u/g-Differenz ≤ 2 hat Vorrang
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
@@ -1345,7 +1365,7 @@ export class AppState {
         }
       }
       let imbalance = 0;
-      for (const [u, g] of teachWeek.values()) imbalance += Math.max(0, Math.abs(u - g) - 2);
+      for (const [u, g] of teachWeek.values()) imbalance += Math.max(0, Math.abs(u - g) - IMBAL);
 
       // Hohlstunden je Lehrkraft und Woche (Freistunden zwischen erster und letzter
       // belegter Stunde, über die Tage summiert); zähle nur die Überschreitung von 6.
@@ -1358,7 +1378,7 @@ export class AppState {
         weekGap.set(wk, (weekGap.get(wk) ?? 0) + gap);
       }
       let gaps = 0;
-      for (const g of weekGap.values()) gaps += Math.max(0, g - 6);
+      for (const g of weekGap.values()) gaps += Math.max(0, g - GAP_LIMIT);
 
       // u/g-Abweichung: je Lehrkraft+Klasse+Fach die Slots, die nur in einer Woche
       // liegen (symmetrische Differenz der u-/g-Slots). Klein = u und g sehr ähnlich.
@@ -1461,7 +1481,7 @@ export class AppState {
       map.set(p.abbr, tw);
     }
     return [...map.entries()]
-      .filter(([, [u, g]]) => Math.abs(u - g) > 2)
+      .filter(([, [u, g]]) => Math.abs(u - g) > this.planSettings.imbalanceLimit)
       .map(([abbr, [u, g]]) => ({ abbr, u, g }))
       .sort((a, b) => Math.abs(b.u - b.g) - Math.abs(a.u - a.g));
   }
@@ -1505,7 +1525,7 @@ export class AppState {
     }
     const out: { abbr: string; week: Week; gaps: number }[] = [];
     for (const [wk, gaps] of weekly) {
-      if (gaps > 6) {
+      if (gaps > this.planSettings.gapLimit) {
         const [abbr, w] = wk.split('|');
         out.push({ abbr, week: w as Week, gaps });
       }
@@ -1626,11 +1646,11 @@ export class AppState {
 
     // u/g-Differenz > 2 (Warnung).
     for (const { abbr, u, g } of this.teacherWeekImbalance()) {
-      out.push({ severity: 'warn', text: `${abbr}: u/g-Differenz ${Math.abs(u - g)} (u ${u} · g ${g}) – Ziel ≤ 2.` });
+      out.push({ severity: 'warn', text: `${abbr}: u/g-Differenz ${Math.abs(u - g)} (u ${u} · g ${g}) – Ziel ≤ ${this.planSettings.imbalanceLimit}.` });
     }
-    // Mehr als 6 Hohlstunden pro Woche (Warnung).
+    // Hohlstunden über dem Limit (Warnung).
     for (const { abbr, week, gaps } of this.teacherWeekGaps()) {
-      out.push({ severity: 'warn', text: `${abbr}: ${gaps} Hohlstunden in der ${week}-Woche – max. 6.` });
+      out.push({ severity: 'warn', text: `${abbr}: ${gaps} Hohlstunden in der ${week}-Woche – max. ${this.planSettings.gapLimit}.` });
     }
 
     // Offene Pflichtstunden 1–6 in aktiven Klassenspalten (Warnung).
@@ -1719,6 +1739,7 @@ export class AppState {
       nid: this.nid,
       rooms: [...this.rooms],
       teacherBlocks,
+      planSettings: { ...this.planSettings },
     };
   }
 
@@ -1736,6 +1757,9 @@ export class AppState {
     schedule.replaceAll((raw.placed ?? []).map(Placement.fromJSON));
     const classes = ClassList.fromPersisted(raw.classes);
     const rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
-    return new AppState(pool, classes, schedule, raw.nid ?? 1, rooms, AppState.parseTeacherBlocks(raw.teacherBlocks));
+    const app = new AppState(pool, classes, schedule, raw.nid ?? 1, rooms, AppState.parseTeacherBlocks(raw.teacherBlocks));
+    app.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
+    app.lastSnapshot = JSON.stringify(app.toJSON());
+    return app;
   }
 }

@@ -49,6 +49,32 @@ export interface CardProps {
   comment: string;
 }
 
+/** Konfigurierbare Planungsregeln (Defaults = bisheriges Verhalten). */
+export interface PlanSettings {
+  /** Max. Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt). */
+  maxStreak: number;
+  /** Max. „LBT"-Stunden je Klasse und Tag. */
+  lbtMax: number;
+  /** Kein regulärer Unterricht in der 7. Stunde (Werkstatt ausgenommen). */
+  forbidSeventh: boolean;
+  /** Hauptfächer hart in den Stunden 8./9. verbieten (sonst nur abwerten). */
+  mainNoLate: boolean;
+  /** Erlaubte u/g-Stunden-Differenz je Lehrkraft (Ziel ≤ diesem Wert). */
+  imbalanceLimit: number;
+  /** Erlaubte Hohlstunden je Lehrkraft und Woche. */
+  gapLimit: number;
+}
+
+/** Standard-Planungseinstellungen (entsprechen dem bisherigen Verhalten). */
+export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
+  maxStreak: 4,
+  lbtMax: 6,
+  forbidSeventh: true,
+  mainNoLate: false,
+  imbalanceLimit: 2,
+  gapLimit: 6,
+};
+
 /** Position einer Platzierung im Stundenplan. */
 export interface PlacementPosition {
   /** Tag-Index (0 = Montag … 4 = Freitag). */
@@ -103,6 +129,8 @@ export interface PersistedState {
   rooms?: string[];
   /** Lehrer-Sperrzeiten: Kürzel → Liste gesperrter Slots als `tag|woche|stunde`. */
   teacherBlocks?: Record<string, string[]>;
+  /** Konfigurierbare Planungsregeln (fehlt = Defaults). */
+  planSettings?: PlanSettings;
 }
 
 /** Ergebnis des automatischen Verplanens. */
