@@ -715,14 +715,21 @@ export class App {
     byId('rm-sub').textContent = cards.length
       ? `${cards.length} Karte(n) ohne Raum – Raum eintragen (verplante werden auf Verfügbarkeit geprüft)`
       : '';
+    const allRooms = this.state.roomList();
     byId('rm-list').innerHTML = cards.length
       ? cards
-          .map(
-            (m) => `<div class="pl-item" style="cursor:default">
+          .map((m) => {
+            // Geplante Karten: nur im Slot freie Räume; Pool-Karten (ohne Zeit): alle Räume.
+            const free = m.startPeriod != null ? this.state.freeRoomsForPlacement(m.id) : allRooms;
+            const listId = `rm-free-${esc(m.id)}`;
+            const hint = m.startPeriod != null ? `${free.length} frei` : `${free.length} Räume`;
+            return `<div class="pl-item" style="cursor:default">
               <span class="pl-meta" style="flex:1">${this.memberLine(m)}</span>
-              <input class="room-set" data-id="${esc(m.id)}" placeholder="Raum (tippen: freie Räume)" list="rm-room-list" autocomplete="off" />
-            </div>`,
-          )
+              <span class="rm-free-cnt">${hint}</span>
+              <input class="room-set" data-id="${esc(m.id)}" placeholder="Raum (tippen: freie Räume)" list="${listId}" autocomplete="off" />
+              <datalist id="${listId}">${free.map((r) => `<option value="${esc(r)}"></option>`).join('')}</datalist>
+            </div>`;
+          })
           .join('')
       : '<div class="tm-empty">Alle Karten haben einen Raum. 🎉</div>';
   }
