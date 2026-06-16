@@ -164,6 +164,33 @@ export class AppState {
     if (name && !this.rooms.some((r) => r.toLowerCase() === name.toLowerCase())) this.rooms.push(name);
   }
 
+  /**
+   * Legt für Klassennamen ohne passende Spalte je eine Spalte an (combined =
+   * Name an allen Tagen). Vorhandene leere Spalten werden zuerst genutzt.
+   * Gibt die Anzahl neu beschrifteter Spalten zurück.
+   */
+  ensureClassColumns(names: string[]): number {
+    const existing = new Set<string>();
+    for (let c = 0; c < this.classes.count; c++)
+      for (let d = 0; d < DAYS.length; d++)
+        for (const w of WEEKS) {
+          const n = this.classes.classNameAt(c, d, w).trim().toLowerCase();
+          if (n) existing.add(n);
+        }
+    let added = 0;
+    for (const raw of names) {
+      const name = raw.trim();
+      if (!name || existing.has(name.toLowerCase())) continue;
+      let idx = this.classes.firstEmptyIndex();
+      if (idx < 0) idx = this.classes.add();
+      for (let d = 0; d < DAYS.length; d++) this.classes.setLabel(idx, d, 'combined', name);
+      existing.add(name.toLowerCase());
+      added++;
+    }
+    if (added) this.emit();
+    return added;
+  }
+
   createCard(props: CardProps): Card {
     const card = new Card(this.nextId(), props);
     this.pool.add(card);

@@ -1132,8 +1132,15 @@ export class App {
       }
       this.state.fillCardColors(cards);
       this.state.importCards(cards);
+      // Fehlende Klassen-Spalten automatisch anlegen, damit der Planer die Karten
+      // zuordnen kann (Spaltenname muss zur Klasse passen).
+      const newCols = this.state.ensureClassColumns([...new Set(cards.map((c) => c.klasse))]);
       this.renderPoolList();
-      this.toast.show(`✓ ${cards.length} Karten importiert`);
+      this.toast.show(
+        newCols > 0
+          ? `✓ ${cards.length} Karten importiert · ${newCols} Klassen-Spalte(n) angelegt`
+          : `✓ ${cards.length} Karten importiert`,
+      );
     } catch {
       this.toast.show('Datei konnte nicht gelesen werden (Excel/CSV?).', 'inf');
     }
@@ -1878,6 +1885,9 @@ export class App {
       this.toast.show('Keine freien Karten zum Verplanen.', 'inf');
       return;
     }
+    // Fehlende Klassen-Spalten anlegen, damit Karten zugeordnet werden können
+    // (sonst „keine passende Spalte" → nichts wird verplant).
+    this.state.ensureClassColumns([...new Set(this.state.pool.all.map((c) => c.klasse))]);
 
     this.planStop = 'continue';
     byId('pp-status').textContent = 'Starte…';

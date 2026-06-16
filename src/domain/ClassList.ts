@@ -121,6 +121,14 @@ export class ClassList {
     return this.columns.length - 1;
   }
 
+  /** Index der ersten komplett leeren Spalte (alle Felder leer), sonst -1. */
+  firstEmptyIndex(): number {
+    for (let c = 0; c < this.columns.length; c++) {
+      if (this.columns[c].every((dl) => !dl.combined.trim() && !dl.u.trim() && !dl.g.trim())) return c;
+    }
+    return -1;
+  }
+
   /** Setzt alle Spalten auf den leeren Standard zurück (Platzhalter u+g / u / g). */
   resetAll(): void {
     this.columns = this.columns.map(() => columnWith(''));
