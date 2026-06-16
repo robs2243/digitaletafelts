@@ -15,6 +15,7 @@ import { CardModal } from './ui/CardModal';
 import { ClearCardsModal } from './ui/ClearCardsModal';
 import { CollisionModal } from './ui/CollisionModal';
 import { CommentModal } from './ui/CommentModal';
+import { PlacementInfoModal } from './ui/PlacementInfoModal';
 import { classMismatchMessage, collisionMessage } from './ui/collisionMessages';
 import { DragController, type DragData } from './ui/DragController';
 import { PoolView } from './ui/PoolView';
@@ -68,6 +69,7 @@ export class App {
   private readonly cardModal: CardModal;
   private readonly collisionModal: CollisionModal;
   private readonly commentModal: CommentModal;
+  private readonly placementInfoModal: PlacementInfoModal;
   private readonly clearModal: ClearCardsModal;
 
   /** Aktueller Kürzel-Suchbegriff (hebt passende Lehrer hervor, graut Rest aus). */
@@ -103,6 +105,7 @@ export class App {
     });
     this.collisionModal = new CollisionModal();
     this.commentModal = new CommentModal();
+    this.placementInfoModal = new PlacementInfoModal();
     this.clearModal = new ClearCardsModal();
 
     this.poolView = new PoolView(byId('pool'), this.state, this.drag, {
@@ -117,7 +120,7 @@ export class App {
       onDrop: (pos) => this.handleDrop(pos),
       onDragEnd: () => this.renderAll(),
       onRemovePlacement: (id) => this.handleRemovePlacement(id),
-      onCommentPlacement: (id) => this.openPlacementComment(id),
+      onCommentPlacement: (id) => this.openPlacementInfo(id),
       onToggleLock: (id) => this.handleToggleLock(id),
       onLockedBlocked: () =>
         this.toast.show('🔒 Karte ist fixiert – zum Verschieben erst die Fixierung aufheben.', 'inf'),
@@ -1362,14 +1365,55 @@ export class App {
     });
   }
 
-  private openPlacementComment(id: string): void {
-    const placement = this.state.schedule.findById(id);
-    if (!placement) return;
-    const label = placement.fach ? `${placement.abbr} – ${placement.fach}` : placement.abbr;
-    this.commentModal.open(label, placement.comment, (text) => {
-      this.state.setPlacementComment(id, text);
-      this.toast.show(text ? '💬 Kommentar gespeichert' : 'Kommentar entfernt', text ? 'ok' : 'inf');
-    });
+  /** Doppelklick auf eine geplante Karte: alle Daten anzeigen, Raum/Kommentar ändern. */
+  private openPlacementInfo(id: string): void {
+    const pl = this.state.schedule.findById(id);
+    if (!pl) return;
+    const label = pl.fach ? `${pl.abbr} – ${pl.fach}` : pl.abbr;
+    const periods =
+      pl.duration > 1 ? `${pl.startPeriod}.–${pl.startPeriod + pl.duration - 1}. Std` : `${pl.startPeriod}. Std`;
+    const cycleText = pl.cycle === 'w' ? 'wöchentlich (u + g)' : pl.cycle === 'u' ? 'nur ungerade Woche (u)' : 'nur gerade Woche (g)';
+    const rows: { label: string; value: string }[] = [
+      { label: 'Klasse', value: pl.klasse || '–' },
+      { label: 'Kürzel', value: pl.abbr || '–' },
+    ];
+    if (pl.name) rows.push({ label: 'Name', value: pl.name });
+    rows.push(
+      { label: 'Fach', value: pl.fach || '–' },
+      { label: 'Tag / Stunde', value: `${DAYS[pl.day]}, ${periods}` },
+      { label: 'Dauer', value: `${pl.duration} Std` },
+      { label: 'Turnus', value: cycleText },
+    );
+    const flags: string[] = [];
+    if (pl.isLabor) flags.push(`Labor${pl.labGroup ? ` (Gruppe ${pl.labGroup})` : ''}`);
+    if (pl.isWerkstatt) flags.push('Werkstatt');
+    if (pl.mainSubject) flags.push('Hauptfach');
+    if (pl.coupling) flags.push(`Kopplung ${pl.coupling}`);
+    if (pl.teamTeaching) flags.push(`Teamteaching ${pl.teamTeaching}`);
+    if (pl.isVierwoechig) flags.push('4-wöchig');
+    if (pl.firstHalf) flags.push('1. Halbjahr');
+    if (pl.secondHalf) flags.push('2. Halbjahr');
+    if (pl.collision) flags.push('Kollision erlaubt');
+    if (pl.noCount) flags.push('zählt nicht');
+    if (pl.locked) flags.push('fixiert 🔒');
+    if (flags.length) rows.push({ label: 'Eigenschaften', value: flags.join(', ') });
+    this.placementInfoModal.open(
+      {
+        label,
+        rows,
+        color: pl.color,
+        room: pl.room,
+        comment: pl.comment,
+        freeRooms: this.state.freeRoomsForPlacement(id),
+      },
+      ({ room, comment }) => {
+        const roomChanged = room !== pl.room;
+        if (roomChanged) this.state.setPlacementRoom(id, room);
+        if (comment !== pl.comment) this.state.setPlacementComment(id, comment);
+        if (roomChanged) this.toast.show(room ? `🏫 Raum → ${room}` : 'Raum entfernt', 'ok');
+        else this.toast.show(comment ? '💬 Gespeichert' : 'Gespeichert', 'inf');
+      },
+    );
   }
 
   // ── Karten-Modal ────────────────────────────────────────────────────────

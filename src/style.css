@@ -581,6 +581,14 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 }
 .fg textarea { font-family: inherit; resize: vertical; min-height: 70px; }
 .fg input:focus, .fg select:focus, .fg textarea:focus { border-color: var(--accent); }
+/* Karten-Info-Fenster: Datenraster (Label/Wert) + Raum-Hinweis. */
+.pi-grid {
+  display: grid; grid-template-columns: max-content 1fr; gap: 5px 14px;
+  margin: 4px 0 16px; font-size: 13px;
+}
+.pi-k { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: .5px; align-self: center; }
+.pi-v { color: var(--text, #1a237e); font-weight: 600; }
+.pi-hint { margin-top: 5px; font-size: 11px; color: var(--muted); }
 .swatches { display: flex; flex-wrap: wrap; gap: 7px; }
 .sw {
   width: 28px; height: 28px; border-radius: 50%; cursor: pointer;

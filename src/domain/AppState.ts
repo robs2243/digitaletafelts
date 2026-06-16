@@ -199,6 +199,47 @@ export class AppState {
     this.emit();
   }
 
+  /**
+   * Räume, die im Zeit-Slot der Platzierung frei sind (kein anderer Beleger im
+   * selben Tag, derselben Woche und einer überlappenden Stunde). Die Platzierung
+   * selbst (und ihr aktueller Raum) wird ausgeklammert. Quelle: zentrale Raumliste.
+   */
+  freeRoomsForPlacement(id: string): string[] {
+    const pl = this.schedule.findById(id);
+    if (!pl) return this.roomList();
+    const periods: number[] = [];
+    for (let i = 0; i < pl.duration; i++) periods.push(pl.startPeriod + i);
+    const occupied = new Set<string>();
+    for (const other of this.schedule.all) {
+      if (other.id === id) continue;
+      if (other.day !== pl.day) continue;
+      const room = other.room.trim();
+      if (!room) continue;
+      if (!pl.weeks.some((w) => other.occupiesWeek(w))) continue;
+      if (!periods.some((p) => other.covers(p))) continue;
+      occupied.add(room.toLowerCase());
+    }
+    return this.roomList().filter((r) => !occupied.has(r.toLowerCase()));
+  }
+
+  /** Ändert den Raum einer Platzierung (Raum ist readonly → Platzierung neu erzeugen). */
+  setPlacementRoom(id: string, room: string): void {
+    const pl = this.schedule.findById(id);
+    if (!pl) return;
+    const r = room.trim();
+    if (r === pl.room) return;
+    this.schedule.remove(id);
+    this.schedule.add(
+      new Placement(
+        pl.id,
+        { ...pl.cardSnapshot(), room: r },
+        { day: pl.day, startPeriod: pl.startPeriod, classIdx: pl.classIdx, week: pl.week },
+        pl.locked,
+      ),
+    );
+    this.emit();
+  }
+
   /** Setzt die Kopplungs-ID einer Pool-Karte (zum Erstellen von Kopplungen). */
   setCardCoupling(id: string, coupling: string): void {
     const card = this.pool.findById(id);

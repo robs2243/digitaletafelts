@@ -502,6 +502,28 @@
       </div>
     </div>
 
+    <!-- ═══ KARTEN-INFO-MODAL (Doppelklick auf geplante Karte) ═══ -->
+    <div class="overlay" id="info-modal">
+      <div class="modal" style="width: 460px">
+        <h2 id="pi-title" style="color: #1a237e">ℹ️ Karte</h2>
+        <div id="pi-grid" class="pi-grid"></div>
+        <div class="fg">
+          <label for="pi-room">Raum (Klick öffnet freie Räume im Slot)</label>
+          <input id="pi-room" type="text" list="pi-room-list" placeholder="kein Raum" autocomplete="off" />
+          <datalist id="pi-room-list"></datalist>
+          <div id="pi-room-hint" class="pi-hint"></div>
+        </div>
+        <div class="fg" style="margin-bottom: 0">
+          <label for="pi-comment">Kommentar (leer = kein Kommentar)</label>
+          <textarea id="pi-comment" rows="3" placeholder="z.B. Material mitbringen …"></textarea>
+        </div>
+        <div class="mbtns">
+          <button class="btn btn-sec" id="pi-cancel">Abbrechen</button>
+          <button class="btn btn-ok" id="pi-save">Speichern</button>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ KOLLISIONS-MODAL ═══ -->
     <div class="overlay" id="warn-modal">
       <div class="modal warn-modal">
