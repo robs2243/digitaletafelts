@@ -20,7 +20,6 @@ import { PlacementInfoModal } from './ui/PlacementInfoModal';
 import { classMismatchMessage, collisionMessage } from './ui/collisionMessages';
 import { DragController, type DragData } from './ui/DragController';
 import { PoolView } from './ui/PoolView';
-import { SaveBadge } from './ui/SaveBadge';
 import { StatsView } from './ui/StatsView';
 import { TimetableView } from './ui/TimetableView';
 import { Toast } from './ui/Toast';
@@ -63,7 +62,6 @@ export class App {
   private readonly drag = new DragController();
 
   private readonly toast: Toast;
-  private readonly saveBadge: SaveBadge;
   private readonly poolView: PoolView;
   private readonly statsView: StatsView;
   private readonly timetableView: TimetableView;
@@ -100,7 +98,6 @@ export class App {
     this.state = persisted ? AppState.fromJSON(persisted) : AppState.createDefault();
 
     this.toast = new Toast(byId('toast'));
-    this.saveBadge = new SaveBadge(byId('sbadge'));
     this.statsView = new StatsView(byId('stats'), this.state, {
       onSelect: (abbr) => this.openTeacherList(abbr),
     });
@@ -143,7 +140,6 @@ export class App {
   start(): void {
     this.state.onChange((e) => {
       this.storage.save(this.state.toJSON());
-      this.saveBadge.flash();
       if (e.render) this.renderAll();
     });
     this.renderAll();

@@ -80,8 +80,6 @@ header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
 .hdr-zoom-btn { padding: 4px 9px; min-width: 30px; justify-content: center; font-weight: 700; }
 #zoom-reset { min-width: 50px; font-variant-numeric: tabular-nums; }
 .hsp { flex: 1; }
-.sbadge { font-size: 11px; opacity: .55; transition: opacity .5s, color .3s; }
-.sbadge.ok { opacity: 1; color: #a5d6a7; }
 
 /* ── LAYOUT ── */
 .app { flex: 1; display: flex; overflow: hidden; }
