@@ -339,6 +339,13 @@ export class App {
       if (e.target === validateOverlay) validateOverlay.classList.remove('open');
     });
 
+    byId('btn-util').addEventListener('click', () => this.openUtil());
+    const utilOverlay = byId('util-modal');
+    byId('ut-close').addEventListener('click', () => utilOverlay.classList.remove('open'));
+    utilOverlay.addEventListener('click', (e) => {
+      if (e.target === utilOverlay) utilOverlay.classList.remove('open');
+    });
+
     byId('btn-blocks').addEventListener('click', () => this.openBlocks());
     const blocksOverlay = byId('blocks-modal');
     byId('bl-close').addEventListener('click', () => blocksOverlay.classList.remove('open'));
@@ -771,6 +778,48 @@ export class App {
       ? [...errors, ...warns].map(row).join('')
       : '<div class="tm-empty">✅ Alles in Ordnung – keine Regelverstöße gefunden.</div>';
     byId('validate-modal').classList.add('open');
+  }
+
+  // ── Auslastungs-Übersicht ───────────────────────────────────────────────
+
+  private openUtil(): void {
+    // Lehrer-Tageslast als Heatmap (0 = leer … 6+ = voll).
+    const load = this.state.teacherDayLoad();
+    const heat = (n: number): string => {
+      if (n <= 0) return 'background:#f4f5f7;color:#bbb';
+      const t = Math.min(n, 6) / 6; // 0..1
+      const r = Math.round(232 - t * 40);
+      const g = Math.round(245 - t * 150);
+      const b = Math.round(233 - t * 180);
+      return `background:rgb(${r},${g},${b});color:${t > 0.55 ? '#fff' : '#1a237e'}`;
+    };
+    let tt = `<table class="ut-table"><thead><tr><th>Kürzel</th>${DAYS.map((d) => `<th>${esc(d.slice(0, 2))}</th>`).join('')}<th>Σ</th></tr></thead><tbody>`;
+    if (load.length) {
+      for (const r of load) {
+        tt += `<tr><td class="ut-abbr">${esc(r.abbr)}</td>${r.days
+          .map((n) => `<td class="ut-cell" style="${heat(n)}">${n || ''}</td>`)
+          .join('')}<td class="ut-sum">${r.total}</td></tr>`;
+      }
+    } else {
+      tt += `<tr><td colspan="${DAYS.length + 2}" class="tm-empty">Noch nichts verplant.</td></tr>`;
+    }
+    tt += '</tbody></table>';
+    byId('ut-teachers').innerHTML = tt;
+
+    // Raum-Auslastung als Balken.
+    const rooms = this.state.roomUtilization();
+    byId('ut-rooms').innerHTML = rooms.length
+      ? rooms
+          .map(
+            (r) =>
+              `<div class="ut-room"><span class="ut-room-name">${esc(r.room)}</span>
+                <span class="ut-bar"><span class="ut-bar-fill" style="width:${r.pct}%"></span></span>
+                <span class="ut-room-val">${r.used} Std · ${r.pct}%</span></div>`,
+          )
+          .join('')
+      : '<div class="tm-empty">Keine Räume mit verplanten Stunden.</div>';
+
+    byId('util-modal').classList.add('open');
   }
 
   // ── Lehrer-Sperrzeiten ─────────────────────────────────────────────────────

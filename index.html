@@ -21,6 +21,7 @@
       <button class="hdr-btn hdr-icon" id="btn-teamteaching" title="Teamteaching anzeigen" aria-label="Teamteaching"><span class="tt-ico">👥</span></button>
       <button class="hdr-btn hdr-icon" id="btn-blocks" title="Lehrer-Sperrzeiten (Verfügbarkeit)" aria-label="Lehrer-Sperrzeiten">🚫</button>
       <button class="hdr-btn hdr-icon" id="btn-validate" title="Plan prüfen (Regelverstöße &amp; Warnungen)" aria-label="Plan prüfen">✅</button>
+      <button class="hdr-btn hdr-icon" id="btn-util" title="Auslastung (Lehrer-Tageslast &amp; Räume)" aria-label="Auslastung">📊</button>
       <div class="hdr-filter">
         <span class="hdr-filter-lbl">Anzeigen:</span>
         <label><input type="checkbox" id="filter-hj1" checked /> 1. HJ</label>
@@ -500,6 +501,20 @@
           <button class="btn btn-sec" id="cm-cancel">Abbrechen</button>
           <button class="btn btn-del" id="cm-clear" style="display: none">Entfernen</button>
           <button class="btn btn-ok" id="cm-save">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ AUSLASTUNGS-MODAL ═══ -->
+    <div class="overlay" id="util-modal">
+      <div class="modal" style="width: 760px">
+        <h2 style="color: #1a237e">📊 Auslastung</h2>
+        <h3 class="ut-h">Lehrer-Tageslast (Spitze je Tag, max. 6)</h3>
+        <div id="ut-teachers" class="ut-wrap"></div>
+        <h3 class="ut-h">Raum-Auslastung</h3>
+        <div id="ut-rooms" class="ut-wrap"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="ut-close">Schließen</button>
         </div>
       </div>
     </div>

@@ -613,6 +613,20 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .bl-cell { height: 26px; min-width: 30px; cursor: pointer; user-select: none; transition: background .1s; }
 .bl-cell:hover { background: #ffe9e9; }
 .bl-cell.bl-on { background: #fdecea; }
+/* Auslastungs-Übersicht. */
+.ut-h { font-size: 13px; color: var(--muted); margin: 14px 0 6px; }
+.ut-wrap { overflow-x: auto; }
+.ut-table { border-collapse: collapse; width: 100%; }
+.ut-table th, .ut-table td { border: 1px solid var(--border); text-align: center; padding: 4px 6px; font-size: 13px; }
+.ut-table th { background: #f1f3f7; font-size: 11px; }
+.ut-abbr { font-weight: 700; text-align: left; }
+.ut-cell { font-weight: 600; min-width: 30px; }
+.ut-sum { font-weight: 700; background: #f1f3f7; }
+.ut-room { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; font-size: 13px; }
+.ut-room-name { flex: 0 0 90px; font-weight: 600; }
+.ut-bar { flex: 1; height: 14px; background: #eceff3; border-radius: 7px; overflow: hidden; }
+.ut-bar-fill { display: block; height: 100%; background: linear-gradient(90deg,#5c6bc0,#3949ab); }
+.ut-room-val { flex: 0 0 120px; text-align: right; color: var(--muted); font-size: 12px; }
 .swatches { display: flex; flex-wrap: wrap; gap: 7px; }
 .sw {
   width: 28px; height: 28px; border-radius: 50%; cursor: pointer;

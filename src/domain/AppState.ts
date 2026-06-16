@@ -1653,6 +1653,60 @@ export class AppState {
     return out;
   }
 
+  // ── Auslastung (für die Übersicht) ────────────────────────────────────────
+
+  /**
+   * Lehrer-Tageslast: je Lehrkraft und Wochentag die Spitzen-Stundenzahl
+   * (Maximum aus u- und g-Woche, gezählt als belegte Unterrichtsstunden).
+   */
+  teacherDayLoad(): { abbr: string; days: number[]; total: number }[] {
+    const map = new Map<string, Map<string, Set<number>>>(); // abbr → (d|w → Stunden)
+    for (const p of this.schedule.all) {
+      const per = teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration);
+      for (const w of p.weeks) {
+        const inner = map.get(p.abbr) ?? new Map<string, Set<number>>();
+        const key = `${p.day}|${w}`;
+        const set = inner.get(key) ?? new Set<number>();
+        for (const x of per) set.add(x);
+        inner.set(key, set);
+        map.set(p.abbr, inner);
+      }
+    }
+    const out: { abbr: string; days: number[]; total: number }[] = [];
+    for (const [abbr, inner] of map) {
+      const days: number[] = [];
+      let total = 0;
+      for (let d = 0; d < DAYS.length; d++) {
+        const u = inner.get(`${d}|u`)?.size ?? 0;
+        const g = inner.get(`${d}|g`)?.size ?? 0;
+        const peak = Math.max(u, g);
+        days.push(peak);
+        total += peak;
+      }
+      out.push({ abbr, days, total });
+    }
+    return out.sort((a, b) => a.abbr.localeCompare(b.abbr, 'de'));
+  }
+
+  /** Raum-Auslastung: belegte (Tag·Woche·Stunde)-Slots je Raum und Anteil. */
+  roomUtilization(): { room: string; used: number; total: number; pct: number }[] {
+    const total = DAYS.length * WEEKS.length * PERIODS; // alle möglichen Slots
+    const used = new Map<string, Set<string>>();
+    for (const p of this.schedule.all) {
+      const room = p.room.trim();
+      if (!room) continue;
+      const set = used.get(room) ?? new Set<string>();
+      for (const w of p.weeks) for (const per of p.occupiedPeriods()) set.add(`${p.day}|${w}|${per}`);
+      used.set(room, set);
+    }
+    return this.roomList()
+      .map((room) => {
+        const u = used.get(room)?.size ?? 0;
+        return { room, used: u, total, pct: Math.round((u / total) * 100) };
+      })
+      .sort((a, b) => b.used - a.used || a.room.localeCompare(b.room, 'de'));
+  }
+
   // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────
 
   toJSON(): PersistedState {
