@@ -98,10 +98,12 @@ Quelle: Vorgaben des Anwenders.
 - **Fächer-Variation:** gleiche Fächer werden bevorzugt auf unterschiedliche Tage
   verteilt.
 - **Hauptfach:** Karten-Checkbox „⭐ Hauptfach" (oder Excel-Spalte „Hauptfach") bzw.
-  Fach D/M/E/Gk/Wk. Solche Karten werden **zuerst** verplant, bevorzugt in die Stunden
-  **1–6** gelegt (8. nur als Ausweichplatz) und **mit mindestens einem Tag Pause** zum
-  selben (gleichnamigen) Hauptfach: Solange ein Slot mit Lücke frei ist, wird ein
-  Nachbartag vermieden – nur wenn es nicht anders geht, wird er als Ausweg genutzt.
+  Fach D/M/E/Gk/Wk. Hauptfächer werden **direkt nach den Werkstatt-Blöcken** verplant
+  (vor Laboren, Kopplungen, Teamteaching, Rest), damit sie sich den Morgen sichern.
+  Platz-Priorität (von hoch nach niedrig): u/g-Differenz ≤ 2 → **Stunden 1–6** →
+  **mind. ein Tag Pause** zum gleichnamigen Hauptfach → **u/g-Parallelität** →
+  Fächer-Variation → Wochenausgleich → frühe Stunde. Die 8./9. Stunde nur, wenn 1–6
+  wirklich voll ist; ein Nachbartag nur als Ausweg.
 - **u/g-Konstanz (hohe Priorität):** Bei der Platzwahl bevorzugt der Planer Slots, an
   denen dieselbe Lehrkraft+Klasse+Fach in der anderen Woche bereits liegt; die
   **u/g-Ähnlichkeit** fließt auch in die Bewertung des besten Durchlaufs ein. Ziel:

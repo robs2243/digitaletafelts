@@ -965,13 +965,13 @@ export class AppState {
             const loadOther = teacherWeekLoad(card.abbr, w === 'u' ? 'g' : 'u');
             const imbalancePush = Math.max(0, Math.abs(loadW + card.duration - loadOther) - 2);
             const score = [
-              imbalancePush,
+              imbalancePush, // u/g-Differenz ≤ 2 hat Vorrang
+              main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
               mainAdj, // Hauptfach: mind. ein Tag Pause – Nachbartag nur als Ausweg
-              hasMirror(card, d, w, start) ? 0 : 1,
-              main && start > 6 ? 1 : 0,
-              subj.get(sK(card.klasse, d, w, f)) ?? 0,
-              teacherWeekLoad(card.abbr, w),
-              start,
+              hasMirror(card, d, w, start) ? 0 : 1, // u/g-Parallelität (gleicher Slot in u/g)
+              subj.get(sK(card.klasse, d, w, f)) ?? 0, // Fächer-Variation am Tag
+              teacherWeekLoad(card.abbr, w), // u/g-Ausgleich
+              start, // frühe Stunde
             ];
             if (!best || better(score, best.score)) best = { c, d, w, start, score };
           }
@@ -1024,10 +1024,12 @@ export class AppState {
         const seq = shuffleOrder ? shuffle([...list], rng) : [...list].sort((a, b) => b.duration - a.duration);
         for (const card of seq) fn(card);
       };
-      // Werkstatt-/Labor-Gruppen (Anker), dann Kopplungen, dann Hauptfächer, dann Rest.
+      // Reihenfolge: Werkstatt-Blöcke (Anker) → HAUPTFÄCHER (sichern sich den Morgen
+      // 1–6) → Labore → Kopplungen → Teamteaching → restliche Fächer.
       step(cards.filter((c) => c.isWerkstatt && isB(c)), placeNormal);
       step(cards.filter((c) => c.isWerkstatt && isA(c)), placeGroupA);
       step(cards.filter((c) => c.isWerkstatt && !isGrouped(c)), placeNormal);
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isB(c)), placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && c.isLabor && isA(c)), placeGroupA);
       step(cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c)), placeNormal);
@@ -1037,7 +1039,6 @@ export class AppState {
       const teamGroupsList = [...teamMap.values()];
       if (shuffleOrder) shuffle(teamGroupsList, rng);
       for (const members of teamGroupsList) placeGroup(members, 'team');
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c)), placeNormal);
 
       let openMandatory = 0;
