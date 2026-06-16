@@ -68,6 +68,8 @@ export class Schedule {
         // Gekoppelte Karten (gleiche Kopplungs-ID) dürfen sich überschneiden
         // (gleiche Lehrkraft, andere Klasse, ggf. gleicher Raum) – keine Kollision.
         if (card.coupling && pl.coupling === card.coupling) continue;
+        // Teamteaching (gleiche Team-ID): mehrere Lehrkräfte gleichzeitig – keine Kollision.
+        if (card.teamTeaching && pl.teamTeaching === card.teamTeaching) continue;
 
         // Harte Sperren zuerst – auch innerhalb derselben Klasse.
         if (card.room && pl.room === card.room) return { type: 'room', conflict: pl };

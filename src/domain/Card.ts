@@ -21,6 +21,7 @@ export class Card {
   secondHalf: boolean;
   noCount: boolean;
   coupling: string;
+  teamTeaching: string;
   collision: boolean;
   mainSubject: boolean;
   comment: string;
@@ -42,6 +43,7 @@ export class Card {
     this.secondHalf = props.secondHalf;
     this.noCount = props.noCount;
     this.coupling = props.coupling;
+    this.teamTeaching = props.teamTeaching;
     this.collision = props.collision;
     this.mainSubject = props.mainSubject;
     this.comment = props.comment;
@@ -63,6 +65,7 @@ export class Card {
     this.secondHalf = props.secondHalf;
     this.noCount = props.noCount;
     this.coupling = props.coupling;
+    this.teamTeaching = props.teamTeaching;
     this.collision = props.collision;
     this.mainSubject = props.mainSubject;
     this.comment = props.comment;
@@ -70,8 +73,8 @@ export class Card {
 
   /** Kopie der fachlichen Eigenschaften (ohne id). */
   snapshot(): CardProps {
-    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, mainSubject, comment } = this;
-    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, collision, mainSubject, comment };
+    const { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, comment } = this;
+    return { klasse, abbr, fach, name, room, duration, color, isLabor, labGroup, isWerkstatt, isVierwoechig, firstHalf, secondHalf, noCount, coupling, teamTeaching, collision, mainSubject, comment };
   }
 
   toJSON(): PersistedCard {
@@ -95,6 +98,7 @@ export class Card {
       secondHalf: !!raw.secondHalf,
       noCount: !!raw.noCount,
       coupling: raw.coupling ?? '',
+      teamTeaching: raw.teamTeaching ?? '',
       collision: !!raw.collision,
       mainSubject: !!raw.mainSubject,
       comment: raw.comment ?? '',

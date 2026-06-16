@@ -84,9 +84,11 @@ export class App {
   private schedZoom = 1;
   private schedShowU = true;
   private schedShowG = true;
-  /** Header-Filter: nur Labor- bzw. Werkstatt-Karten hervorheben. */
+  /** Header-Filter: nur Labor-/Werkstatt-/Kopplungs-/Team-Karten hervorheben. */
   private filterLabor = false;
   private filterWerkstatt = false;
+  private filterCoupling = false;
+  private filterTeam = false;
   /** Zoomfaktor des Stundenplans (Strg+Mausrad / Buttons). */
   private zoom = 1;
 
@@ -160,7 +162,7 @@ export class App {
     const abbrTerm = this.searchTerm.trim().toUpperCase();
     const roomTerm = this.roomTerm.trim().toUpperCase();
     const klasseTerm = this.klasseTerm.trim().toUpperCase();
-    const catActive = this.filterLabor || this.filterWerkstatt;
+    const catActive = this.filterLabor || this.filterWerkstatt || this.filterCoupling || this.filterTeam;
     const textActive = abbrTerm.length > 0 || roomTerm.length > 0 || klasseTerm.length > 0;
     const cardFilterActive = textActive || catActive;
 
@@ -175,7 +177,9 @@ export class App {
       const okCat =
         !catActive ||
         (this.filterLabor && el.dataset.labor === '1') ||
-        (this.filterWerkstatt && el.dataset.werkstatt === '1');
+        (this.filterWerkstatt && el.dataset.werkstatt === '1') ||
+        (this.filterCoupling && !!el.dataset.coupling) ||
+        (this.filterTeam && !!el.dataset.team);
       const hit = okAbbr && okRoom && okKlasse && okCat;
       el.classList.toggle('search-dim', cardFilterActive && !hit);
       el.classList.toggle('search-hit', textActive && hit);
@@ -205,7 +209,10 @@ export class App {
 
   private bindGlobalControls(): void {
     byId('btn-planning').addEventListener('click', () => this.openPlanning());
-    byId('btn-new-card').addEventListener('click', () => this.cardModal.openForCreate(this.state.suggestFreeColor()));
+    byId('btn-new-card').addEventListener('click', () => {
+      this.fillTeamDatalist('am-team-list');
+      this.cardModal.openForCreate(this.state.suggestFreeColor());
+    });
     byId('btn-clear-cards').addEventListener('click', () => this.openClearCards());
     byId('btn-comments').addEventListener('click', () => this.openComments());
 
@@ -228,13 +235,19 @@ export class App {
 
     const labor = byId<HTMLInputElement>('filter-labor');
     const werk = byId<HTMLInputElement>('filter-werkstatt');
+    const fCoupling = byId<HTMLInputElement>('filter-coupling');
+    const fTeam = byId<HTMLInputElement>('filter-team');
     const applyHighlight = () => {
       this.filterLabor = labor.checked;
       this.filterWerkstatt = werk.checked;
+      this.filterCoupling = fCoupling.checked;
+      this.filterTeam = fTeam.checked;
       this.applySearch();
     };
     labor.addEventListener('change', applyHighlight);
     werk.addEventListener('change', applyHighlight);
+    fCoupling.addEventListener('change', applyHighlight);
+    fTeam.addEventListener('change', applyHighlight);
 
     const searchInput = byId<HTMLInputElement>('search');
     searchInput.addEventListener('input', () => {
@@ -307,6 +320,20 @@ export class App {
     byId('col-close').addEventListener('click', () => collisionsOverlay.classList.remove('open'));
     collisionsOverlay.addEventListener('click', (e) => {
       if (e.target === collisionsOverlay) collisionsOverlay.classList.remove('open');
+    });
+
+    byId('btn-teamteaching').addEventListener('click', () => this.openTeam());
+    const teamOverlay = byId('team-modal');
+    byId('tt-close').addEventListener('click', () => teamOverlay.classList.remove('open'));
+    teamOverlay.addEventListener('click', (e) => {
+      if (e.target === teamOverlay) teamOverlay.classList.remove('open');
+    });
+    byId('tt-list').addEventListener('change', (e) => {
+      const inp = (e.target as HTMLElement).closest<HTMLInputElement>('.tt-set');
+      if (inp?.dataset.id) {
+        this.state.setCardTeam(inp.dataset.id, inp.value);
+        this.renderTeam();
+      }
     });
 
     const planningOverlay = byId('planning-modal');
@@ -642,6 +669,42 @@ export class App {
     byId('collisions-modal').classList.add('open');
   }
 
+  // ── Teamteaching ────────────────────────────────────────────────────────
+
+  /** Vorhandene Team-IDs (für die Vorschlagslisten). */
+  private teamIds(): string[] {
+    const set = new Set<string>();
+    for (const c of this.state.pool.all) if (c.teamTeaching.trim()) set.add(c.teamTeaching.trim());
+    for (const p of this.state.schedule.all) if (p.teamTeaching.trim()) set.add(p.teamTeaching.trim());
+    return [...set].sort((a, b) => a.localeCompare(b, 'de'));
+  }
+
+  /** Füllt eine Datalist mit den vorhandenen Team-IDs. */
+  private fillTeamDatalist(listId: string): void {
+    byId(listId).innerHTML = this.teamIds().map((t) => `<option value="${esc(t)}"></option>`).join('');
+  }
+
+  private openTeam(): void {
+    this.renderTeam();
+    byId('team-modal').classList.add('open');
+  }
+
+  private renderTeam(): void {
+    this.fillTeamDatalist('tt-id-list');
+    const cards = this.state.allCardsWithPlace();
+    const withTeam = cards.filter((c) => c.teamTeaching).length;
+    byId('tt-sub').textContent =
+      `Gleiche Team-ID (z. B. T1) bei mehreren Karten = liegen aufeinander (zählen normal). ${withTeam} zugeordnet.`;
+    byId('tt-list').innerHTML = cards
+      .map(
+        (m) => `<div class="pl-item" style="cursor:default">
+          <span class="pl-meta" style="flex:1">${this.memberLine(m)}</span>
+          <input class="room-set tt-set" data-id="${esc(m.id)}" value="${esc(m.teamTeaching)}" placeholder="Team-ID" list="tt-id-list" autocomplete="off" />
+        </div>`,
+      )
+      .join('');
+  }
+
   // ── Räume (Karten ohne Raum) ────────────────────────────────────────────
 
   private openRooms(): void {
@@ -853,7 +916,7 @@ export class App {
     const yn = (b: boolean): string => (b ? 'x' : '');
     const header = [
       'Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Gruppe a/b', 'Werkstatt', '4-wöchig',
-      '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Hauptfach', 'Nicht zählen', 'Kollision', 'Status', 'Tag', 'Stunde', 'Woche', 'Kommentar',
+      '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Nicht zählen', 'Kollision', 'Status', 'Tag', 'Stunde', 'Woche', 'Kommentar',
     ];
     const aoa: (string | number)[][] = [header];
     for (const r of rows) {
@@ -861,7 +924,7 @@ export class App {
         r.startPeriod === null ? '' : r.duration > 1 ? `${r.startPeriod}–${r.startPeriod + r.duration - 1}` : `${r.startPeriod}`;
       aoa.push([
         r.klasse, r.abbr, r.fach, r.room, r.duration, yn(r.isLabor), r.labGroup, yn(r.isWerkstatt), yn(r.isVierwoechig),
-        yn(r.firstHalf), yn(r.secondHalf), r.coupling, yn(r.mainSubject), yn(r.noCount), yn(r.collision),
+        yn(r.firstHalf), yn(r.secondHalf), r.coupling, r.teamTeaching, yn(r.mainSubject), yn(r.noCount), yn(r.collision),
         r.placed ? 'verplant' : 'Pool', r.day === null ? '' : DAYS[r.day], stunde, r.week ?? '', r.comment,
       ]);
     }
@@ -1318,7 +1381,10 @@ export class App {
 
   private openEditCard(id: string): void {
     const card = this.state.pool.findById(id);
-    if (card) this.cardModal.openForEdit(card);
+    if (card) {
+      this.fillTeamDatalist('am-team-list');
+      this.cardModal.openForEdit(card);
+    }
   }
 
   private handleSaveCard(editingId: string | null, props: CardProps): boolean {

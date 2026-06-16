@@ -35,6 +35,9 @@ export interface CardProps {
   /** Kopplungs-ID (leer = keine). Karten mit gleicher ID dürfen sich zeitlich
    *  überschneiden (gleiche Lehrkraft, andere Klasse) und zählen nur einmal. */
   coupling: string;
+  /** Teamteaching-ID (leer = keine). Karten mit gleicher ID liegen aufeinander
+   *  (mehrere Lehrkräfte gleichzeitig) und zählen jeweils normal. */
+  teamTeaching: string;
   /** Darf bewusst auf Kollision gelegt werden (überspringt die Kollisionssperre). */
   collision: boolean;
   /** Hauptfach: beim Planen bevorzugt (möglichst Stunden 1–6, max. 2/Tag). */

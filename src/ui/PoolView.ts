@@ -80,7 +80,7 @@ export class PoolView {
         const half = semesterLabel(c);
         const badge = c.isLabor ? `⚗${c.labGroup}` : c.isWerkstatt ? '🔧' : '';
         const cardCls = c.isLabor ? ' labor-card' : c.isWerkstatt ? ' werkstatt-card' : '';
-        return `<div class="tc${cardCls}" data-id="${c.id}" data-abbr="${esc(c.abbr)}" data-room="${esc(c.room)}" data-klasse="${esc(c.klasse)}" data-coupling="${esc(c.coupling)}" data-labor="${c.isLabor ? '1' : '0'}" data-werkstatt="${c.isWerkstatt ? '1' : '0'}"
+        return `<div class="tc${cardCls}" data-id="${c.id}" data-abbr="${esc(c.abbr)}" data-room="${esc(c.room)}" data-klasse="${esc(c.klasse)}" data-coupling="${esc(c.coupling)}" data-team="${esc(c.teamTeaching)}" data-labor="${c.isLabor ? '1' : '0'}" data-werkstatt="${c.isWerkstatt ? '1' : '0'}"
               style="background:${c.color};color:${fg}" draggable="true">
             <span class="tc-dur">${c.duration}h</span>
             ${badge ? `<span class="labor-badge">${badge}</span>` : ''}
@@ -95,6 +95,7 @@ export class PoolView {
             ${c.isVierwoechig ? '<div class="tc-sub2">¼ 4-wö.</div>' : ''}
             ${c.noCount ? '<div class="tc-sub2">∅ zählt nicht</div>' : ''}
             ${c.coupling ? `<div class="tc-sub2">⛓ ${esc(c.coupling)}</div>` : ''}
+            ${c.teamTeaching ? `<div class="tc-sub2">👥 ${esc(c.teamTeaching)}</div>` : ''}
             ${c.collision ? '<div class="tc-sub2">💥 Kollision</div>' : ''}
             ${c.comment ? `<span class="tc-comment" title="${esc(c.comment)}">💬</span>` : ''}
             <button class="tc-editbtn" title="Bearbeiten">✎</button>

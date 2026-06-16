@@ -133,5 +133,11 @@ Quelle: Vorgaben des Anwenders.
     denselben Slot gelegt (jede in ihrer Klassenspalte, gleiche Startstunde). Findet
     sich kein gemeinsamer freier Slot, bleibt die Gruppe offen und wird gemeldet.
   - **Manuell:** Beim Ziehen/Entplanen einer gekoppelten Karte wandern die Partner mit.
+- **Teamteaching (mehrere Lehrkräfte gleichzeitig):** Karten mit gleicher **Team-ID**
+  (Feld „Teamteaching" / Excel-Spalte „Teamteaching", z. B. „T1") liegen **aufeinander**
+  (gleiche Zeit, gleiche Klasse, ggf. gleicher oder anderer Raum) und **zählen jeweils
+  normal** (beide Lehrkräfte unterrichten). Der Planer legt sie gemeinsam auf denselben
+  Slot; beim Ziehen/Entplanen wandern die Partner mit. Zuordnung über die Checkbox/das
+  Feld beim Erstellen, das Header-Fenster „👥 Teamteaching" oder die Excel-Spalte.
 - **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
   D, M, E, Gk, Wk). **LBT** wird ebenfalls über das Feld „Fach" erkannt (max. 6/Tag).

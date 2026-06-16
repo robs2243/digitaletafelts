@@ -207,6 +207,44 @@ export class AppState {
     this.emit();
   }
 
+  /** Setzt die Teamteaching-ID einer Karte (Pool oder Plan; platzierte werden neu erzeugt). */
+  setCardTeam(id: string, value: string): void {
+    const v = value.trim();
+    const card = this.pool.findById(id);
+    if (card) {
+      card.teamTeaching = v;
+      this.emit();
+      return;
+    }
+    const pl = this.schedule.findById(id);
+    if (!pl) return;
+    this.schedule.remove(id);
+    this.schedule.add(
+      new Placement(
+        this.nextId(),
+        { ...pl.cardSnapshot(), teamTeaching: v },
+        { day: pl.day, startPeriod: pl.startPeriod, classIdx: pl.classIdx, week: pl.week },
+        pl.locked,
+      ),
+    );
+    this.emit();
+  }
+
+  /** Alle Karten (Pool + Plan) mit Platzierungs-Info, für die Teamteaching-Zuordnung. */
+  allCardsWithPlace(): (CardWithPlace & { id: string; teamTeaching: string })[] {
+    const out: (CardWithPlace & { id: string; teamTeaching: string })[] = [];
+    for (const c of this.pool.all) out.push({ id: c.id, abbr: c.abbr, fach: c.fach, klasse: c.klasse, teamTeaching: c.teamTeaching });
+    for (const p of this.schedule.all)
+      out.push({ id: p.id, abbr: p.abbr, fach: p.fach, klasse: p.klasse, teamTeaching: p.teamTeaching, day: p.day, startPeriod: p.startPeriod, duration: p.duration, week: p.week });
+    return out.sort(
+      (a, b) =>
+        (b.teamTeaching ? 1 : 0) - (a.teamTeaching ? 1 : 0) ||
+        a.teamTeaching.localeCompare(b.teamTeaching, 'de') ||
+        a.klasse.localeCompare(b.klasse, 'de') ||
+        a.abbr.localeCompare(b.abbr, 'de'),
+    );
+  }
+
   /** Alle Kopplungen (ID → beteiligte Karten, Pool + Plan), alphabetisch. */
   couplingGroups(): { id: string; members: CardWithPlace[] }[] {
     const map = new Map<string, CardWithPlace[]>();
@@ -398,10 +436,15 @@ export class AppState {
     return null;
   }
 
-  /** Verschiebt gekoppelte Platzierungen (gleiche ID) auf denselben Zeit-Slot mit. */
-  private repositionCoupled(coupling: string, pos: PlacementPosition, excludeId: string): void {
-    if (!coupling) return;
-    const partners = this.schedule.all.filter((p) => p.id !== excludeId && p.coupling === coupling);
+  /** Verlinkt: gleiche Kopplungs-ID ODER gleiche Teamteaching-ID (beide nicht leer). */
+  private areLinked(a: { coupling: string; teamTeaching: string }, b: { coupling: string; teamTeaching: string }): boolean {
+    return (!!a.coupling && a.coupling === b.coupling) || (!!a.teamTeaching && a.teamTeaching === b.teamTeaching);
+  }
+
+  /** Verschiebt verlinkte Platzierungen (Kopplung/Team) auf denselben Zeit-Slot mit. */
+  private repositionLinked(card: { coupling: string; teamTeaching: string }, pos: PlacementPosition, excludeId: string): void {
+    if (!card.coupling && !card.teamTeaching) return;
+    const partners = this.schedule.all.filter((p) => p.id !== excludeId && this.areLinked(card, p));
     for (const p of partners) {
       this.schedule.remove(p.id);
       this.schedule.add(
@@ -421,9 +464,9 @@ export class AppState {
     if (!card) return null;
     const placement = new Placement(this.nextId(), card.snapshot(), pos);
     this.schedule.add(placement);
-    // Gekoppelte Partner aus dem Pool auf denselben Slot mitnehmen.
-    if (placement.coupling) {
-      for (const c of this.pool.all.filter((c) => c.coupling === placement.coupling)) {
+    // Verlinkte Partner (Kopplung/Team) aus dem Pool auf denselben Slot mitnehmen.
+    if (placement.coupling || placement.teamTeaching) {
+      for (const c of this.pool.all.filter((c) => this.areLinked(placement, c))) {
         const classIdx = this.findColumnForClass(c.klasse, pos.day, pos.week) ?? pos.classIdx;
         this.pool.remove(c.id);
         this.schedule.add(
@@ -435,13 +478,13 @@ export class AppState {
     return placement;
   }
 
-  /** Platzierung innerhalb des Plans verschieben (gekoppelte Partner wandern mit). */
+  /** Platzierung innerhalb des Plans verschieben (verlinkte Partner wandern mit). */
   movePlacement(placementId: string, pos: PlacementPosition): Placement | null {
     const old = this.schedule.remove(placementId);
     if (!old) return null;
     const placement = new Placement(this.nextId(), old.cardSnapshot(), pos);
     this.schedule.add(placement);
-    this.repositionCoupled(placement.coupling, pos, placement.id);
+    this.repositionLinked(placement, pos, placement.id);
     this.emit();
     return placement;
   }
@@ -460,9 +503,9 @@ export class AppState {
     const placement = this.schedule.remove(placementId);
     if (!placement) return null;
     this.pool.add(new Card(this.nextId(), placement.cardSnapshot()));
-    // Gekoppelte Partner ebenfalls zurück in den Pool.
-    if (placement.coupling) {
-      for (const p of this.schedule.all.filter((p) => p.coupling === placement.coupling)) {
+    // Verlinkte Partner (Kopplung/Team) ebenfalls zurück in den Pool.
+    if (placement.coupling || placement.teamTeaching) {
+      for (const p of this.schedule.all.filter((p) => this.areLinked(placement, p))) {
         this.schedule.remove(p.id);
         this.pool.add(new Card(this.nextId(), p.cardSnapshot()));
       }
@@ -836,17 +879,20 @@ export class AppState {
       };
 
       /**
-       * Platziert eine Kopplungsgruppe gemeinsam auf einen Slot: alle Mitglieder
-       * gleichzeitig (gleicher Tag/Woche/Startstunde), jedes in seiner Klassenspalte.
-       * Lehrerstunden zählen nur einmal (erstes Mitglied).
+       * Platziert eine Gruppe gemeinsam auf einen Slot: alle Mitglieder gleichzeitig
+       * (gleicher Tag/Woche/Startstunde), jedes in seiner Klassenspalte.
+       * – Kopplung: gleiche Lehrkraft, andere Klassen → Lehrerstunden zählen nur 1×.
+       * – Team: mehrere Lehrkräfte, gleiche Klasse → jede Karte zählt normal.
        */
-      const placeCouplingGroup = (members: Card[]): void => {
-        const label = `⛓ ${members[0].coupling} (${members.map((m) => m.abbr).join(',')})`;
+      const placeGroup = (members: Card[], kind: 'coupling' | 'team'): void => {
+        const id = kind === 'coupling' ? members[0].coupling : members[0].teamTeaching;
+        const tag = kind === 'coupling' ? '⛓' : '👥';
+        const what = kind === 'coupling' ? 'Kopplung' : 'Teamteaching';
+        const label = `${tag} ${id} (${members.map((m) => m.abbr).join(',')})`;
         if (members.some((m) => !m.klasse.trim())) {
-          skipped.push({ card: label, reason: 'Kopplung: Klasse fehlt' });
+          skipped.push({ card: label, reason: `${what}: Klasse fehlt` });
           return;
         }
-        // Tag/Woche-Kandidaten, an denen ALLE Mitglieder eine passende Spalte haben.
         const slots: { d: number; w: Week; cols: number[] }[] = [];
         for (let d = 0; d < DAYS.length; d++) {
           for (const w of WEEKS) {
@@ -855,20 +901,22 @@ export class AppState {
           }
         }
         if (!slots.length) {
-          skipped.push({ card: label, reason: 'Kopplung: keine gemeinsame Spalte' });
+          skipped.push({ card: label, reason: `${what}: keine gemeinsame Spalte` });
           return;
         }
         if (shuffleOrder) shuffle(slots, rng);
         const starts = shuffleOrder ? shuffle([...baseStarts(members[0])], rng) : baseStarts(members[0]);
+        // Team: jede Karte zählt (countTeacher=true); Kopplung: nur die erste.
+        const countTeacher = (i: number): boolean => kind === 'team' || i === 0;
         for (const { d, w, cols } of slots) {
           for (const start of starts) {
             if (members.every((m, i) => check(m, cols[i], d, w, start) === null)) {
-              members.forEach((m, i) => apply(m, cols[i], d, w, start, i === 0));
+              members.forEach((m, i) => apply(m, cols[i], d, w, start, countTeacher(i)));
               return;
             }
           }
         }
-        skipped.push({ card: label, reason: 'Kopplung: kein gemeinsamer freier Slot' });
+        skipped.push({ card: label, reason: `${what}: kein gemeinsamer freier Slot` });
       };
 
       const placeNormal = (card: Card): void => {
@@ -954,15 +1002,18 @@ export class AppState {
         placeNormal(card);
       };
 
-      // Gekoppelte Karten gesondert (als Gruppen) verplanen; alles andere einzeln.
+      // Gekoppelte und Team-Karten gesondert (als Gruppen); alles andere einzeln.
       const all = [...this.pool.all];
-      const cards = all.filter((c) => !c.coupling.trim());
+      const cards = all.filter((c) => !c.coupling.trim() && !c.teamTeaching.trim());
       const couplingMap = new Map<string, Card[]>();
       for (const c of all.filter((c) => c.coupling.trim())) {
         const k = c.coupling.trim();
-        const list = couplingMap.get(k) ?? [];
-        list.push(c);
-        couplingMap.set(k, list);
+        (couplingMap.get(k) ?? couplingMap.set(k, []).get(k)!).push(c);
+      }
+      const teamMap = new Map<string, Card[]>();
+      for (const c of all.filter((c) => !c.coupling.trim() && c.teamTeaching.trim())) {
+        const k = c.teamTeaching.trim();
+        (teamMap.get(k) ?? teamMap.set(k, []).get(k)!).push(c);
       }
 
       const isA = (c: Card) => c.labGroup === 'a';
@@ -982,7 +1033,10 @@ export class AppState {
       step(cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c)), placeNormal);
       const groups = [...couplingMap.values()];
       if (shuffleOrder) shuffle(groups, rng);
-      for (const members of groups) placeCouplingGroup(members);
+      for (const members of groups) placeGroup(members, 'coupling');
+      const teamGroupsList = [...teamMap.values()];
+      if (shuffleOrder) shuffle(teamGroupsList, rng);
+      for (const members of teamGroupsList) placeGroup(members, 'team');
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c)), placeNormal);
 

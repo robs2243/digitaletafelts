@@ -32,6 +32,8 @@ export class CardModal {
   private readonly collisionCheckbox: HTMLInputElement;
   private readonly mainSubjectCheckbox: HTMLInputElement;
   private readonly couplingInput: HTMLInputElement;
+  private readonly teamCheckbox: HTMLInputElement;
+  private readonly teamInput: HTMLInputElement;
   private readonly swatchesEl: HTMLElement;
   private readonly deleteBtn: HTMLButtonElement;
   private readonly handlers: CardModalHandlers;
@@ -61,6 +63,8 @@ export class CardModal {
     this.collisionCheckbox = document.getElementById('am-collision') as HTMLInputElement;
     this.mainSubjectCheckbox = document.getElementById('am-mainsubject') as HTMLInputElement;
     this.couplingInput = document.getElementById('am-coupling') as HTMLInputElement;
+    this.teamCheckbox = document.getElementById('am-teamteaching') as HTMLInputElement;
+    this.teamInput = document.getElementById('am-team') as HTMLInputElement;
     this.swatchesEl = document.getElementById('am-swatches')!;
     this.deleteBtn = document.getElementById('am-delbtn') as HTMLButtonElement;
 
@@ -119,6 +123,8 @@ export class CardModal {
     this.collisionCheckbox.checked = false;
     this.mainSubjectCheckbox.checked = false;
     this.couplingInput.value = '';
+    this.teamCheckbox.checked = false;
+    this.teamInput.value = '';
     this.renderSwatches(suggestedColor);
     this.open();
   }
@@ -144,6 +150,8 @@ export class CardModal {
     this.collisionCheckbox.checked = card.collision;
     this.mainSubjectCheckbox.checked = card.mainSubject;
     this.couplingInput.value = card.coupling;
+    this.teamCheckbox.checked = !!card.teamTeaching;
+    this.teamInput.value = card.teamTeaching;
     this.renderSwatches(card.color);
     this.open();
   }
@@ -165,6 +173,7 @@ export class CardModal {
       secondHalf: this.half2Checkbox.checked,
       noCount: this.noCountCheckbox.checked,
       coupling: this.couplingInput.value.trim(),
+      teamTeaching: this.teamCheckbox.checked ? this.teamInput.value.trim() : '',
       collision: this.collisionCheckbox.checked,
       mainSubject: this.mainSubjectCheckbox.checked,
       comment: this.existingComment,
