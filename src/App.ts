@@ -854,10 +854,12 @@ export class App {
     const counts = new Map<string, number>();
     for (const t of list) counts.set(t.color, (counts.get(t.color) ?? 0) + 1);
     byId('co-legend').innerHTML =
-      `<span class="co-legend-lbl">Verwendung je Farbe:</span>` +
+      `<span class="co-legend-lbl">Verwendung<br>je Farbe</span>` +
+      `<div class="co-legend-grid">` +
       PALETTE.map(
         (c) => `<div class="co-leg-sw" style="background:${c};color:${ink(c)}" title="${esc(c)}: ${counts.get(c) ?? 0}×">${counts.get(c) ?? 0}</div>`,
-      ).join('');
+      ).join('') +
+      `</div>`;
     byId('co-list').innerHTML = list.length
       ? list
           .map((t) => {
