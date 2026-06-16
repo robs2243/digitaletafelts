@@ -3,6 +3,7 @@ import { CardPool } from './CardPool';
 import { ClassList } from './ClassList';
 import { DAYS, PALETTE, PERIODS, WEEKS } from './constants';
 import { Placement } from './Placement';
+import { teachingPeriods } from './periods';
 import { Schedule } from './Schedule';
 import { semesterFactor } from './semester';
 import type { CardProps, CardWithPlace, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, StatRow, Week } from './types';
@@ -1375,6 +1376,131 @@ export class AppState {
       }
     }
     return out.sort((a, b) => b.gaps - a.gaps);
+  }
+
+  /**
+   * Prüft den gesamten Plan gegen die harten Regeln (Fehler) und die weichen
+   * Vorgaben (Warnungen) und liefert eine Liste für den Prüfbericht.
+   */
+  validatePlan(): { severity: 'error' | 'warn'; text: string }[] {
+    const out: { severity: 'error' | 'warn'; text: string }[] = [];
+    const pls = this.schedule.all;
+    const linked = (a: Placement, b: Placement): boolean =>
+      (!!a.coupling && a.coupling === b.coupling) || (!!a.teamTeaching && a.teamTeaching === b.teamTeaching);
+    const slotKey = (d: number, w: Week, p: number): string => `${d}|${w}|${p}`;
+    const lbl = (p: Placement): string => `${p.klasse || '?'} ${p.abbr}${p.fach ? ' ' + p.fach : ''}`;
+
+    // Belegung je Stunde sammeln.
+    const roomAt = new Map<string, Placement[]>(); // tag|woche|stunde|raum
+    const teachAt = new Map<string, Placement[]>(); // tag|woche|stunde|kürzel
+    const teachDay = new Map<string, Set<number>>(); // kürzel|tag|woche → Unterrichtsstunden
+    for (const p of pls) {
+      for (const w of p.weeks) {
+        for (const per of p.occupiedPeriods()) {
+          if (p.room.trim()) {
+            const k = `${slotKey(p.day, w, per)}|${p.room.trim().toLowerCase()}`;
+            (roomAt.get(k) ?? roomAt.set(k, []).get(k)!).push(p);
+          }
+          const tk = `${slotKey(p.day, w, per)}|${p.abbr.toLowerCase()}`;
+          (teachAt.get(tk) ?? teachAt.set(tk, []).get(tk)!).push(p);
+        }
+        const dk = `${p.abbr.toLowerCase()}|${p.day}|${w}`;
+        const set = teachDay.get(dk) ?? new Set<number>();
+        for (const per of teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration)) set.add(per);
+        teachDay.set(dk, set);
+        if (!p.isWerkstatt && teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration).includes(7)) {
+          out.push({ severity: 'warn', text: `7. Stunde belegt: ${lbl(p)} (${DAYS[p.day]}, ${w}-Woche)` });
+        }
+      }
+    }
+
+    // Raum-Doppelbelegung (verschiedene, nicht gekoppelte Karten im selben Raum/Slot).
+    const seenRoom = new Set<string>();
+    for (const [k, arr] of roomAt) {
+      if (arr.length < 2) continue;
+      const bad = arr.find((p) => arr.some((q) => p !== q && !linked(p, q)));
+      if (!bad) continue;
+      const [d, w, , room] = k.split('|');
+      const sig = `${d}|${w}|${room}`;
+      if (seenRoom.has(sig)) continue;
+      seenRoom.add(sig);
+      const who = [...new Set(arr.map(lbl))].join(', ');
+      out.push({ severity: 'error', text: `Raum doppelt belegt: ${room.toUpperCase()} (${DAYS[+d]}, ${w}-Woche) – ${who}` });
+    }
+
+    // Lehrkraft zeitgleich in zwei (nicht gekoppelten) Klassen.
+    const seenTeach = new Set<string>();
+    for (const [k, arr] of teachAt) {
+      if (arr.length < 2) continue;
+      const clash = arr.find((p) => arr.some((q) => p !== q && p.classIdx !== q.classIdx && !linked(p, q)));
+      if (!clash) continue;
+      const [d, w, , abbr] = k.split('|');
+      const sig = `${d}|${w}|${abbr}`;
+      if (seenTeach.has(sig)) continue;
+      seenTeach.add(sig);
+      const where = [...new Set(arr.map((p) => p.klasse || '?'))].join(', ');
+      out.push({ severity: 'error', text: `${abbr.toUpperCase()} zeitgleich in mehreren Klassen (${DAYS[+d]}, ${w}-Woche): ${where}` });
+    }
+
+    // Lehrkraft mehr als 6 Stunden an einem Tag.
+    for (const [dk, set] of teachDay) {
+      if (set.size > 6) {
+        const [abbr, d, w] = dk.split('|');
+        out.push({ severity: 'error', text: `${abbr.toUpperCase()} hat ${set.size} Std am ${DAYS[+d]} (${w}-Woche) – max. 6.` });
+      }
+    }
+
+    // Mehr als 4 Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt).
+    const seenStreak = new Set<string>();
+    for (const p of pls) {
+      if (p.isWerkstatt) continue;
+      for (const w of p.weeks) {
+        const dk = `${p.abbr.toLowerCase()}|${p.classIdx}|${p.day}|${w}`;
+        if (seenStreak.has(dk)) continue;
+        const periods = pls
+          .filter((q) => q.abbr === p.abbr && q.classIdx === p.classIdx && q.day === p.day && q.occupiesWeek(w) && !q.isWerkstatt)
+          .flatMap((q) => teachingPeriods(q.isWerkstatt, q.startPeriod, q.duration));
+        const uniq = [...new Set(periods)].sort((a, b) => a - b);
+        let run = 1;
+        let maxRun = 1;
+        for (let i = 1; i < uniq.length; i++) {
+          run = uniq[i] === uniq[i - 1] + 1 ? run + 1 : 1;
+          maxRun = Math.max(maxRun, run);
+        }
+        if (maxRun > 4) {
+          seenStreak.add(dk);
+          out.push({ severity: 'warn', text: `${p.abbr} unterrichtet ${maxRun} Std am Stück in ${p.klasse} (${DAYS[p.day]}, ${w}-Woche).` });
+        }
+      }
+    }
+
+    // u/g-Differenz > 2 (Warnung).
+    for (const { abbr, u, g } of this.teacherWeekImbalance()) {
+      out.push({ severity: 'warn', text: `${abbr}: u/g-Differenz ${Math.abs(u - g)} (u ${u} · g ${g}) – Ziel ≤ 2.` });
+    }
+    // Mehr als 6 Hohlstunden pro Woche (Warnung).
+    for (const { abbr, week, gaps } of this.teacherWeekGaps()) {
+      out.push({ severity: 'warn', text: `${abbr}: ${gaps} Hohlstunden in der ${week}-Woche – max. 6.` });
+    }
+
+    // Offene Pflichtstunden 1–6 in aktiven Klassenspalten (Warnung).
+    const cellBusy = new Set<string>();
+    for (const p of pls) for (const w of p.weeks) for (const per of p.occupiedPeriods()) cellBusy.add(`${p.classIdx}|${p.day}|${w}|${per}`);
+    for (let c = 0; c < this.classes.count; c++) {
+      for (let d = 0; d < DAYS.length; d++) {
+        for (const w of WEEKS) {
+          const name = this.classes.classNameAt(c, d, w).trim();
+          if (!name) continue;
+          const open: number[] = [];
+          for (let per = 1; per <= 6; per++) if (!cellBusy.has(`${c}|${d}|${w}|${per}`)) open.push(per);
+          if (open.length) {
+            out.push({ severity: 'warn', text: `${name} (${DAYS[d]}, ${w}-Woche): Stunde ${open.join(', ')} der Pflichtstunden 1–6 frei.` });
+          }
+        }
+      }
+    }
+
+    return out;
   }
 
   // ── Serialisierung (Format kompatibel zur Vorgänger-App) ───────────────

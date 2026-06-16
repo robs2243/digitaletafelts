@@ -590,6 +590,11 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .pi-v { color: var(--text, #1a237e); font-weight: 600; }
 .pi-hint { margin-top: 5px; font-size: 11px; color: var(--muted); }
 .rm-free-cnt { font-size: 11px; color: var(--muted); white-space: nowrap; }
+/* Plan-Prüfbericht: Fehler (rot) und Warnungen (gelb). */
+.va-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 7px; margin-bottom: 6px; font-size: 13px; line-height: 1.35; }
+.va-item.va-error { background: #fdecea; color: #8e1c12; }
+.va-item.va-warn { background: #fff6e0; color: #7a5600; }
+.va-ico { flex: 0 0 auto; }
 .swatches { display: flex; flex-wrap: wrap; gap: 7px; }
 .sw {
   width: 28px; height: 28px; border-radius: 50%; cursor: pointer;

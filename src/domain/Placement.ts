@@ -1,4 +1,4 @@
-import { PERIODS } from './constants';
+import { blockedPeriods } from './periods';
 import type { CardProps, PersistedPlacement, PlacementPosition, Week } from './types';
 
 /**
@@ -94,20 +94,7 @@ export class Placement {
    * sind hier ungenau – für Belegungsprüfungen diese Methode verwenden.
    */
   occupiedPeriods(): number[] {
-    if (!this.isWerkstatt) {
-      const a: number[] = [];
-      for (let i = 0; i < this.duration; i++) a.push(this.startPeriod + i);
-      return a;
-    }
-    const t: number[] = [];
-    let p = this.startPeriod;
-    while (t.length < this.duration && p <= PERIODS) {
-      if (p !== 5) t.push(p);
-      p++;
-    }
-    // Pause in der 5. zählt als belegt, wenn der Block sie umschließt.
-    if (t.length && this.startPeriod <= 5 && t[t.length - 1] >= 5) t.push(5);
-    return t.sort((a, b) => a - b);
+    return blockedPeriods(this.isWerkstatt, this.startPeriod, this.duration);
   }
 
   /** Kopie der Karten-Eigenschaften (z. B. für Rückgabe in den Pool). */

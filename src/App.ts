@@ -332,6 +332,13 @@ export class App {
       if (e.target === teamOverlay) teamOverlay.classList.remove('open');
     });
 
+    byId('btn-validate').addEventListener('click', () => this.openValidate());
+    const validateOverlay = byId('validate-modal');
+    byId('va-close').addEventListener('click', () => validateOverlay.classList.remove('open'));
+    validateOverlay.addEventListener('click', (e) => {
+      if (e.target === validateOverlay) validateOverlay.classList.remove('open');
+    });
+
     const planningOverlay = byId('planning-modal');
     byId('plan-cancel').addEventListener('click', () => this.closePlanning());
     planningOverlay.addEventListener('click', (e) => {
@@ -701,6 +708,23 @@ export class App {
           })
           .join('')
       : '<div class="tm-empty">Keine Teamteaching-Stunden.<br>Zuordnung beim Erstellen einer Karte (👥 Teamteaching) oder per Excel-Spalte „Teamteaching".</div>';
+  }
+
+  // ── Plan-Prüfbericht ──────────────────────────────────────────────────────
+
+  private openValidate(): void {
+    const issues = this.state.validatePlan();
+    const errors = issues.filter((i) => i.severity === 'error');
+    const warns = issues.filter((i) => i.severity === 'warn');
+    byId('va-sub').textContent = issues.length
+      ? `${errors.length} Fehler · ${warns.length} Warnung(en)`
+      : 'Keine Fehler, keine Warnungen.';
+    const row = (i: { severity: 'error' | 'warn'; text: string }): string =>
+      `<div class="va-item va-${i.severity}"><span class="va-ico">${i.severity === 'error' ? '⛔' : '⚠️'}</span><span>${esc(i.text)}</span></div>`;
+    byId('va-list').innerHTML = issues.length
+      ? [...errors, ...warns].map(row).join('')
+      : '<div class="tm-empty">✅ Alles in Ordnung – keine Regelverstöße gefunden.</div>';
+    byId('validate-modal').classList.add('open');
   }
 
   // ── Räume (Karten ohne Raum) ────────────────────────────────────────────

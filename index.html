@@ -19,6 +19,7 @@
       <button class="hdr-btn hdr-icon" id="btn-comments" title="Alle Kommentare anzeigen" aria-label="Kommentare">💬</button>
       <button class="hdr-btn hdr-icon" id="btn-collisions" title="Kollisionen anzeigen (Karten mit erlaubter Kollision)" aria-label="Kollisionen">💥</button>
       <button class="hdr-btn hdr-icon" id="btn-teamteaching" title="Teamteaching anzeigen" aria-label="Teamteaching"><span class="tt-ico">👥</span></button>
+      <button class="hdr-btn hdr-icon" id="btn-validate" title="Plan prüfen (Regelverstöße &amp; Warnungen)" aria-label="Plan prüfen">✅</button>
       <div class="hdr-filter">
         <span class="hdr-filter-lbl">Anzeigen:</span>
         <label><input type="checkbox" id="filter-hj1" checked /> 1. HJ</label>
@@ -498,6 +499,18 @@
           <button class="btn btn-sec" id="cm-cancel">Abbrechen</button>
           <button class="btn btn-del" id="cm-clear" style="display: none">Entfernen</button>
           <button class="btn btn-ok" id="cm-save">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PLAN-PRÜFBERICHT-MODAL ═══ -->
+    <div class="overlay" id="validate-modal">
+      <div class="modal" style="width: 680px">
+        <h2 style="color: #1a237e">✅ Plan prüfen</h2>
+        <div id="va-sub" class="tm-sub"></div>
+        <div id="va-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="va-close">Schließen</button>
         </div>
       </div>
     </div>
