@@ -262,7 +262,7 @@ export class AppState {
     }
     return [...map.entries()]
       .map(([id, members]) => ({ id, members }))
-      .sort((a, b) => a.id.localeCompare(b.id, 'de'));
+      .sort((a, b) => a.id.localeCompare(b.id, 'de', { numeric: true }));
   }
 
   /** Alle Teamteaching-Gruppen (ID → beteiligte Karten, Pool + Plan), alphabetisch. */
@@ -288,7 +288,9 @@ export class AppState {
         week: p.week,
       });
     }
-    return [...map.entries()].map(([id, members]) => ({ id, members })).sort((a, b) => a.id.localeCompare(b.id, 'de'));
+    return [...map.entries()]
+      .map(([id, members]) => ({ id, members }))
+      .sort((a, b) => a.id.localeCompare(b.id, 'de', { numeric: true }));
   }
 
   /** Alle Karten mit aktivierter Kollision (Pool + Plan), nach Kürzel sortiert. */
