@@ -1437,9 +1437,17 @@ export class AppState {
         for (const card of seq) fn(card);
       };
       // Labor/Werkstatt a/b VORAB zu Paaren bündeln: je eine a- mit einer b-Karte
-      // (gleiche Klasse+Dauer, ANDERE Lehrkraft, anderer Raum). Jedes Paar wird
-      // gemeinsam auf einen freien Slot gelegt → maximale Parallelität, max. 2 je
-      // Stapel. Überzählige (ohne Partner) werden einzeln verplant.
+      // (gleiche Klasse+Dauer, ANDERE Lehrkraft, anderer/leerer Raum). Statt greedy
+      // wird je Gruppe das MAXIMALE Matching gesucht (Augmenting-Path/Kuhn) – so
+      // gehen so viele Paare wie möglich auf (z. B. Ke-a↔Ht-b UND Rd-a↔Ke-b, statt
+      // Ht-b↔Rd-a und zwei übrige Ke). Jedes Paar wird gemeinsam auf einen freien
+      // Slot gelegt; Überzählige (ohne Partner) werden einzeln verplant.
+      const canPair = (ac: Card, bc: Card): boolean => {
+        if (ac.abbr.trim().toLowerCase() === bc.abbr.trim().toLowerCase()) return false; // gleiche Lehrkraft
+        const ar = ac.room.trim().toLowerCase();
+        const br = bc.room.trim().toLowerCase();
+        return !ar || !br || ar !== br; // gleicher (gesetzter) Raum → nicht stapeln
+      };
       const pairAB = (list: Card[]): { pairs: Card[][]; rest: Card[] } => {
         const groups = new Map<string, { a: Card[]; b: Card[] }>();
         for (const c of list) {
@@ -1451,20 +1459,32 @@ export class AppState {
         const pairs: Card[][] = [];
         const rest: Card[] = [];
         for (const { a, b } of groups.values()) {
-          const bPool = [...b];
-          for (const ac of a) {
-            const ar = ac.room.trim().toLowerCase();
-            const idx = bPool.findIndex((bc) => {
-              if (bc.abbr.trim().toLowerCase() === ac.abbr.trim().toLowerCase()) return false; // gleiche Lehrkraft → nicht stapeln
-              const br = bc.room.trim().toLowerCase();
-              return !ar || !br || ar !== br; // gleicher Raum → nicht stapeln
-            });
-            if (idx >= 0) {
-              pairs.push([bPool[idx], ac]);
-              bPool.splice(idx, 1);
-            } else rest.push(ac);
+          // Maximales bipartites Matching: matchB[j] = Index der a-Karte, die b[j] belegt.
+          const matchB = new Array<number>(b.length).fill(-1);
+          const augment = (ai: number, seen: boolean[]): boolean => {
+            for (let bj = 0; bj < b.length; bj++) {
+              if (seen[bj] || !canPair(a[ai], b[bj])) continue;
+              seen[bj] = true;
+              if (matchB[bj] === -1 || augment(matchB[bj], seen)) {
+                matchB[bj] = ai;
+                return true;
+              }
+            }
+            return false;
+          };
+          for (let ai = 0; ai < a.length; ai++) augment(ai, new Array<boolean>(b.length).fill(false));
+          const usedA = new Set<number>();
+          for (let bj = 0; bj < b.length; bj++) {
+            if (matchB[bj] === -1) {
+              rest.push(b[bj]);
+            } else {
+              pairs.push([b[bj], a[matchB[bj]]]);
+              usedA.add(matchB[bj]);
+            }
           }
-          rest.push(...bPool);
+          a.forEach((ac, ai) => {
+            if (!usedA.has(ai)) rest.push(ac);
+          });
         }
         return { pairs, rest };
       };
