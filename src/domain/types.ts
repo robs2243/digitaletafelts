@@ -63,6 +63,8 @@ export interface PlanSettings {
   imbalanceLimit: number;
   /** Erlaubte Hohlstunden je Lehrkraft und Woche. */
   gapLimit: number;
+  /** Klassen ohne Hohlstunden: Lücken in der Klassenspalte hart vermeiden (Mittagspause 7. ausgenommen). */
+  classNoGaps: boolean;
 }
 
 /** Standard-Planungseinstellungen (entsprechen dem bisherigen Verhalten). */
@@ -73,6 +75,7 @@ export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
   mainNoLate: false,
   imbalanceLimit: 2,
   gapLimit: 6,
+  classNoGaps: false,
 };
 
 /** Position einer Platzierung im Stundenplan. */
@@ -129,6 +132,8 @@ export interface PersistedState {
   rooms?: string[];
   /** Lehrer-Sperrzeiten: Kürzel → Liste gesperrter Slots als `tag|woche|stunde`. */
   teacherBlocks?: Record<string, string[]>;
+  /** Teilzeit: max. Anwesenheitstage je Lehrkraft (Kürzel → Tage, fehlt/0 = unbegrenzt). */
+  teacherMaxDays?: Record<string, number>;
   /** Konfigurierbare Planungsregeln (fehlt = Defaults). */
   planSettings?: PlanSettings;
 }

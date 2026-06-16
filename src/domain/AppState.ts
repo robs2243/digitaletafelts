@@ -29,6 +29,8 @@ export class AppState {
   rooms: string[];
   /** Lehrer-Sperrzeiten: Kürzel (lowercase) → Set gesperrter Slots `tag|woche|stunde`. */
   private teacherBlocks: Map<string, Set<string>>;
+  /** Teilzeit: Kürzel (lowercase) → max. Anwesenheitstage (0/fehlt = unbegrenzt). */
+  private teacherMaxDays = new Map<string, number>();
   /** Konfigurierbare Planungsregeln. */
   private planSettings: PlanSettings = { ...DEFAULT_PLAN_SETTINGS };
   private nid: number;
@@ -71,6 +73,7 @@ export class AppState {
     this.nid = fresh.nid;
     this.rooms = fresh.rooms;
     this.teacherBlocks = fresh.teacherBlocks;
+    this.teacherMaxDays = fresh.teacherMaxDays;
     this.planSettings = fresh.planSettings;
     // Verlauf nach „Datei öffnen" zurücksetzen – nicht über den Ladevorgang hinweg undo-bar.
     this.undoStack = [];
@@ -138,6 +141,7 @@ export class AppState {
     this.nid = raw.nid ?? 1;
     this.rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
     this.teacherBlocks = AppState.parseTeacherBlocks(raw.teacherBlocks);
+    this.teacherMaxDays = AppState.parseTeacherMaxDays(raw.teacherMaxDays);
     this.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
     this.restoring = true;
     this.emit();
@@ -292,6 +296,20 @@ export class AppState {
   /** Entfernt alle Sperrzeiten einer Lehrkraft. */
   clearTeacherBlocks(abbr: string): void {
     if (this.teacherBlocks.delete(abbr.trim().toLowerCase())) this.emit();
+  }
+
+  /** Max. Anwesenheitstage einer Lehrkraft (0 = unbegrenzt). */
+  teacherMaxDaysOf(abbr: string): number {
+    return this.teacherMaxDays.get(abbr.trim().toLowerCase()) ?? 0;
+  }
+
+  /** Setzt die max. Anwesenheitstage einer Lehrkraft (0 = unbegrenzt). */
+  setTeacherMaxDays(abbr: string, days: number): void {
+    const key = abbr.trim().toLowerCase();
+    if (!key) return;
+    if (days > 0) this.teacherMaxDays.set(key, days);
+    else this.teacherMaxDays.delete(key);
+    this.emit();
   }
 
   /** Anzahl gesperrter Stunden je Lehrkraft (für die Liste im Fenster). */
@@ -906,6 +924,7 @@ export class AppState {
     const LBT_MAX = cfg.lbtMax; // max. Stunden „LBT" je Klasse und Tag
     const IMBAL = cfg.imbalanceLimit; // erlaubte u/g-Differenz
     const GAP_LIMIT = cfg.gapLimit; // erlaubte Hohlstunden je Lehrkraft+Woche
+    const maxDaysOf = (abbr: string): number => this.teacherMaxDays.get(abbr.toLowerCase()) ?? 0;
     // Hauptfach: explizit angehakt ODER über das Fach erkannt (D/M/E/Gk/Wk).
     const isMain = (c: { mainSubject: boolean; fach: string }): boolean =>
       c.mainSubject || MAIN.has(c.fach.trim().toLowerCase());
@@ -984,6 +1003,7 @@ export class AppState {
       const teachH = new Map<string, number>();
       const teachWeek = new Map<string, [number, number]>(); // kürzel → [u-Stunden, g-Stunden]
       const teachDayPeriods = new Map<string, Set<number>>(); // kürzel|d|w → belegte Stunden (für Hohlstunden)
+      const teachDaysUsed = new Map<string, Set<number>>(); // kürzel → genutzte Wochentage (für max. Anwesenheitstage)
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
       const mirrorSlots = new Map<string, Set<string>>(); // kürzel|klasse|fach → belegte „tag|start|woche" (für u/g-Konstanz)
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
@@ -1005,6 +1025,10 @@ export class AppState {
           dayPeriods.add(p);
         }
         for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
+        const ad = card.abbr.toLowerCase();
+        const days = teachDaysUsed.get(ad) ?? new Set<number>();
+        days.add(d);
+        teachDaysUsed.set(ad, days);
         if (countTeacher) {
           teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
           const a = card.abbr.toLowerCase();
@@ -1066,6 +1090,11 @@ export class AppState {
         if (cfg.forbidSeventh && !card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
         if (cfg.mainNoLate && isMain(card) && teach.some((p) => p > 6)) return 'Hauptfach 8./9. gesperrt';
         for (const p of teach) if (this.isTeacherBlocked(card.abbr, d, w, p)) return 'Lehrer-Sperrzeit';
+        const md = maxDaysOf(card.abbr);
+        if (md > 0) {
+          const used = teachDaysUsed.get(card.abbr.toLowerCase());
+          if (used && !used.has(d) && used.size >= md) return 'max. Anwesenheitstage';
+        }
         for (const p of blk) {
           if (!stackOnB && cell.has(cK(d, w, c, p))) return 'Platz belegt';
           if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
@@ -1087,6 +1116,23 @@ export class AppState {
           if (r) return r;
         }
         return null;
+      };
+
+      /** Lücken in der Klassenspalte (zwischen erster und letzter Stunde) nach dem
+       *  hypothetischen Belegen von newPeriods – die Mittagspause (7.) zählt nicht. */
+      const classGaps = (c: number, d: number, w: Week, newPeriods: Set<number>): number => {
+        const filled = (p: number): boolean => cell.has(cK(d, w, c, p)) || newPeriods.has(p);
+        let min = 0;
+        let max = 0;
+        for (let p = 1; p <= PERIODS; p++) {
+          if (p === 7 || !filled(p)) continue;
+          if (!min) min = p;
+          max = p;
+        }
+        if (!min) return 0;
+        let holes = 0;
+        for (let p = min; p <= max; p++) if (p !== 7 && !filled(p)) holes++;
+        return holes;
       };
 
       // Kontexte: (Spalte, Tag) mit den Wochen, die die Karte dort belegen kann.
@@ -1191,7 +1237,16 @@ export class AppState {
             })
               ? 1
               : 0;
+            // Klassen ohne Hohlstunden (nur wenn aktiviert): über alle Mitglieder/Wochen.
+            let classGapPush = 0;
+            if (cfg.classNoGaps) {
+              members.forEach((m, i) => {
+                const newSet = new Set(blockedPeriods(m.isWerkstatt, start, m.duration));
+                for (const w of weeks) classGapPush += classGaps(cols[i], d, w, newSet);
+              });
+            }
             const score = [
+              classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
               mainGroup && start > 6 ? 1 : 0,
               // wöchentlich liegt in beiden Wochen → automatisch gespiegelt
               weeks.length === 2 || members.some((m) => hasMirror(m, d, weeks[0], start)) ? 0 : 1,
@@ -1257,11 +1312,22 @@ export class AppState {
             const imbalancePush = weekly
               ? 0
               : Math.max(0, Math.abs(teacherWeekLoad(card.abbr, w0) + card.duration - teacherWeekLoad(card.abbr, w0 === 'u' ? 'g' : 'u')) - IMBAL);
+            // Klassen ohne Hohlstunden (nur wenn aktiviert): Lücken in der Spalte vermeiden.
+            let classGapPush = 0;
+            if (cfg.classNoGaps) {
+              const newSet = new Set(blockedPeriods(card.isWerkstatt, start, card.duration));
+              for (const w of weeks) classGapPush += classGaps(c, d, w, newSet);
+            }
+            // Teilzeit-Bündelung (nur limitierte Lehrkräfte): bereits genutzte Tage bevorzugen.
+            const bundlePush =
+              maxDaysOf(card.abbr) > 0 && !(teachDaysUsed.get(card.abbr.toLowerCase())?.has(d) ?? false) ? 1 : 0;
             const score = [
               imbalancePush, // u/g-Differenz ≤ 2 hat Vorrang
+              classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
               weekly || hasMirror(card, d, w0, start) ? 0 : 1, // u/g-Parallelität (wöchentlich ist es immer)
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
+              bundlePush, // Teilzeit: Tage bündeln (0, wenn unbegrenzt)
               subj.get(sK(card.klasse, d, w0, f)) ?? 0, // Fächer-Variation am Tag
               weekly ? 0 : teacherWeekLoad(card.abbr, w0), // u/g-Ausgleich
               start, // frühe Stunde
@@ -1644,6 +1710,20 @@ export class AppState {
       }
     }
 
+    // Teilzeit: mehr Anwesenheitstage als erlaubt (Fehler).
+    const daysByTeacher = new Map<string, Set<number>>();
+    for (const p of pls) {
+      const set = daysByTeacher.get(p.abbr) ?? new Set<number>();
+      set.add(p.day);
+      daysByTeacher.set(p.abbr, set);
+    }
+    for (const [abbr, set] of daysByTeacher) {
+      const max = this.teacherMaxDaysOf(abbr);
+      if (max > 0 && set.size > max) {
+        out.push({ severity: 'error', text: `${abbr} ist an ${set.size} Tagen verplant – erlaubt sind ${max}.` });
+      }
+    }
+
     // u/g-Differenz > 2 (Warnung).
     for (const { abbr, u, g } of this.teacherWeekImbalance()) {
       out.push({ severity: 'warn', text: `${abbr}: u/g-Differenz ${Math.abs(u - g)} (u ${u} · g ${g}) – Ziel ≤ ${this.planSettings.imbalanceLimit}.` });
@@ -1665,6 +1745,21 @@ export class AppState {
           for (let per = 1; per <= 6; per++) if (!cellBusy.has(`${c}|${d}|${w}|${per}`)) open.push(per);
           if (open.length) {
             out.push({ severity: 'warn', text: `${name} (${DAYS[d]}, ${w}-Woche): Stunde ${open.join(', ')} der Pflichtstunden 1–6 frei.` });
+          }
+          // Klassen-Hohlstunden: Lücken zwischen erster und letzter Stunde (Mittagspause 7. ausgenommen).
+          let min = 0;
+          let max = 0;
+          for (let per = 1; per <= PERIODS; per++) {
+            if (per === 7 || !cellBusy.has(`${c}|${d}|${w}|${per}`)) continue;
+            if (!min) min = per;
+            max = per;
+          }
+          if (min) {
+            const holes: number[] = [];
+            for (let per = min; per <= max; per++) if (per !== 7 && !cellBusy.has(`${c}|${d}|${w}|${per}`)) holes.push(per);
+            if (holes.length) {
+              out.push({ severity: 'warn', text: `${name} (${DAYS[d]}, ${w}-Woche): Hohlstunde(n) ${holes.join(', ')}.` });
+            }
           }
         }
       }
@@ -1732,6 +1827,8 @@ export class AppState {
   toJSON(): PersistedState {
     const teacherBlocks: Record<string, string[]> = {};
     for (const [abbr, set] of this.teacherBlocks) if (set.size) teacherBlocks[abbr] = [...set];
+    const teacherMaxDays: Record<string, number> = {};
+    for (const [abbr, n] of this.teacherMaxDays) if (n > 0) teacherMaxDays[abbr] = n;
     return {
       classes: this.classes.toPersisted(),
       cards: this.pool.all.map((c) => c.toJSON()),
@@ -1739,6 +1836,7 @@ export class AppState {
       nid: this.nid,
       rooms: [...this.rooms],
       teacherBlocks,
+      teacherMaxDays,
       planSettings: { ...this.planSettings },
     };
   }
@@ -1750,6 +1848,13 @@ export class AppState {
     return map;
   }
 
+  /** Deserialisiert die max. Anwesenheitstage aus dem Persistenzformat. */
+  static parseTeacherMaxDays(raw: Record<string, number> | undefined): Map<string, number> {
+    const map = new Map<string, number>();
+    if (raw) for (const [abbr, n] of Object.entries(raw)) if (Number(n) > 0) map.set(abbr, Number(n));
+    return map;
+  }
+
   static fromJSON(raw: PersistedState): AppState {
     const pool = new CardPool();
     pool.replaceAll((raw.cards ?? []).map(Card.fromJSON));
@@ -1758,6 +1863,7 @@ export class AppState {
     const classes = ClassList.fromPersisted(raw.classes);
     const rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
     const app = new AppState(pool, classes, schedule, raw.nid ?? 1, rooms, AppState.parseTeacherBlocks(raw.teacherBlocks));
+    app.teacherMaxDays = AppState.parseTeacherMaxDays(raw.teacherMaxDays);
     app.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
     app.lastSnapshot = JSON.stringify(app.toJSON());
     return app;

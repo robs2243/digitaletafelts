@@ -517,6 +517,7 @@
         <div class="se-row"><label for="se-gap">Erlaubte Hohlstunden je Lehrkraft &amp; Woche</label><input id="se-gap" type="number" min="0" max="20" /></div>
         <div class="se-check"><label><input type="checkbox" id="se-seventh" /> 7. Stunde frei halten (außer Werkstatt)</label></div>
         <div class="se-check"><label><input type="checkbox" id="se-mainlate" /> Hauptfächer in der 8./9. Stunde hart verbieten</label></div>
+        <div class="se-check"><label><input type="checkbox" id="se-classgaps" /> Klassen ohne Hohlstunden (Lücken vermeiden, Mittagspause 7. ausgenommen)</label></div>
         <div class="mbtns">
           <button class="btn btn-sec" id="se-reset">Standard</button>
           <button class="btn btn-sec" id="se-cancel">Abbrechen</button>
@@ -548,7 +549,9 @@
           <label for="bl-teacher">Lehrkraft</label>
           <select id="bl-teacher"></select>
           <span id="bl-count" class="rm-free-cnt"></span>
-          <button class="btn btn-del" id="bl-clear" style="padding:4px 12px">Alle löschen</button>
+          <label for="bl-maxdays" style="margin-left:auto">max. Tage/Woche</label>
+          <input id="bl-maxdays" type="number" min="0" max="5" style="width:56px;padding:5px;border:1.5px solid var(--border);border-radius:6px;text-align:center" title="0 = unbegrenzt" />
+          <button class="btn btn-del" id="bl-clear" style="padding:4px 12px">Sperren löschen</button>
         </div>
         <div id="bl-grid" class="bl-grid-wrap"></div>
         <div class="mbtns">

@@ -363,6 +363,12 @@ export class App {
       if (e.target === blocksOverlay) blocksOverlay.classList.remove('open');
     });
     byId<HTMLSelectElement>('bl-teacher').addEventListener('change', () => this.renderBlocksGrid());
+    byId<HTMLInputElement>('bl-maxdays').addEventListener('change', () => {
+      const abbr = byId<HTMLSelectElement>('bl-teacher').value;
+      if (!abbr) return;
+      const v = parseInt(byId<HTMLInputElement>('bl-maxdays').value, 10);
+      this.state.setTeacherMaxDays(abbr, Number.isFinite(v) ? Math.max(0, Math.min(5, v)) : 0);
+    });
     byId('bl-clear').addEventListener('click', () => {
       const abbr = byId<HTMLSelectElement>('bl-teacher').value;
       if (abbr) {
@@ -804,6 +810,7 @@ export class App {
     byId<HTMLInputElement>('se-gap').value = String(s.gapLimit);
     byId<HTMLInputElement>('se-seventh').checked = s.forbidSeventh;
     byId<HTMLInputElement>('se-mainlate').checked = s.mainNoLate;
+    byId<HTMLInputElement>('se-classgaps').checked = s.classNoGaps;
   }
 
   private saveSettings(): void {
@@ -818,6 +825,7 @@ export class App {
       gapLimit: num('se-gap', DEFAULT_PLAN_SETTINGS.gapLimit, 0, 20),
       forbidSeventh: byId<HTMLInputElement>('se-seventh').checked,
       mainNoLate: byId<HTMLInputElement>('se-mainlate').checked,
+      classNoGaps: byId<HTMLInputElement>('se-classgaps').checked,
     });
     byId('settings-modal').classList.remove('open');
     this.toast.show('⚙️ Planungsregeln gespeichert', 'ok');
@@ -882,6 +890,7 @@ export class App {
   private renderBlocksGrid(): void {
     const abbr = byId<HTMLSelectElement>('bl-teacher').value;
     byId('bl-count').textContent = abbr ? `${this.state.teacherBlockCount(abbr)} Stunde(n) gesperrt` : '';
+    byId<HTMLInputElement>('bl-maxdays').value = abbr ? String(this.state.teacherMaxDaysOf(abbr)) : '0';
     if (!abbr) {
       byId('bl-grid').innerHTML = '<div class="tm-empty">Keine Lehrkräfte vorhanden.</div>';
       return;
