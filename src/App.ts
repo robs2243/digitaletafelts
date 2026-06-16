@@ -1082,15 +1082,10 @@ export class App {
     byId('pool-list-modal').classList.remove('open');
   }
 
-  /** Sicherheitsabfrage: erfordert die Eingabe von „Ja". */
+  /** Sicherheitsabfrage vor einer größeren Aktion (Electron unterstützt kein prompt). */
   private confirmJa(message: string): boolean {
-    const answer = prompt(`${message}\n\nZum Bestätigen „Ja" eingeben:`);
-    if (answer === null) return false;
-    if (answer.trim().toLowerCase() !== 'ja') {
-      this.toast.show('Abgebrochen – es wurde nicht „Ja" eingegeben.', 'inf');
-      return false;
-    }
-    return true;
+    // window.confirm wird – anders als prompt – von Electron unterstützt.
+    return window.confirm(`${message}\n\nFortfahren? (mit Strg+Z rückgängig machbar)`);
   }
 
   /** Löscht die zum gesuchten Kürzel passenden nicht verplanten Karten. */

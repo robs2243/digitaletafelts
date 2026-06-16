@@ -50,15 +50,8 @@ export class ClearCardsModal {
     const value = this.select.value;
 
     if (value === ALL) {
-      // „Alle löschen“ erfordert die ausdrückliche Eingabe von „Ja“.
-      const answer = prompt(
-        `ALLE ${this.total} Karten werden unwiderruflich gelöscht.\n\nZum Bestätigen „Ja“ eingeben:`,
-      );
-      if (answer === null) return; // abgebrochen
-      if (answer.trim().toLowerCase() !== 'ja') {
-        alert('Abgebrochen – es wurde nicht „Ja“ eingegeben.');
-        return;
-      }
+      // Electron unterstützt kein prompt – daher confirm (mit Strg+Z rückgängig machbar).
+      if (!confirm(`ALLE ${this.total} Karten werden gelöscht.\n\nFortfahren? (mit Strg+Z rückgängig machbar)`)) return;
       this.onConfirm?.(null);
       this.close();
       return;
