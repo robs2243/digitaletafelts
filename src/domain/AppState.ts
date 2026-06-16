@@ -977,15 +977,28 @@ export class AppState {
           return false;
         };
         // Beste gemeinsame Lücke wählen: Hauptfach-Gruppe → Stunden 1–6, dann
-        // u/g-Spiegelung (gleicher Slot in der anderen Woche), dann frühe Stunde.
+        // u/g-Spiegelung (gleicher Slot in der anderen Woche), dann Hauptfach-
+        // Tag-Pause (Nachbartag mit gleichem Fach meiden), dann frühe Stunde.
         let best: { d: number; weeks: Week[]; cols: number[]; start: number; score: number[] } | null = null;
         for (const { d, weeks, cols } of slots) {
           for (const start of starts) {
             if (!members.every((m, i) => checkWeeks(m, cols[i], d, weeks, start) === null)) continue;
+            // Hauptfach möglichst mit einem Tag Pause: pro Mitglied seine Klasse+Fach
+            // auf den Nachbartagen prüfen (Mo Mathe → Di kein Mathe → Mi Mathe).
+            const mainAdj = members.some((m) => {
+              if (!isMain(m)) return false;
+              const f = m.fach.trim().toLowerCase();
+              return weeks.some(
+                (w) => (subj.get(sK(m.klasse, d - 1, w, f)) ?? 0) > 0 || (subj.get(sK(m.klasse, d + 1, w, f)) ?? 0) > 0,
+              );
+            })
+              ? 1
+              : 0;
             const score = [
               mainGroup && start > 6 ? 1 : 0,
               // wöchentlich liegt in beiden Wochen → automatisch gespiegelt
               weeks.length === 2 || members.some((m) => hasMirror(m, d, weeks[0], start)) ? 0 : 1,
+              mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
               start,
             ];
             if (!best || lexLt(score, best.score)) best = { d, weeks, cols, start, score };
