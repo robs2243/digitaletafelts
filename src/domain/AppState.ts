@@ -660,10 +660,12 @@ export class AppState {
     for (const p of this.schedule.all) {
       const row =
         map.get(p.abbr) ?? { abbr: p.abbr, fach: p.fach, name: p.name, color: p.color, hoursU: 0, hoursG: 0 };
-      // Block-/Sperrkarten (noCount) zählen nicht; gekoppelte Karten nur einmal.
+      // Block-/Sperrkarten (noCount) zählen nicht. Gekoppelte Karten je Lehrkraft
+      // nur einmal: gleiche Lehrkraft in 2 Klassen = 1 Stunde; verschiedene
+      // Lehrkräfte in einer Kopplung = jede zählt.
       let countIt = !p.noCount;
       if (countIt && p.coupling) {
-        const key = `${p.coupling}|${p.day}|${p.startPeriod}|${p.week}`;
+        const key = `${p.coupling}|${p.abbr.toLowerCase()}|${p.day}|${p.startPeriod}|${p.week}`;
         if (seenCoupling.has(key)) countIt = false;
         else seenCoupling.add(key);
       }
@@ -836,7 +838,7 @@ export class AppState {
       for (const pl of this.schedule.all) {
         let countTeacher = true;
         if (pl.coupling) {
-          const key = `${pl.coupling}|${pl.day}|${pl.startPeriod}|${pl.week}`;
+          const key = `${pl.coupling}|${pl.abbr.toLowerCase()}|${pl.day}|${pl.startPeriod}|${pl.week}`;
           if (seenSeedCoupling.has(key)) countTeacher = false;
           else seenSeedCoupling.add(key);
         }
@@ -934,8 +936,17 @@ export class AppState {
         }
         if (shuffleOrder) shuffle(slots, rng);
         const starts = shuffleOrder ? shuffle([...baseStarts(members[0])], rng) : baseStarts(members[0]);
-        // Team: jede Karte zählt (countTeacher=true); Kopplung: nur die erste.
-        const countTeacher = (i: number): boolean => kind === 'team' || i === 0;
+        // Lehrerstunden zählen je Lehrkraft einmal: Team zählt alle (verschiedene
+        // Lehrkräfte); Kopplung dedupliziert gleiche Lehrkraft (2 Klassen = 1 Stunde),
+        // verschiedene Lehrkräfte in einer Kopplung zählen aber jede.
+        const seenAbbr = new Set<string>();
+        const counts = members.map((m) => {
+          const a = m.abbr.toLowerCase();
+          if (seenAbbr.has(a)) return false;
+          seenAbbr.add(a);
+          return true;
+        });
+        const countTeacher = (i: number): boolean => counts[i];
         const mainGroup = members.some((m) => isMain(m));
         const lexLt = (a: number[], b: number[]): boolean => {
           for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
