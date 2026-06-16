@@ -74,6 +74,10 @@ Quelle: Vorgaben des Anwenders.
 17. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
 18. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
     werden (gestapelt). Das **Fach muss nicht übereinstimmen**.
+18a. **Höchstens 2 Karten je Stapel:** Genau **eine** a-Karte auf **eine** b-Karte.
+    Mehrere a-Karten dürfen **nicht** auf dieselbe b-Karte; es entstehen also nie
+    mehr als 2 gestapelte Karten. Bei vielen Laboren einer Klasse bildet der Planer
+    entsprechend **mehrere Paare** auf verschiedenen Slots (jede b nur einmal belegt).
 
 ## Gruppen a/b – Ausnahmen (Labor & Werkstatt)
 

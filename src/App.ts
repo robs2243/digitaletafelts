@@ -1553,7 +1553,12 @@ export class App {
       return;
     }
     if (collision.type === 'class') {
-      if (dragData.card.isLabor || dragData.card.isWerkstatt || dragData.card.isVierwoechig || dragData.card.noCount) {
+      const c = dragData.card;
+      const laborLike = c.isLabor || c.isWerkstatt;
+      // Labor/Werkstatt: nur eine a auf eine b → max. 2 Karten je Stapel. Liegen
+      // schon 2 Karten, NICHT still stapeln, sondern Rückfrage (Stapeln erzwingbar).
+      const overStack = laborLike && this.state.slotCardCount(pos) >= 2;
+      if ((laborLike || c.isVierwoechig || c.noCount) && !overStack) {
         // Labor-/Werkstatt-/4-wöchig-/Block-Karten stapeln ohne Rückfrage
         this.placeDrag(dragData, pos);
       } else {

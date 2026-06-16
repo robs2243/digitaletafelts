@@ -1,7 +1,7 @@
 {
   "name": "digitaletafelts",
   "private": true,
-  "version": "1.6.4",
+  "version": "1.6.5",
   "type": "module",
   "description": "Digitale Tafel – Stundenplan-Software",
   "author": "Heinrich-Schickhardt-Schule",

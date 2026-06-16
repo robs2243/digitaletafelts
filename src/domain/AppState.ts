@@ -405,6 +405,17 @@ export class AppState {
     this.emit();
   }
 
+  /** Anzahl Karten, die an (Klasse, Tag, Woche) die Startstunde der Position belegen. */
+  slotCardCount(pos: PlacementPosition): number {
+    let n = 0;
+    for (const p of this.schedule.all) {
+      if (p.classIdx !== pos.classIdx || p.day !== pos.day) continue;
+      if (!p.occupiesWeek(pos.week)) continue;
+      if (p.covers(pos.startPeriod)) n++;
+    }
+    return n;
+  }
+
   /** Würde die Karte an dieser Position (Woche der Zielspalte) in eine Sperrzeit fallen? */
   cardHitsBlock(card: CardProps, pos: PlacementPosition): boolean {
     const periods = teachingPeriods(card.isWerkstatt, pos.startPeriod, card.duration);
@@ -1081,6 +1092,10 @@ export class AppState {
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
       const mirrorSlots = new Map<string, Set<string>>(); // kürzel|klasse|fach → belegte „tag|start|woche" (für u/g-Parallelität)
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
+      // Bereits mit einer Gruppe-a-Karte gepaarte b-Anker (Slot c|d|w|start) –
+      // verhindert, dass mehrere a-Karten auf dieselbe b-Karte gestapelt werden
+      // (Regel: genau eine a auf eine b → max. 2 Karten je Stapel).
+      const usedAnchors = new Set<string>();
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
 
@@ -1410,13 +1425,16 @@ export class AppState {
         }
         const need = card.klasse.trim().toLowerCase();
         // Auf eine passende (gleiche Klasse/Dauer, andere Lehrkraft) Gruppe-b-Karte
-        // in derselben Woche stapeln.
+        // in derselben Woche stapeln – aber jede b-Karte nur EINMAL (max. 2 je Stapel).
         for (const b of groupB) {
           if (b.isWerk !== card.isWerkstatt) continue;
           if (b.klasse.trim().toLowerCase() !== need) continue;
           if (b.duration !== card.duration) continue;
+          const anchor = `${b.c}|${b.d}|${b.w}|${b.start}`;
+          if (usedAnchors.has(anchor)) continue; // b ist schon mit einer a gepaart
           if (check(card, b.c, b.d, b.w, b.start, true) === null) {
             apply(card, b.c, b.d, b.w, b.start);
+            usedAnchors.add(anchor);
             return;
           }
         }
@@ -1762,6 +1780,25 @@ export class AppState {
       if (max > 0 && set.size > max) {
         out.push({ severity: 'error', text: `${abbr} ist an ${set.size} Tagen verplant – erlaubt sind ${max}.` });
       }
+    }
+
+    // Labor/Werkstatt: höchstens 2 Karten je Stapel (eine a auf eine b).
+    const stackCount = new Map<string, number>();
+    for (const p of pls) {
+      if (!(p.isLabor || p.isWerkstatt) || p.teamTeaching.trim() || p.coupling.trim()) continue;
+      for (const w of p.weeks) for (const per of p.occupiedPeriods()) {
+        const k = `${p.classIdx}|${p.day}|${w}|${per}`;
+        stackCount.set(k, (stackCount.get(k) ?? 0) + 1);
+      }
+    }
+    const seenStack = new Set<string>();
+    for (const [k, n] of stackCount) {
+      if (n <= 2) continue;
+      const [c, d, w] = k.split('|');
+      const sig = `${c}|${d}|${w}`;
+      if (seenStack.has(sig)) continue;
+      seenStack.add(sig);
+      out.push({ severity: 'error', text: `${this.classes.columnLabel(+c)} (${DAYS[+d]}, ${w}-Woche): ${n} Karten gestapelt – Labor/Werkstatt erlaubt nur 2 (a auf b).` });
     }
 
     // u/g-Differenz > 2 (Warnung).
