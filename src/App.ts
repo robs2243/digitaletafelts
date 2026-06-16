@@ -1,5 +1,5 @@
 import { AppState } from './domain/AppState';
-import { DAYS, PERIODS, WEEKS } from './domain/constants';
+import { DAYS, PALETTE, PERIODS, WEEKS } from './domain/constants';
 import type { Placement } from './domain/Placement';
 import { ink } from './utils/color';
 import { semesterFactor } from './domain/semester';
@@ -392,6 +392,20 @@ export class App {
     byId('plan-export').addEventListener('click', () => this.downloadCardsExport());
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
+
+    byId('plan-colors').addEventListener('click', () => this.openColors());
+    const colorsOverlay = byId('colors-modal');
+    byId('co-close').addEventListener('click', () => colorsOverlay.classList.remove('open'));
+    colorsOverlay.addEventListener('click', (e) => {
+      if (e.target === colorsOverlay) colorsOverlay.classList.remove('open');
+    });
+    byId('co-list').addEventListener('click', (e) => {
+      const sw = (e.target as HTMLElement).closest<HTMLElement>('.sw');
+      if (sw?.dataset.abbr && sw.dataset.color) {
+        this.state.setTeacherColor(sw.dataset.abbr, sw.dataset.color);
+        this.renderColorsList();
+      }
+    });
 
     byId('plan-roomlist').addEventListener('click', () => this.openRoomList());
     const roomlistOverlay = byId('roomlist-modal');
@@ -825,6 +839,31 @@ export class App {
     });
     byId('settings-modal').classList.remove('open');
     this.toast.show('⚙️ Planungsregeln gespeichert', 'ok');
+  }
+
+  // ── Kürzel-Farben ────────────────────────────────────────────────────────
+
+  private openColors(): void {
+    this.renderColorsList();
+    byId('colors-modal').classList.add('open');
+  }
+
+  private renderColorsList(): void {
+    const list = this.state.teacherColorList();
+    byId('co-list').innerHTML = list.length
+      ? list
+          .map((t) => {
+            const swatches = PALETTE.map(
+              (c) =>
+                `<div class="sw${c === t.color ? ' on' : ''}" style="background:${c}" data-color="${c}" data-abbr="${esc(t.abbr)}" title="${esc(c)}"></div>`,
+            ).join('');
+            return `<div class="co-row">
+              <span class="co-abbr" style="background:${esc(t.color)};color:${ink(t.color)}">${esc(t.abbr)}</span>
+              <div class="co-swatches">${swatches}</div>
+            </div>`;
+          })
+          .join('')
+      : '<div class="tm-empty">Noch keine Kürzel. Karten erstellen oder importieren.</div>';
   }
 
   // ── Auslastungs-Übersicht ───────────────────────────────────────────────

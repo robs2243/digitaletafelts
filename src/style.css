@@ -593,6 +593,10 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .pi-v { color: var(--text, #1a237e); font-weight: 600; }
 .pi-hint { margin-top: 5px; font-size: 11px; color: var(--muted); }
 .rm-free-cnt { font-size: 11px; color: var(--muted); white-space: nowrap; }
+/* Kürzel-Farben-Fenster. */
+.co-row { display: flex; align-items: center; gap: 12px; padding: 6px 4px; border-bottom: 1px solid var(--border); }
+.co-abbr { flex: 0 0 64px; text-align: center; font-weight: 700; padding: 5px 6px; border-radius: 6px; font-size: 13px; }
+.co-swatches { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
 /* Plan-Prüfbericht: Fehler (rot) und Warnungen (gelb). */
 .va-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 7px; margin-bottom: 6px; font-size: 13px; line-height: 1.35; }
 .va-item.va-error { background: #fdecea; color: #8e1c12; }

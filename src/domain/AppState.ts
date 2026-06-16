@@ -232,6 +232,38 @@ export class AppState {
     if (a && color) this.teacherColors.set(a, color);
   }
 
+  /** Alle bekannten Kürzel (Pool + Plan + gemerkte) mit aktueller Farbe, alphabetisch. */
+  teacherColorList(): { abbr: string; color: string }[] {
+    const display = new Map<string, string>(); // lowercase → Anzeige-Kürzel
+    for (const a of this.teacherAbbrs()) display.set(a.toLowerCase(), a);
+    for (const k of this.teacherColors.keys()) if (!display.has(k)) display.set(k, k.toUpperCase());
+    const firstColor = (lower: string): string => {
+      const c = this.pool.all.find((x) => x.abbr.trim().toLowerCase() === lower);
+      if (c) return c.color;
+      const p = this.schedule.all.find((x) => x.abbr.trim().toLowerCase() === lower);
+      return p ? p.color : PALETTE[0];
+    };
+    return [...display.entries()]
+      .map(([lower, abbr]) => ({ abbr, color: this.teacherColors.get(lower) ?? firstColor(lower) }))
+      .sort((a, b) => a.abbr.localeCompare(b.abbr, 'de'));
+  }
+
+  /** Setzt die Farbe eines Kürzels dauerhaft und färbt alle vorhandenen Karten/Platzierungen um. */
+  setTeacherColor(abbr: string, color: string): void {
+    const a = abbr.trim().toLowerCase();
+    if (!a || !color) return;
+    this.teacherColors.set(a, color);
+    for (const c of this.pool.all) if (c.abbr.trim().toLowerCase() === a) c.color = color;
+    // Platzierungen neu erzeugen (Farbe ist readonly).
+    const updated = this.schedule.all.map((p) =>
+      p.abbr.trim().toLowerCase() === a
+        ? new Placement(p.id, { ...p.cardSnapshot(), color }, { day: p.day, startPeriod: p.startPeriod, classIdx: p.classIdx, week: p.week }, p.locked)
+        : p,
+    );
+    this.schedule.replaceAll(updated);
+    this.emit();
+  }
+
   /** Erstellt mehrere Pool-Karten auf einmal (z. B. Excel-Import). */
   importCards(list: CardProps[]): number {
     for (const props of list) {

@@ -292,6 +292,10 @@
           </div>
         </div>
         <div class="fg" style="border-top: 1px solid #e0e0e0; padding-top: 12px">
+          <label>Kürzel-Farben – Kartenfarbe je Lehrkraft festlegen (bleibt bei Importen erhalten)</label>
+          <button class="btn btn-ok" id="plan-colors" style="width: 100%">🎨 Lehrkräfte / Kürzel-Farben</button>
+        </div>
+        <div class="fg">
           <label>Raumliste – Räume zentral anlegen und löschen</label>
           <button class="btn btn-ok" id="plan-roomlist" style="width: 100%">🏫 Raumliste verwalten</button>
         </div>
@@ -513,6 +517,18 @@
           <button class="btn btn-sec" id="se-reset">Standard</button>
           <button class="btn btn-sec" id="se-cancel">Abbrechen</button>
           <button class="btn btn-ok" id="se-save">Speichern</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KÜRZEL-FARBEN-MODAL ═══ -->
+    <div class="overlay" id="colors-modal">
+      <div class="modal" style="width: 640px">
+        <h2 style="color: #1a237e">🎨 Lehrkräfte / Kürzel-Farben</h2>
+        <div class="tm-sub">Farbe je Kürzel anklicken. Die Zuordnung bleibt bei jedem neuen Import erhalten.</div>
+        <div id="co-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="co-close">Schließen</button>
         </div>
       </div>
     </div>
