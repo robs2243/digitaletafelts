@@ -31,6 +31,8 @@ export class AppState {
   private teacherBlocks: Map<string, Set<string>>;
   /** Teilzeit: Kürzel (lowercase) → max. Anwesenheitstage (0/fehlt = unbegrenzt). */
   private teacherMaxDays = new Map<string, number>();
+  /** Dauerhafte Farbzuordnung: Kürzel (lowercase) → Hex (über Importe hinweg stabil). */
+  private teacherColors = new Map<string, string>();
   /** Konfigurierbare Planungsregeln. */
   private planSettings: PlanSettings = { ...DEFAULT_PLAN_SETTINGS };
   private nid: number;
@@ -74,6 +76,7 @@ export class AppState {
     this.rooms = fresh.rooms;
     this.teacherBlocks = fresh.teacherBlocks;
     this.teacherMaxDays = fresh.teacherMaxDays;
+    this.teacherColors = fresh.teacherColors;
     this.planSettings = fresh.planSettings;
     // Verlauf nach „Datei öffnen" zurücksetzen – nicht über den Ladevorgang hinweg undo-bar.
     this.undoStack = [];
@@ -142,6 +145,7 @@ export class AppState {
     this.rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
     this.teacherBlocks = AppState.parseTeacherBlocks(raw.teacherBlocks);
     this.teacherMaxDays = AppState.parseTeacherMaxDays(raw.teacherMaxDays);
+    this.teacherColors = AppState.parseTeacherColors(raw.teacherColors);
     this.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
     this.restoring = true;
     this.emit();
@@ -164,6 +168,7 @@ export class AppState {
     const card = new Card(this.nextId(), props);
     this.pool.add(card);
     this.ensureRoom(props.room);
+    this.rememberColor(props.abbr, props.color);
     this.emit();
     return card;
   }
@@ -171,6 +176,7 @@ export class AppState {
   updateCard(id: string, props: CardProps): void {
     this.pool.findById(id)?.update(props);
     this.ensureRoom(props.room);
+    this.rememberColor(props.abbr, props.color);
     this.emit();
   }
 
@@ -185,8 +191,12 @@ export class AppState {
     const byAbbr = new Map<string, string>();
     const register = (color: string, abbr: string): void => {
       if (usage.has(color)) usage.set(color, (usage.get(color) ?? 0) + 1);
-      if (!byAbbr.has(abbr)) byAbbr.set(abbr, color);
+      const a = abbr.trim().toLowerCase();
+      if (a && !byAbbr.has(a)) byAbbr.set(a, color);
     };
+    // 1. Dauerhafte Zuordnung (über Importe hinweg) – hat Vorrang.
+    for (const [a, color] of this.teacherColors) register(color, a);
+    // 2. Bereits vorhandene Karten (falls noch nicht gemerkt).
     for (const c of this.pool.all) register(c.color, c.abbr);
     for (const p of this.schedule.all) register(p.color, p.abbr);
 
@@ -204,14 +214,22 @@ export class AppState {
     };
 
     for (const card of list) {
-      let color = byAbbr.get(card.abbr);
+      const a = card.abbr.trim().toLowerCase();
+      let color = byAbbr.get(a);
       if (!color) {
         color = card.color || leastUsed();
-        byAbbr.set(card.abbr, color);
+        byAbbr.set(a, color);
         if (usage.has(color)) usage.set(color, (usage.get(color) ?? 0) + 1);
       }
       card.color = color;
+      if (a) this.teacherColors.set(a, color); // dauerhaft merken
     }
+  }
+
+  /** Merkt sich die Farbe eines Kürzels dauerhaft (für künftige Importe). */
+  private rememberColor(abbr: string, color: string): void {
+    const a = abbr.trim().toLowerCase();
+    if (a && color) this.teacherColors.set(a, color);
   }
 
   /** Erstellt mehrere Pool-Karten auf einmal (z. B. Excel-Import). */
@@ -1792,6 +1810,8 @@ export class AppState {
     for (const [abbr, set] of this.teacherBlocks) if (set.size) teacherBlocks[abbr] = [...set];
     const teacherMaxDays: Record<string, number> = {};
     for (const [abbr, n] of this.teacherMaxDays) if (n > 0) teacherMaxDays[abbr] = n;
+    const teacherColors: Record<string, string> = {};
+    for (const [abbr, color] of this.teacherColors) if (color) teacherColors[abbr] = color;
     return {
       classes: this.classes.toPersisted(),
       cards: this.pool.all.map((c) => c.toJSON()),
@@ -1800,6 +1820,7 @@ export class AppState {
       rooms: [...this.rooms],
       teacherBlocks,
       teacherMaxDays,
+      teacherColors,
       planSettings: { ...this.planSettings },
     };
   }
@@ -1818,6 +1839,13 @@ export class AppState {
     return map;
   }
 
+  /** Deserialisiert die dauerhafte Farbzuordnung aus dem Persistenzformat. */
+  static parseTeacherColors(raw: Record<string, string> | undefined): Map<string, string> {
+    const map = new Map<string, string>();
+    if (raw) for (const [abbr, color] of Object.entries(raw)) if (color) map.set(abbr.toLowerCase(), String(color));
+    return map;
+  }
+
   static fromJSON(raw: PersistedState): AppState {
     const pool = new CardPool();
     pool.replaceAll((raw.cards ?? []).map(Card.fromJSON));
@@ -1827,6 +1855,7 @@ export class AppState {
     const rooms = Array.isArray(raw.rooms) ? raw.rooms.map((r) => String(r).trim()).filter(Boolean) : [];
     const app = new AppState(pool, classes, schedule, raw.nid ?? 1, rooms, AppState.parseTeacherBlocks(raw.teacherBlocks));
     app.teacherMaxDays = AppState.parseTeacherMaxDays(raw.teacherMaxDays);
+    app.teacherColors = AppState.parseTeacherColors(raw.teacherColors);
     app.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
     app.lastSnapshot = JSON.stringify(app.toJSON());
     return app;

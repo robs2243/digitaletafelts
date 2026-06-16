@@ -131,6 +131,8 @@ export interface PersistedState {
   teacherBlocks?: Record<string, string[]>;
   /** Teilzeit: max. Anwesenheitstage je Lehrkraft (Kürzel → Tage, fehlt/0 = unbegrenzt). */
   teacherMaxDays?: Record<string, number>;
+  /** Dauerhafte Farbzuordnung je Kürzel (kleingeschrieben → Hex), über Importe hinweg. */
+  teacherColors?: Record<string, string>;
   /** Konfigurierbare Planungsregeln (fehlt = Defaults). */
   planSettings?: PlanSettings;
 }
