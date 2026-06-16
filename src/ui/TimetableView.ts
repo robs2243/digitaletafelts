@@ -6,7 +6,7 @@ import type { LabelField, PlacementPosition, Week } from '../domain/types';
 import { ink } from '../utils/color';
 import { esc } from '../utils/html';
 import { ColorPopover } from './ColorPopover';
-import { DragController } from './DragController';
+import { DragController, type DragData } from './DragController';
 
 /** Gruppe sich überlappender Platzierungen in einer Klassen-/Wochenspalte. */
 interface PlacementCluster {
@@ -147,6 +147,14 @@ export class TimetableView {
       this.handlers.onDragEnd();
     });
 
+    // Live-Drop-Hilfe: beim Start eines Drags (Pool oder Raster) ALLE Zellen
+    // einfärben – grün = frei, orange = stapelbar, rot = Sperrzeit, grau = belegt.
+    // Quelle setzt drag.active im eigenen Handler; das Bubbling erreicht uns danach.
+    document.addEventListener('dragstart', () => {
+      if (this.drag.active) this.highlightDropTargets(this.drag.active);
+    });
+    document.addEventListener('dragend', () => this.clearDropTargets());
+
     this.el.addEventListener('dragover', (e) => {
       const cell = this.cellFromEvent(e);
       if (!cell) return;
@@ -198,6 +206,29 @@ export class TimetableView {
 
   private cellFromEvent(e: Event): HTMLTableCellElement | null {
     return (e.target as HTMLElement).closest<HTMLTableCellElement>('td.cell');
+  }
+
+  /** Färbt beim Drag-Start alle Raster-Zellen nach Eignung für die gezogene Karte. */
+  private highlightDropTargets(dragData: DragData): void {
+    const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
+    const stacksAuto =
+      dragData.card.isLabor || dragData.card.isWerkstatt || dragData.card.isVierwoechig || dragData.card.noCount;
+    for (const cell of this.el.querySelectorAll<HTMLTableCellElement>('td.cell')) {
+      const pos = this.posFromCell(cell);
+      if (!this.state.cardFitsColumn(dragData.card, pos)) continue; // andere Klasse → neutral
+      const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
+      let cls: string;
+      if (!collision) cls = this.state.cardHitsBlock(dragData.card, pos) ? 'gblk' : 'gdv';
+      else if (collision.type === 'class') cls = stacksAuto ? 'gdv' : 'gds';
+      else cls = 'gdi';
+      cell.classList.add(cls);
+    }
+  }
+
+  private clearDropTargets(): void {
+    for (const cell of this.el.querySelectorAll('td.cell.gdv, td.cell.gds, td.cell.gdi, td.cell.gblk')) {
+      cell.classList.remove('gdv', 'gds', 'gdi', 'gblk');
+    }
   }
 
   private posFromCell(cell: HTMLTableCellElement): PlacementPosition {

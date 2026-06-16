@@ -376,6 +376,11 @@ thead tr:nth-child(2) th { top: 29px; }
 .cell.dv { background: #e8f5e9 !important; outline: 2px dashed #43a047; outline-offset: -2px; }
 .cell.ds { background: #fff8e1 !important; outline: 2px dashed #fb8c00; outline-offset: -2px; }
 .cell.di { background: #ffebee !important; outline: 2px dashed #e53935; outline-offset: -2px; }
+/* Live-Drop-Hilfe: dezente Gesamtübersicht beim Drag-Start (Hover dv/ds/di liegt darüber). */
+.cell.gdv { background: rgba(67,160,71,.16); box-shadow: inset 0 0 0 1px rgba(67,160,71,.45); }
+.cell.gds { background: rgba(251,140,0,.14); box-shadow: inset 0 0 0 1px rgba(251,140,0,.4); }
+.cell.gblk { background: rgba(198,40,40,.12); box-shadow: inset 0 0 0 1px rgba(198,40,40,.45); }
+.cell.gdi { background: rgba(0,0,0,.05); }
 
 /* ── EINZELNE PLATZIERTE KARTE ── */
 .placed {
