@@ -42,6 +42,10 @@ function createWindow() {
   win.maximize();
   win.show();
 
+  // Druck-/Vorschaufenster (window.open für die Stundenplan-PDFs) ausdrücklich
+  // erlauben – sonst blockiert Electron das Pop-up je nach Version.
+  win.webContents.setWindowOpenHandler(() => ({ action: 'allow' }));
+
   // F11: Vollbild umschalten; Esc verlässt den Vollbildmodus.
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
