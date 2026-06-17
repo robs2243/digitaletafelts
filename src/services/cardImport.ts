@@ -98,7 +98,10 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r] ?? [];
     const abbr = String(cell(row, 'abbr') ?? '').trim().toUpperCase();
-    if (!abbr) continue;
+    const klasse = String(cell(row, 'klasse') ?? '').trim();
+    // Karte braucht mindestens ein Kürzel ODER eine Klasse (z. B. lehrerlose
+    // Untis-Stunden wie „Betrieb" werden der Klasse zugeordnet).
+    if (!abbr && !klasse) continue;
     const dur = parseInt(String(cell(row, 'duration') ?? ''), 10);
     const isLabor = truthy(cell(row, 'isLabor'));
     const isWerkstatt = truthy(cell(row, 'isWerkstatt'));
@@ -108,7 +111,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
       (isLabor ? group(raw(row, 'laborab')) : '') ||
       group(cell(row, 'labGroup'));
     out.push({
-      klasse: String(cell(row, 'klasse') ?? '').trim(),
+      klasse,
       abbr,
       fach: String(cell(row, 'fach') ?? '').trim(),
       name: '',
@@ -167,15 +170,28 @@ export function convertUntisToTemplate(rows: unknown[][]): (string | number)[][]
       .filter(Boolean);
     if (!klassen.length) continue;
     const lehrer = col(row, 'lehrer');
-    const fach = col(row, 'fach');
-    const raum = col(row, 'fachraum');
+    const fachraum = col(row, 'fachraum');
+    const stammraum = col(row, 'stammraum');
     const text = col(row, 'text');
+    // Gruppe a/b aus dem Fach-Präfix (A_… / B_…); der Präfix wird entfernt.
+    let fach = col(row, 'fach');
+    const m = /^([ab])[_-](.+)$/i.exec(fach);
+    const grp = m ? m[1].toLowerCase() : '';
+    if (m) fach = m[2];
+    // Werkstatt erkennt man an einem „W-…"-Raum (Fachraum oder Stammraum), sonst Labor.
+    const isWerk = /^w-/i.test(fachraum) || /^w-/i.test(stammraum);
+    const labor = grp && !isWerk ? 'x' : '';
+    const werk = grp && isWerk ? 'x' : '';
+    const laborAB = labor ? grp : '';
+    const werkAB = werk ? grp : '';
+    // Raum: bevorzugt Fachraum, sonst Stammraum (so geht der W-Raum nicht verloren).
+    const raum = fachraum || stammraum;
     const kopplung = klassen.length > 1 ? `K${++kid}` : '';
     for (const kl of klassen) {
       // Reihenfolge wie TEMPLATE_AOA-Kopf: Klasse,Kürzel,Fach,Raum,Dauer,Labor,
       // Labor a/b,Werkstatt,Werkstatt a/b,4-wöchig,1.HJ,2.HJ,Kopplung,Teamteaching,
       // Hauptfach,Nicht zählen,Kommentar.
-      out.push([kl, lehrer, fach, raum, wst, '', '', '', '', '', '', '', kopplung, '', '', '', text]);
+      out.push([kl, lehrer, fach, raum, wst, labor, laborAB, werk, werkAB, '', '', '', kopplung, '', '', '', text]);
     }
   }
   out.sort(

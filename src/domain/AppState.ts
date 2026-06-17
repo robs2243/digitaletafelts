@@ -1100,29 +1100,36 @@ export class AppState {
 
       // countTeacher=false bei gekoppelten Folge-Karten: gleiche Lehrerstunde nur einmal zählen.
       const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number, countTeacher = true): void => {
-        const dayKey = thK(card.abbr, d, w);
-        let dayPeriods = teachDayPeriods.get(dayKey);
-        if (!dayPeriods) {
-          dayPeriods = new Set();
-          teachDayPeriods.set(dayKey, dayPeriods);
+        // Lehrerlose Karten (kein Kürzel, z. B. „Betrieb") belegen nur den Klassen-Slot/
+        // Raum – sie erzeugen KEINE Lehrer-Konflikte/-Stunden (sonst würden mehrere
+        // lehrerlose Karten klassenübergreifend fälschlich kollidieren).
+        const hasAbbr = !!card.abbr.trim();
+        let dayPeriods: Set<number> | undefined;
+        if (hasAbbr) {
+          dayPeriods = teachDayPeriods.get(thK(card.abbr, d, w));
+          if (!dayPeriods) {
+            dayPeriods = new Set();
+            teachDayPeriods.set(thK(card.abbr, d, w), dayPeriods);
+          }
         }
         for (const p of blockedPeriods(card.isWerkstatt, start, card.duration)) {
           cell.add(cK(d, w, c, p));
           if (card.room) roomSet.add(rK(d, w, p, card.room));
-          teachSet.add(tK(card.abbr, d, w, p));
-          dayPeriods.add(p);
+          if (hasAbbr) {
+            teachSet.add(tK(card.abbr, d, w, p));
+            dayPeriods!.add(p);
+          }
         }
-        for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
-        const ad = card.abbr.toLowerCase();
-        const days = teachDaysUsed.get(ad) ?? new Set<number>();
-        days.add(d);
-        teachDaysUsed.set(ad, days);
-        if (countTeacher) {
-          teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
-          const a = card.abbr.toLowerCase();
-          const tw = teachWeek.get(a) ?? [0, 0];
-          tw[w === 'u' ? 0 : 1] += card.duration;
-          teachWeek.set(a, tw);
+        if (hasAbbr) {
+          for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
+          const ad = card.abbr.toLowerCase();
+          (teachDaysUsed.get(ad) ?? teachDaysUsed.set(ad, new Set()).get(ad)!).add(d);
+          if (countTeacher) {
+            teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
+            const tw = teachWeek.get(ad) ?? [0, 0];
+            tw[w === 'u' ? 0 : 1] += card.duration;
+            teachWeek.set(ad, tw);
+          }
         }
         const f = card.fach.trim().toLowerCase();
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);

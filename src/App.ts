@@ -1165,7 +1165,9 @@ export class App {
         return;
       }
       const out = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(out, XLSX.utils.aoa_to_sheet(aoa), 'Karten');
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] }; // Suchfilter je Spalte
+      XLSX.utils.book_append_sheet(out, ws, 'Karten');
       XLSX.writeFile(out, 'Karten-aus-Untis.xlsx');
       this.toast.show(`🔄 ${count} Zeilen umgewandelt → „Karten-aus-Untis.xlsx". Jetzt mit „Excel importieren" laden.`);
     } catch {
@@ -1482,7 +1484,9 @@ export class App {
   /** Erzeugt eine Excel-Vorlage mit den passenden Spalten und Beispielzeilen. */
   private downloadTemplate(): void {
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(TEMPLATE_AOA), 'Karten');
+    const ws = XLSX.utils.aoa_to_sheet(TEMPLATE_AOA);
+    if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] }; // Suchfilter je Spalte
+    XLSX.utils.book_append_sheet(wb, ws, 'Karten');
     XLSX.writeFile(wb, 'Vorlage-Karten.xlsx');
   }
 
