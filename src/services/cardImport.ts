@@ -173,11 +173,11 @@ export function convertUntisToTemplate(rows: unknown[][]): (string | number)[][]
     const fachraum = col(row, 'fachraum');
     const stammraum = col(row, 'stammraum');
     const text = col(row, 'text');
-    // Gruppe a/b aus dem Fach-Präfix (A_… / B_…); der Präfix wird entfernt.
-    let fach = col(row, 'fach');
-    const m = /^([ab])[_-](.+)$/i.exec(fach);
+    // Fach 1:1 aus Untis übernehmen. Gruppe a/b nur am Präfix (A_… / B_…) ERKENNEN,
+    // den Namen aber NICHT verändern (z. B. „A_LBTW" bleibt „A_LBTW").
+    const fach = col(row, 'fach');
+    const m = /^([ab])[_-]/i.exec(fach);
     const grp = m ? m[1].toLowerCase() : '';
-    if (m) fach = m[2];
     // Werkstatt erkennt man an einem „W-…"-Raum (Fachraum oder Stammraum), sonst Labor.
     const isWerk = /^w-/i.test(fachraum) || /^w-/i.test(stammraum);
     const labor = grp && !isWerk ? 'x' : '';
