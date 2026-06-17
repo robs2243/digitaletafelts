@@ -132,6 +132,61 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
   return out;
 }
 
+/**
+ * Wandelt einen Untis-Export (AOA, 1. Zeile = Überschriften) in das Vorlage-Format
+ * dieser App um (gleiche Spalten wie TEMPLATE_AOA). Regeln:
+ *  - überflüssige Untis-Spalten (U-Nr, Kl,Le, Nvpl Std., Schülergruppe, Stammraum,
+ *    U-Gruppen …) werden ignoriert,
+ *  - Zeilen mit Wst = 0 (oder leer) entfallen,
+ *  - mehrere Klassen in „Klasse(n)" → je Klasse eine Zeile mit gemeinsamer
+ *    Kopplungs-ID (K1, K2 …), damit die Stunden gekoppelt geplant werden,
+ *  - „Text" → „Kommentar" (1:1 kopiert),
+ *  - sortiert nach Klasse, Kürzel, Fach.
+ */
+export function convertUntisToTemplate(rows: unknown[][]): (string | number)[][] {
+  const header = TEMPLATE_AOA[0] as string[];
+  if (!rows.length) return [header];
+  const idx: Record<string, number> = {};
+  (rows[0] ?? []).forEach((h, i) => {
+    const k = norm(h);
+    if (k && idx[k] === undefined) idx[k] = i;
+  });
+  const col = (row: unknown[], key: string): string => {
+    const i = idx[key];
+    return i === undefined ? '' : String(row[i] ?? '').trim();
+  };
+  const out: (string | number)[][] = [];
+  let kid = 0;
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r] ?? [];
+    const wst = parseInt(col(row, 'wst'), 10);
+    if (!Number.isFinite(wst) || wst <= 0) continue; // Wst=0 / leer → raus
+    const klassen = col(row, 'klassen') // „Klasse(n)" → normalisiert „klassen"
+      .split(/[,;/]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!klassen.length) continue;
+    const lehrer = col(row, 'lehrer');
+    const fach = col(row, 'fach');
+    const raum = col(row, 'fachraum');
+    const text = col(row, 'text');
+    const kopplung = klassen.length > 1 ? `K${++kid}` : '';
+    for (const kl of klassen) {
+      // Reihenfolge wie TEMPLATE_AOA-Kopf: Klasse,Kürzel,Fach,Raum,Dauer,Labor,
+      // Labor a/b,Werkstatt,Werkstatt a/b,4-wöchig,1.HJ,2.HJ,Kopplung,Teamteaching,
+      // Hauptfach,Nicht zählen,Kommentar.
+      out.push([kl, lehrer, fach, raum, wst, '', '', '', '', '', '', '', kopplung, '', '', '', text]);
+    }
+  }
+  out.sort(
+    (a, b) =>
+      String(a[0]).localeCompare(String(b[0]), 'de', { numeric: true }) ||
+      String(a[1]).localeCompare(String(b[1]), 'de', { numeric: true }) ||
+      String(a[2]).localeCompare(String(b[2]), 'de', { numeric: true }),
+  );
+  return [header, ...out];
+}
+
 /** Vorlage-Inhalt (Überschriften + Beispielzeilen). */
 export const TEMPLATE_AOA: (string | number)[][] = [
   ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Nicht zählen', 'Kommentar'],

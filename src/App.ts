@@ -7,7 +7,7 @@ import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgr
 import { DEFAULT_PLAN_SETTINGS } from './domain/types';
 import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
-import { parseCardRows, TEMPLATE_AOA } from './services/cardImport';
+import { convertUntisToTemplate, parseCardRows, TEMPLATE_AOA } from './services/cardImport';
 import planningRulesText from '../PLANUNGSREGELN.md?raw';
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
 import { FileService } from './services/FileService';
@@ -537,6 +537,13 @@ export class App {
       const file = importFile.files?.[0];
       if (file) void this.handleExcelImport(file);
       importFile.value = '';
+    });
+    const untisFile = byId<HTMLInputElement>('pl-untis-file');
+    byId('pl-untis').addEventListener('click', () => untisFile.click());
+    untisFile.addEventListener('change', () => {
+      const file = untisFile.files?.[0];
+      if (file) void this.handleUntisConvert(file);
+      untisFile.value = '';
     });
     byId('pl-del-abbr').addEventListener('click', () => this.handleDeletePoolByAbbr());
     byId('pl-del-all').addEventListener('click', () => this.handleDeleteAllPool());
@@ -1143,6 +1150,26 @@ export class App {
       );
     } catch {
       this.toast.show('Datei konnte nicht gelesen werden (Excel/CSV?).', 'inf');
+    }
+  }
+
+  /** Wandelt eine Untis-Stundentafel in das Vorlage-Format um und lädt sie herunter. */
+  private async handleUntisConvert(file: File): Promise<void> {
+    try {
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false, defval: '' }) as unknown[][];
+      const aoa = convertUntisToTemplate(rows);
+      const count = aoa.length - 1; // ohne Kopfzeile
+      if (count <= 0) {
+        this.toast.show('Keine umwandelbaren Zeilen gefunden (Wst/Klasse prüfen?).', 'inf');
+        return;
+      }
+      const out = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(out, XLSX.utils.aoa_to_sheet(aoa), 'Karten');
+      XLSX.writeFile(out, 'Karten-aus-Untis.xlsx');
+      this.toast.show(`🔄 ${count} Zeilen umgewandelt → „Karten-aus-Untis.xlsx". Jetzt mit „Excel importieren" laden.`);
+    } catch {
+      this.toast.show('Untis-Datei konnte nicht gelesen werden (Excel/CSV?).', 'inf');
     }
   }
 
