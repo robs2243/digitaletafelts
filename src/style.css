@@ -303,6 +303,13 @@ thead tr:nth-child(2) th { top: 29px; }
   transition: background .13s; margin: auto;
 }
 .btn-addcls-col:hover { background: rgba(255,255,255,.2); }
+/* Klasse-hinzufügen-Button links in der Ecke (immer sichtbar, ohne Scrollen). */
+.btn-addcls-left {
+  padding: 3px 8px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.4);
+  background: transparent; color: #fff; font-size: 11px; font-weight: 700;
+  cursor: pointer; white-space: nowrap; transition: background .13s;
+}
+.btn-addcls-left:hover { background: rgba(255,255,255,.2); }
 
 /* ── DAY SUB-HEADER ROWS ── */
 .day-hdr-row td {

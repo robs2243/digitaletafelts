@@ -65,6 +65,12 @@ Quelle: Vorgaben des Anwenders.
 13. Werkstatt darf **4–8 Stunden am Stück** sein.
 14. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
 15. Werkstatt darf **auch in der 7. Stunde** stattfinden.
+15a. **Nachmittag bevorzugt:** Werkstätten werden möglichst auf die Stunden **6.–9.**
+    gelegt (Morgen bleibt für Theorie frei). Gepaarte Werkstätten (zwei Lehrkräfte)
+    dürfen 1.–4. **oder** 6.–9., bevorzugt 6.–9.
+15b. **Ohne Gegenpartner → 6.–9. (Pflicht):** Hat eine Werkstatt **keinen Partner**
+    einer anderen Lehrkraft (z. B. dieselbe Lehrkraft macht Gruppe a *und* b), wird
+    eine **4-stündige** Werkstatt fest auf **6.–9.** gelegt.
 16. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
     **Gruppe a** muss immer auf eine Werkstatt der **Gruppe b** gelegt werden
     (gestapelt, gleicher Slot) – analog zu den Laboren.

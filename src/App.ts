@@ -125,7 +125,7 @@ export class App {
       onSetClassLabel: (c, d, field, value) => this.handleSetClassLabel(c, d, field, value),
       onSetLabelColor: (c, d, field, color) => this.state.setClassLabelColor(c, d, field, color),
       onDeleteClass: (idx) => this.handleDeleteClass(idx),
-      onAddClass: () => this.handleAddClass(),
+      onAddClass: (focus) => this.handleAddClass(focus),
     });
 
     this.cardModal = new CardModal({
@@ -1622,9 +1622,12 @@ export class App {
     return color;
   }
 
-  private handleAddClass(): void {
+  private handleAddClass(focus = true): void {
     const idx = this.state.addClass();
-    // Frisch angelegte Spalte: erstes Beschriftungsfeld (Montag, u+g) fokussieren
+    // Nur beim rechten „+" zur neuen Spalte springen/fokussieren. Beim linken
+    // Button (focus=false) bleibt die Ansicht stehen – so kann man bequem mehrere
+    // Spalten hintereinander anlegen, ohne nach rechts zu scrollen.
+    if (!focus) return;
     setTimeout(() => {
       const first = document.querySelector<HTMLInputElement>(`.dh-comb[data-c="${idx}"][data-d="0"]`);
       if (first) {

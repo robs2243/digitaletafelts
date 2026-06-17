@@ -29,7 +29,7 @@ export interface TimetableHandlers {
   onSetClassLabel: (classIdx: number, day: number, field: LabelField, value: string) => string | null;
   onSetLabelColor: (classIdx: number, day: number, field: LabelField, color: string) => void;
   onDeleteClass: (classIdx: number) => void;
-  onAddClass: () => void;
+  onAddClass: (focus: boolean) => void;
 }
 
 /**
@@ -83,7 +83,9 @@ export class TimetableView {
         this.handlers.onDeleteClass(Number(delBtn.dataset.c));
         return;
       }
-      if (target.closest('.btn-addcls-col')) this.handlers.onAddClass();
+      if (target.closest('.btn-addcls-col')) this.handlers.onAddClass(true);
+      // Links: ohne Fokus/Scroll – damit man bequem mehrere Spalten anlegen kann.
+      else if (target.closest('.btn-addcls-left')) this.handlers.onAddClass(false);
     });
 
     this.el.addEventListener('dblclick', (e) => {
@@ -271,7 +273,7 @@ export class TimetableView {
 
   private renderHead(count: number): string {
     let h = '<thead><tr>';
-    h += '<th class="th-stub" rowspan="2"></th>';
+    h += '<th class="th-stub" rowspan="2"><button class="btn-addcls-left" title="Klasse hinzufügen (mehrfach klicken für mehrere)">+ Klasse</button></th>';
     h += '<th class="th-per" rowspan="2"></th>';
     for (let c = 0; c < count; c++) {
       h += `<th class="th-cls" colspan="2">

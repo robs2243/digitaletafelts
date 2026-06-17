@@ -41,6 +41,12 @@ function createWindow() {
   Menu.setApplicationMenu(null);
   win.maximize();
   win.show();
+  // Tastaturfokus sofort auf das Fenster/den Inhalt legen – sonst nehmen die
+  // Eingabefelder (z. B. Klassen-Beschriftung) beim ersten Start keine Eingaben an,
+  // bis man irgendwo klickt/einen Dialog öffnet.
+  win.focus();
+  win.webContents.focus();
+  win.webContents.on('did-finish-load', () => win.webContents.focus());
 
   // Druck-/Vorschaufenster (window.open für die Stundenplan-PDFs) ausdrücklich
   // erlauben – sonst blockiert Electron das Pop-up je nach Version.

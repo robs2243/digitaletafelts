@@ -1073,7 +1073,10 @@ export class AppState {
       mirrorMismatch: number;
     }
 
-    const baseStarts = (card: Card): number[] => (card.isWerkstatt ? [1] : [1, 2, 3, 4, 5, 6, 8]);
+    // Werkstatt: 4-stündig auch nachmittags (6.–9.) möglich – die Bewertung
+    // bevorzugt den Nachmittag, damit der Morgen für Theorie frei bleibt.
+    const baseStarts = (card: Card): number[] =>
+      card.isWerkstatt ? (card.duration <= 4 ? [1, 6] : [1]) : [1, 2, 3, 4, 5, 6, 8];
 
     /**
      * Ein vollständiger Verplanungs-Durchlauf auf einer eigenen Belegungs-Simulation.
@@ -1312,8 +1315,11 @@ export class AppState {
             // u/g-Parallelität: liegt (irgend)ein Mitglied in der anderen Woche schon
             // am selben Slot → 0 (parallel bevorzugt), sonst 1.
             const mirrorPush = members.some((m) => hasMirror(m, d, w, start)) ? 0 : 1;
+            // Werkstatt bevorzugt nachmittags (Start ≥ 6) → Morgen frei für Theorie.
+            const werkAfternoon = members[0].isWerkstatt && start < 6 ? 1 : 0;
             const score = [
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
+              werkAfternoon, // Werkstatt möglichst 6.–9. (0 = Nachmittag)
               mainGroup && start > 6 ? 1 : 0,
               mirrorPush, // u/g-PARALLEL: möglichst gleicher Slot in u und g
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
@@ -1330,7 +1336,7 @@ export class AppState {
         skipped.push({ card: label, reason: `${what}: kein gemeinsamer freier Slot` });
       };
 
-      const placeNormal = (card: Card): void => {
+      const placeNormal = (card: Card, startsOverride?: number[]): void => {
         if (!card.klasse.trim()) {
           skipped.push({ card: card.abbr, reason: 'keine Klasse' });
           return;
@@ -1343,7 +1349,8 @@ export class AppState {
         const f = card.fach.trim().toLowerCase();
         const main = isMain(card);
         if (shuffleOrder) shuffle(ctx, rng);
-        const starts = shuffleOrder ? shuffle([...baseStarts(card)], rng) : baseStarts(card);
+        const baseList = startsOverride ?? baseStarts(card);
+        const starts = shuffleOrder ? shuffle([...baseList], rng) : baseList;
 
         // Alle gültigen Plätze (Spalte, Tag, Woche, Start) bewerten (kleiner = besser):
         // u/g-Ausgleich → Klassen-Hohlstunden → Hauptfach 1–6 → Hauptfach-Tag-Pause →
@@ -1494,10 +1501,14 @@ export class AppState {
       };
       const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => (c.isLabor || c.isWerkstatt) && isGrouped(c)));
 
+      // Lone Werkstatt (kein Gegenpartner einer anderen Lehrkraft, z. B. dieselbe
+      // Lehrkraft macht a UND b): 4-stündig auf den Nachmittag 6.–9., sonst normal.
+      const placeLoneWerk = (card: Card): void => placeNormal(card, card.duration === 4 ? [6] : undefined);
+
       // Reihenfolge: Werkstatt-Paare/-Reste (Anker) → HAUPTFÄCHER (sichern den Morgen)
       // → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
       stepPairs(abPairs.filter((p) => p[0].isWerkstatt));
-      step([...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))], placeNormal);
+      step([...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))], placeLoneWerk);
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt));
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c))], placeNormal);
