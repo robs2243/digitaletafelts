@@ -7,7 +7,7 @@ import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgr
 import { DEFAULT_PLAN_SETTINGS } from './domain/types';
 import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
-import { convertUntisToTemplate, parseCardRows, TEMPLATE_AOA } from './services/cardImport';
+import { convertUntisDeputate, convertUntisToTemplate, isDeputateFormat, parseCardRows, TEMPLATE_AOA } from './services/cardImport';
 import planningRulesText from '../PLANUNGSREGELN.md?raw';
 import { Document, HeadingLevel, Packer, Paragraph, TextRun } from 'docx';
 import { FileService } from './services/FileService';
@@ -1153,21 +1153,56 @@ export class App {
     }
   }
 
-  /** Wandelt eine Untis-Stundentafel in das Vorlage-Format um und lädt sie herunter. */
+  /** Wandelt einen Untis-Export (Stundentafel ODER Deputate) ins Vorlage-Format um. */
   private async handleUntisConvert(file: File): Promise<void> {
     try {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, blankrows: false, defval: '' }) as unknown[][];
+      const out = XLSX.utils.book_new();
+      const withFilter = (aoa: (string | number)[][]): void => {
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
+        XLSX.utils.book_append_sheet(out, ws, 'Karten');
+      };
+
+      if (isDeputateFormat(rows)) {
+        // Deputate-Block-Format: Wert = Anzahl Karten, je Karte 2 Std.
+        const res = convertUntisDeputate(rows);
+        const count = res.aoa.length - 1;
+        if (count <= 0) {
+          this.toast.show('Keine umwandelbaren Zeilen im Deputate-Export gefunden.', 'inf');
+          return;
+        }
+        withFilter(res.aoa);
+        // Kontroll-Blatt: Soll (Wert=) vs. Karten (ohne Betrieb) je Klasse; Betrieb separat.
+        const ctrl: (string | number)[][] = [['Klasse', 'Soll (Wert=)', 'Karten (ohne Betrieb)', 'Differenz', 'Betrieb-Karten']];
+        for (const c of res.control) {
+          ctrl.push([c.klasse, c.soll, c.ist, Math.round((c.ist - c.soll) * 100) / 100, c.betrieb]);
+        }
+        if (res.flags.length) {
+          ctrl.push([], ['Hinweise (beschädigte „Wert ="-Zellen – geschätzt, bitte in der Quelle prüfen):']);
+          for (const f of res.flags) ctrl.push([f]);
+        }
+        const cs = XLSX.utils.aoa_to_sheet(ctrl);
+        cs['!autofilter'] = { ref: 'A1:E1' };
+        XLSX.utils.book_append_sheet(out, cs, 'Kontrolle');
+        XLSX.writeFile(out, 'Karten-aus-Untis.xlsx');
+        const mismatch = res.control.filter((c) => Math.abs(c.ist - c.soll) > 0.01).length;
+        this.toast.show(
+          `🔄 ${count} Karten → „Karten-aus-Untis.xlsx" (Blatt „Kontrolle"). ` +
+            `${mismatch} Klasse(n) mit Differenz (Halbjahr/0,5)${res.flags.length ? `, ${res.flags.length}× „Wert prüfen"` : ''}.`,
+        );
+        return;
+      }
+
+      // Flaches Stundentafel-Format.
       const aoa = convertUntisToTemplate(rows);
-      const count = aoa.length - 1; // ohne Kopfzeile
+      const count = aoa.length - 1;
       if (count <= 0) {
         this.toast.show('Keine umwandelbaren Zeilen gefunden (Wst/Klasse prüfen?).', 'inf');
         return;
       }
-      const out = XLSX.utils.book_new();
-      const ws = XLSX.utils.aoa_to_sheet(aoa);
-      if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] }; // Suchfilter je Spalte
-      XLSX.utils.book_append_sheet(out, ws, 'Karten');
+      withFilter(aoa);
       XLSX.writeFile(out, 'Karten-aus-Untis.xlsx');
       this.toast.show(`🔄 ${count} Zeilen umgewandelt → „Karten-aus-Untis.xlsx". Jetzt mit „Excel importieren" laden.`);
     } catch {

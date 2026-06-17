@@ -203,6 +203,120 @@ export function convertUntisToTemplate(rows: unknown[][]): (string | number)[][]
   return [header, ...out];
 }
 
+/** Ergebnis der Untis-Umwandlung: Vorlage-Zeilen + Kontrolle je Klasse. */
+export interface UntisResult {
+  /** Vorlage-AOA (1. Zeile = Überschriften). */
+  aoa: (string | number)[][];
+  /** Je Klasse: Soll (Summe „Wert ="), erzeugte Karten (ohne Betrieb) und Betrieb-Karten. */
+  control: { klasse: string; soll: number; ist: number; betrieb: number }[];
+  /** Hinweise (z. B. beschädigte „Wert ="-Zellen, die geschätzt wurden). */
+  flags: string[];
+}
+
+/** Erkennt das Block-/Deputate-Format (Spalte „Wert =" / „ZeilenWert"). */
+export function isDeputateFormat(rows: unknown[][]): boolean {
+  return rows.slice(0, 6).some((r) => (r ?? []).some((c) => /^wert\s*=/i.test(String(c ?? '').trim())));
+}
+
+/**
+ * Wandelt den Untis-Deputate-Export (Blockformat je Klasse: Spalten
+ * Wert=, Wst, U-Gruppen, Lehrer, Fach, Klasse(n), Schülergruppe, ZeilenWert) ins
+ * Vorlage-Format um:
+ *  - „Wert =" = Anzahl Karten je Zeile (gerundet), je Karte Dauer 2;
+ *  - A_Betrieb/B_Betrieb → immer 8 Karten;
+ *  - mehrere Klassen → Kopplung (Karten je Klasse, eigene K-ID je Doppelstunde);
+ *  - Werkstatt: Fach enthält LBP/LBTW/WP_ATM; sonst Gruppen-Fach (A_/B_/C_/D_) = Labor;
+ *  - Gruppe: A→a, B→b, C→a, D→b (Präfix X_ oder Suffix _X);
+ *  - WST/U-Gruppen/Schülergruppe/ZeilenWert entfallen; sortiert; Kontrolle je Klasse.
+ *  - Beschädigte „Wert ="-Zellen (als Datum formatiert) werden geschätzt + markiert.
+ */
+export function convertUntisDeputate(rows: unknown[][]): UntisResult {
+  const header = TEMPLATE_AOA[0] as string[];
+  const out: (string | number)[][] = [];
+  const flags: string[] = [];
+  const ist = new Map<string, number>(); // Karten je Klasse (ohne Betrieb)
+  const betrieb = new Map<string, number>(); // Betrieb-Karten je Klasse
+  const soll = new Map<string, number>();
+  // Gekoppelte Lektionen stehen in BEIDEN Klassen-Blöcken. Damit beide Seiten
+  // dieselbe Kopplungs-ID bekommen, vergeben wir IDs pro „Lektion+Einheit".
+  const coupId = new Map<string, string>();
+  let kid = 0;
+  const couplingFor = (lehrer: string, fach: string, partners: string[], u: number): string => {
+    const key = `${lehrer.toLowerCase()}|${fach.toLowerCase()}|${[...partners].sort().join(',')}|${u}`;
+    let id = coupId.get(key);
+    if (!id) {
+      id = `K${++kid}`;
+      coupId.set(key, id);
+    }
+    return id;
+  };
+  let block = '';
+
+  const parseWert = (v: unknown): { n: number; bad: boolean } => {
+    if (typeof v === 'number') return v > 60 ? { n: 0, bad: true } : { n: v, bad: false }; // >60 = Datums-Serie
+    const f = parseFloat(String(v ?? '').trim().replace(',', '.'));
+    return { n: Number.isFinite(f) ? f : 0, bad: false };
+  };
+
+  for (const row of rows) {
+    const c0 = String(row[0] ?? '').trim();
+    const c1 = String(row[1] ?? '').trim();
+    const fach = String(row[4] ?? '').trim();
+    if (/^wert\s*=/i.test(c0)) continue; // Spaltenkopf
+    if (!fach) {
+      // Block-Kopf „1BFB","1BFB" → Klasse merken; Summenzeile → Soll (Wert-Summe).
+      if (c0 && c0 === c1) block = c0;
+      else if (block && (typeof row[1] === 'number' || /^[0-9]/.test(c1))) soll.set(block, parseWert(row[0]).n);
+      continue;
+    }
+    if (!block) continue;
+    const partners = String(row[5] ?? '')
+      .split(/[,;/]+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const coupled = partners.length > 1;
+    const lehrer = String(row[3] ?? '').trim();
+    // Gruppe a/b aus Präfix X_ oder Suffix _X (A/C→a, B/D→b).
+    const gm = /^([abcd])[_-]/i.exec(fach) ?? /[_-]([abcd])$/i.exec(fach);
+    const grp = gm ? (['a', 'c'].includes(gm[1].toLowerCase()) ? 'a' : 'b') : '';
+    const isBetrieb = /betrieb/i.test(fach);
+    const isWerk = !isBetrieb && /(lbp|lbtw|wp[_-]?atm)/i.test(fach);
+    const labor = !isBetrieb && grp && !isWerk ? 'x' : '';
+    const werk = isWerk ? 'x' : '';
+    const laborAB = labor ? grp : '';
+    const werkAB = werk ? grp : '';
+    const w = parseWert(row[0]);
+    let count = isBetrieb ? 8 : Math.round(w.n);
+    let note = '';
+    if (w.bad) {
+      const wst = Number(row[1]);
+      count = Number.isFinite(wst) && wst > 0 ? Math.max(1, Math.round(wst / 2)) : 1;
+      note = 'Wert prüfen';
+      flags.push(`${block}: ${fach} (${partners.join(',')}) – „Wert =" beschädigt, geschätzt ${count}`);
+    }
+    if (count < 1) continue;
+    // Karten NUR für die Block-Klasse erzeugen (die Partner-Klasse liefert ihre
+    // eigenen Karten aus ihrem Block – gekoppelt über dieselbe K-ID).
+    for (let u = 0; u < count; u++) {
+      const kop = coupled ? couplingFor(lehrer, fach, partners, u) : '';
+      out.push([block, lehrer, fach, '', 2, labor, laborAB, werk, werkAB, '', '', '', kop, '', '', '', note]);
+      if (isBetrieb) betrieb.set(block, (betrieb.get(block) ?? 0) + 1);
+      else ist.set(block, (ist.get(block) ?? 0) + 1);
+    }
+  }
+  out.sort(
+    (a, b) =>
+      String(a[0]).localeCompare(String(b[0]), 'de', { numeric: true }) ||
+      String(a[1]).localeCompare(String(b[1]), 'de', { numeric: true }) ||
+      String(a[2]).localeCompare(String(b[2]), 'de', { numeric: true }),
+  );
+  const klassen = new Set([...soll.keys(), ...ist.keys(), ...betrieb.keys()]);
+  const control = [...klassen]
+    .map((kl) => ({ klasse: kl, soll: soll.get(kl) ?? 0, ist: ist.get(kl) ?? 0, betrieb: betrieb.get(kl) ?? 0 }))
+    .sort((a, b) => a.klasse.localeCompare(b.klasse, 'de', { numeric: true }));
+  return { aoa: [header, ...out], control, flags };
+}
+
 /** Vorlage-Inhalt (Überschriften + Beispielzeilen). */
 export const TEMPLATE_AOA: (string | number)[][] = [
   ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Nicht zählen', 'Kommentar'],
