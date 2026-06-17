@@ -390,6 +390,12 @@ export class App {
     byId('plan-unplace-unlocked').addEventListener('click', () => this.handleUnplaceUnlocked());
     byId('plan-reset-classes').addEventListener('click', () => this.handleResetClasses());
     byId('plan-export').addEventListener('click', () => this.downloadCardsExport());
+    byId('plan-cardcount').addEventListener('click', () => this.openCardCount());
+    const cardcountOverlay = byId('cardcount-modal');
+    byId('cc-close').addEventListener('click', () => cardcountOverlay.classList.remove('open'));
+    cardcountOverlay.addEventListener('click', (e) => {
+      if (e.target === cardcountOverlay) cardcountOverlay.classList.remove('open');
+    });
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
 
@@ -846,6 +852,27 @@ export class App {
     });
     byId('settings-modal').classList.remove('open');
     this.toast.show('⚙️ Planungsregeln gespeichert', 'ok');
+  }
+
+  // ── Karten je Klasse (Soll/Ist-Abgleich mit Untis) ──────────────────────
+
+  private openCardCount(): void {
+    const rows = this.state.cardCountByClass();
+    const totalCards = rows.reduce((s, r) => s + r.total, 0);
+    byId('cc-sub').textContent = rows.length
+      ? `${totalCards} Karten in ${rows.length} Klassen (Pool + verplant). Vergleiche die „gesamt"-Spalte mit dem Untis-Import.`
+      : 'Noch keine Karten vorhanden.';
+    byId('cc-list').innerHTML = rows.length
+      ? '<table class="cc-table"><thead><tr><th>Klasse</th><th>gesamt</th><th>Pool</th><th>verplant</th></tr></thead><tbody>' +
+        rows
+          .map(
+            (r) =>
+              `<tr><td class="cc-cls">${esc(r.klasse)}</td><td class="cc-num cc-total">${r.total}</td><td class="cc-num">${r.pool}</td><td class="cc-num">${r.placed}</td></tr>`,
+          )
+          .join('') +
+        `</tbody><tfoot><tr><td class="cc-cls">Summe</td><td class="cc-num cc-total">${totalCards}</td><td class="cc-num">${rows.reduce((s, r) => s + r.pool, 0)}</td><td class="cc-num">${rows.reduce((s, r) => s + r.placed, 0)}</td></tr></tfoot></table>`
+      : '<div class="tm-empty">Noch keine Karten – erst importieren oder erstellen.</div>';
+    byId('cardcount-modal').classList.add('open');
   }
 
   // ── Kürzel-Farben ────────────────────────────────────────────────────────

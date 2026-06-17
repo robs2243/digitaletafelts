@@ -330,6 +330,25 @@ export class AppState {
     this.emit();
   }
 
+  /** Anzahl Karten je Klasse (Pool + Plan) – für den Soll-/Ist-Vergleich mit Untis. */
+  cardCountByClass(): { klasse: string; pool: number; placed: number; total: number }[] {
+    const m = new Map<string, { pool: number; placed: number }>();
+    const slot = (kl: string): { pool: number; placed: number } => {
+      const k = kl.trim() || '(ohne Klasse)';
+      let e = m.get(k);
+      if (!e) {
+        e = { pool: 0, placed: 0 };
+        m.set(k, e);
+      }
+      return e;
+    };
+    for (const c of this.pool.all) slot(c.klasse).pool++;
+    for (const p of this.schedule.all) slot(p.klasse).placed++;
+    return [...m.entries()]
+      .map(([klasse, v]) => ({ klasse, pool: v.pool, placed: v.placed, total: v.pool + v.placed }))
+      .sort((a, b) => a.klasse.localeCompare(b.klasse, 'de', { numeric: true }));
+  }
+
   // ── Lehrer-Sperrzeiten ────────────────────────────────────────────────────
 
   private static blockKey(day: number, week: Week, period: number): string {

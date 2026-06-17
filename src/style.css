@@ -610,6 +610,14 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .co-legend { display: flex; align-items: center; gap: 12px; margin: 4px 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
 .co-legend-lbl { flex: 0 0 64px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); line-height: 1.25; }
 .co-legend-grid { display: grid; grid-template-columns: repeat(12, 28px); gap: 8px; }
+/* Karten je Klasse (Zähltabelle). */
+.cc-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.cc-table th, .cc-table td { border: 1px solid var(--border); padding: 4px 8px; }
+.cc-table th { background: #f1f3f7; font-size: 11px; text-transform: uppercase; letter-spacing: .4px; color: #333; }
+.cc-cls { font-weight: 700; }
+.cc-num { text-align: center; }
+.cc-total { font-weight: 800; color: #1a237e; }
+.cc-table tfoot td { background: #f1f3f7; font-weight: 800; }
 .co-leg-sw { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; box-shadow: 0 1px 3px rgba(0,0,0,.22); }
 /* Plan-Prüfbericht: Fehler (rot) und Warnungen (gelb). */
 .va-item { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 7px; margin-bottom: 6px; font-size: 13px; line-height: 1.35; }
