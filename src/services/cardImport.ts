@@ -260,13 +260,21 @@ export function convertUntisDeputate(rows: unknown[][]): UntisResult {
 
   for (const row of rows) {
     const c0 = String(row[0] ?? '').trim();
-    const c1 = String(row[1] ?? '').trim();
     const fach = String(row[4] ?? '').trim();
     if (/^wert\s*=/i.test(c0)) continue; // Spaltenkopf
     if (!fach) {
-      // Block-Kopf „1BFB","1BFB" → Klasse merken; Summenzeile → Soll (Wert-Summe).
-      if (c0 && c0 === c1) block = c0;
-      else if (block && (typeof row[1] === 'number' || /^[0-9]/.test(c1))) soll.set(block, parseWert(row[0]).n);
+      // Ohne Fach: reine Zahl in col0 = Summenzeile (Soll des Blocks); sonst ist
+      // col0 der Klassenname = Block-Kopf. (Manche Köpfe haben in col1 eine
+      // Langbezeichnung, z. B. „BVE1"/„BVE" – daher NICHT c0===c1 prüfen.)
+      if (/^\d+([.,]\d+)?$/.test(c0)) {
+        // Summenzelle = Soll. Datums-Serial (>1000) ist beschädigt → nicht
+        // übernehmen, sondern melden (echte Soll-Summen liegen unter ~60).
+        if (block) {
+          const sn = typeof row[0] === 'number' ? row[0] : parseFloat(c0.replace(',', '.'));
+          if (Number.isFinite(sn) && sn <= 1000) soll.set(block, sn);
+          else flags.push(`${block}: Soll-/Summenzelle beschädigt (Wert „${c0}")`);
+        }
+      } else if (c0) block = c0;
       continue;
     }
     if (!block) continue;
