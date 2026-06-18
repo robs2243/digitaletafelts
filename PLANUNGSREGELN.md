@@ -68,9 +68,13 @@ Quelle: Vorgaben des Anwenders.
 15a. **Nachmittag bevorzugt:** Werkstätten werden möglichst auf die Stunden **6.–9.**
     gelegt (Morgen bleibt für Theorie frei). Gepaarte Werkstätten (zwei Lehrkräfte)
     dürfen 1.–4. **oder** 6.–9., bevorzugt 6.–9.
-15b. **Ohne Gegenpartner → 6.–9. (Pflicht):** Hat eine Werkstatt **keinen Partner**
-    einer anderen Lehrkraft (z. B. dieselbe Lehrkraft macht Gruppe a *und* b), wird
-    eine **4-stündige** Werkstatt fest auf **6.–9.** gelegt.
+15b. **Ohne Gegenpartner → 6.–9. als 4h-Block (Pflicht):** Hat eine Werkstatt **keinen
+    Partner** einer anderen Lehrkraft (z. B. dieselbe Lehrkraft macht Gruppe a *und* b),
+    werden ihre 2h-Karten (Dauer 2 = 1 Karte, Anzahl bleibt!) je Gruppe zu **einem
+    zusammenhängenden ≥4-Stunden-Block** gebündelt und **fest auf 6.–9.** gelegt –
+    nicht als einzelne 2h-Karten und nicht u/g-gespiegelt nach vorne. **u/g-Alternation:**
+    die Gegengruppe wird am **selben Tag in der anderen Woche** bevorzugt (eine Woche
+    Gruppe a, andere Woche Gruppe b → die jeweils freie Gruppe kann nach Hause).
 16. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
     **Gruppe a** muss immer auf eine Werkstatt der **Gruppe b** gelegt werden
     (gestapelt, gleicher Slot) – analog zu den Laboren.

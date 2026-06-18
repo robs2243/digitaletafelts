@@ -1527,14 +1527,79 @@ export class AppState {
       };
       const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => (c.isLabor || c.isWerkstatt) && isGrouped(c)));
 
-      // Lone Werkstatt (kein Gegenpartner einer anderen Lehrkraft, z. B. dieselbe
-      // Lehrkraft macht a UND b): 4-stündig auf den Nachmittag 6.–9., sonst normal.
-      const placeLoneWerk = (card: Card): void => placeNormal(card, card.duration === 4 ? [6] : undefined);
+      // Lone Werkstatt (kein Gegenpartner einer ANDEREN Lehrkraft, z. B. dieselbe
+      // Lehrkraft unterrichtet a UND b): IMMER nachmittags (6.–9.). Einzelne 2h-Karte
+      // ohne Blockpartner ebenfalls auf den Nachmittag.
+      const placeLoneWerk = (card: Card): void => placeNormal(card, card.duration <= 4 ? [6] : undefined);
+
+      // Werkstatt findet immer in mind. 4-Stunden-Blöcken statt: die 2h-Karten je
+      // (Klasse|Lehrkraft|Gruppe) werden zu EINEM zusammenhängenden Block gebündelt
+      // und nachmittags (6.–9.) verplant. u/g-Alternation: die Gegengruppe wird am
+      // selben Tag in der ANDEREN Woche bevorzugt → eine Woche Gruppe a, andere
+      // Woche Gruppe b, die jeweils freie Gruppe kann heimgehen.
+      const werkBlockSlot = new Map<string, { d: number; w: Week }>();
+      const lexLtA = (a: number[], b: number[]): boolean => {
+        for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
+        return false;
+      };
+      const placeWerkBlock = (members: Card[]): void => {
+        const total = members.reduce((s, m) => s + m.duration, 0);
+        // Nur zusammenhängende ≤4h-Blöcke werden gebündelt; alles andere einzeln.
+        if (members.length < 2 || total > 4) {
+          for (const m of members) placeLoneWerk(m);
+          return;
+        }
+        const lead = members[0];
+        const klow = lead.klasse.trim().toLowerCase();
+        const alow = lead.abbr.trim().toLowerCase();
+        const partner = werkBlockSlot.get(`${klow}|${alow}|${lead.labGroup === 'a' ? 'b' : 'a'}`);
+        let best: { c: number; d: number; w: Week; start: number; score: number[] } | null = null;
+        for (const { c, d, w } of contexts(lead)) {
+          for (const start of [6, 1]) {
+            // Mitglieder konsekutiv ab start (start, start+2, …) prüfen.
+            let off = 0;
+            let ok = true;
+            for (const m of members) {
+              if (check(m, c, d, w, start + off) !== null) {
+                ok = false;
+                break;
+              }
+              off += m.duration;
+            }
+            if (!ok) continue;
+            // Kumulative Lehrerlast des Blocks (check zählt je Karte nur einzeln).
+            if ((teachH.get(thK(lead.abbr, d, w)) ?? 0) + total > 6) continue;
+            const afternoon = start >= 6 ? 0 : 1;
+            const altPush = !partner ? 1 : partner.d === d && partner.w !== w ? 0 : partner.w !== w ? 1 : 3;
+            const score = [afternoon, altPush, teacherWeekLoad(lead.abbr, w), d, start];
+            if (!best || lexLtA(score, best.score)) best = { c, d, w, start, score };
+          }
+        }
+        if (!best) {
+          for (const m of members) placeLoneWerk(m);
+          return;
+        }
+        const chosen = best;
+        let off = 0;
+        for (const m of members) {
+          apply(m, chosen.c, chosen.d, chosen.w, chosen.start + off);
+          off += m.duration;
+        }
+        werkBlockSlot.set(`${klow}|${alow}|${lead.labGroup}`, { d: chosen.d, w: chosen.w });
+      };
 
       // Reihenfolge: Werkstatt-Paare/-Reste (Anker) → HAUPTFÄCHER (sichern den Morgen)
       // → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
       stepPairs(abPairs.filter((p) => p[0].isWerkstatt));
-      step([...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))], placeLoneWerk);
+      const loneWerk = [...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))];
+      const werkBlocks = new Map<string, Card[]>();
+      for (const c of loneWerk) {
+        const k = `${c.klasse.trim().toLowerCase()}|${c.abbr.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}|${c.labGroup}`;
+        (werkBlocks.get(k) ?? werkBlocks.set(k, []).get(k)!).push(c);
+      }
+      const werkBlockList = [...werkBlocks.values()];
+      if (shuffleOrder) shuffle(werkBlockList, rng);
+      for (const members of werkBlockList) placeWerkBlock(members);
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt));
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c))], placeNormal);
