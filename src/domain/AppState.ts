@@ -1655,97 +1655,107 @@ export class AppState {
       };
       const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => (c.isLabor || c.isWerkstatt) && isGrouped(c)));
 
-      // Lone Werkstatt (kein Gegenpartner einer ANDEREN Lehrkraft, z. B. dieselbe
-      // Lehrkraft unterrichtet a UND b): IMMER nachmittags (6.–9.). Einzelne 2h-Karte
-      // ohne Blockpartner ebenfalls auf den Nachmittag.
+      // Werkstatt ist IMMER mind. 4 Stunden (nie nur 2h) und liegt nachmittags.
+      // Einzelne 2h-Karte ohne Blockpartner: notfalls Nachmittag (Datenanomalie).
       const placeLoneWerk = (card: Card): void => placeNormal(card, card.duration <= 4 ? [6] : undefined);
-
-      // Werkstatt findet immer in mind. 4-Stunden-Blöcken statt: die 2h-Karten je
-      // (Klasse|Lehrkraft|Gruppe) werden zu EINEM zusammenhängenden Block gebündelt
-      // und nachmittags (6.–9.) verplant. u/g-Alternation: die Gegengruppe wird am
-      // selben Tag in der ANDEREN Woche bevorzugt → eine Woche Gruppe a, andere
-      // Woche Gruppe b, die jeweils freie Gruppe kann heimgehen.
-      const werkBlockSlot = new Map<string, { d: number; w: Week; start: number }>();
       const lexLtA = (a: number[], b: number[]): boolean => {
         for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
         return false;
       };
-      const placeWerkBlock = (members: Card[]): void => {
-        const total = members.reduce((s, m) => s + m.duration, 0);
-        // Nur zusammenhängende ≤4h-Blöcke werden gebündelt; alles andere einzeln.
-        if (members.length < 2 || total > 4) {
-          for (const m of members) placeLoneWerk(m);
-          return;
+      // Werkstatt-2h-Karten-Startstunden (5. Stunde = feste Pause): Paare (1-2),(3-4),(6-7),(8-9).
+      const WERK_SLOTS = [1, 3, 6, 8];
+      // Fenster für k aufeinanderfolgende 2h-Karten; nachmittags-lastig zuerst.
+      const werkWindows = (k: number): number[][] => {
+        const out: number[][] = [];
+        for (let i = 0; i + k <= WERK_SLOTS.length; i++) out.push(WERK_SLOTS.slice(i, i + k));
+        return out.sort((a, b) => b[0] - a[0]);
+      };
+      // Karten zu Blöcken à 4h (2 Karten) bündeln; bei ungerader Anzahl EIN 6h-Block
+      // (3 Karten) → so entsteht NIE ein einzelner 2-Stunden-Block.
+      const chunkWerk = (ms: Card[]): Card[][] => {
+        if (ms.length <= 2) return ms.length ? [ms] : [];
+        const chunks: Card[][] = [];
+        let rest = ms;
+        if (rest.length % 2 === 1) {
+          chunks.push(rest.slice(0, 3));
+          rest = rest.slice(3);
         }
+        for (let i = 0; i < rest.length; i += 2) chunks.push(rest.slice(i, i + 2));
+        return chunks;
+      };
+      // Platziert einen Block (k konsekutive Werkstatt-Slots, k = Kartenzahl). force =
+      // exakt dieser Slot (für die u/g-Spiegelung). Gibt den belegten Slot zurück.
+      const placeWerkChunk = (
+        members: Card[],
+        force?: { d: number; w: Week; starts: number[] },
+      ): { d: number; w: Week; starts: number[] } | null => {
         const lead = members[0];
-        const klow = lead.klasse.trim().toLowerCase();
-        const alow = lead.abbr.trim().toLowerCase();
-        // Passt der ganze Block (Mitglieder konsekutiv ab start) in Spalte c, Tag d, Woche w?
-        const fits = (c: number, d: number, w: Week, start: number): boolean => {
-          let off = 0;
-          for (const m of members) {
-            if (check(m, c, d, w, start + off) !== null) return false;
-            off += m.duration;
-          }
+        const total = members.reduce((s, m) => s + m.duration, 0);
+        const fitsAt = (c: number, d: number, w: Week, starts: number[]): boolean => {
+          for (let i = 0; i < members.length; i++) if (check(members[i], c, d, w, starts[i]) !== null) return false;
           return (teachH.get(thK(lead.abbr, d, w)) ?? 0) + total <= 6;
         };
-        const applyAt = (c: number, d: number, w: Week, start: number): void => {
-          let off = 0;
-          for (const m of members) {
-            apply(m, c, d, w, start + off);
-            off += m.duration;
-          }
-          werkBlockSlot.set(`${klow}|${alow}|${lead.labGroup}`, { d, w, start });
-        };
-        // 1) Liegt die Gegengruppe (gleiche Klasse+Lehrkraft) schon? → GENAU denselben
-        //    Slot in der ANDEREN Woche erzwingen, damit die Werkstatt der Klasse in u
-        //    und g identisch liegt (eine Woche Gruppe a, andere Woche Gruppe b).
-        const partner = werkBlockSlot.get(`${klow}|${alow}|${lead.labGroup === 'a' ? 'b' : 'a'}`);
-        if (partner) {
-          const ow: Week = partner.w === 'u' ? 'g' : 'u';
-          const c = columnFor(lead, partner.d, ow);
-          if (c !== null && fits(c, partner.d, ow, partner.start)) {
-            applyAt(c, partner.d, ow, partner.start);
-            return;
+        const applyAt = (c: number, d: number, w: Week, starts: number[]): void =>
+          members.forEach((m, i) => apply(m, c, d, w, starts[i]));
+        if (force && force.starts.length === members.length) {
+          const c = columnFor(lead, force.d, force.w);
+          if (c !== null && fitsAt(c, force.d, force.w, force.starts)) {
+            applyAt(c, force.d, force.w, force.starts);
+            return force;
           }
         }
-        // 2) Sonst bester freier Slot: Nachmittag (6.–9.) bevorzugt, dann Lastausgleich.
-        let best: { c: number; d: number; w: Week; start: number; score: number[] } | null = null;
+        let best: { c: number; d: number; w: Week; win: number[]; score: number[] } | null = null;
         for (const { c, d, w } of contexts(lead)) {
-          for (const start of [6, 1]) {
-            if (!fits(c, d, w, start)) continue;
-            const afternoon = start >= 6 ? 0 : 1;
-            const score = [afternoon, teacherWeekLoad(lead.abbr, w), d, start];
-            if (!best || lexLtA(score, best.score)) best = { c, d, w, start, score };
+          for (const win of werkWindows(members.length)) {
+            if (!fitsAt(c, d, w, win)) continue;
+            const afternoon = win[0] >= 6 ? 0 : win[0] >= 3 ? 1 : 2; // Nachmittag bevorzugt
+            const score = [afternoon, teacherWeekLoad(lead.abbr, w), d, win[0]];
+            if (!best || lexLtA(score, best.score)) best = { c, d, w, win, score };
           }
         }
         if (!best) {
           for (const m of members) placeLoneWerk(m);
-          return;
+          return null;
         }
-        applyAt(best.c, best.d, best.w, best.start);
+        applyAt(best.c, best.d, best.w, best.win);
+        return { d: best.d, w: best.w, starts: best.win };
+      };
+      // Eine Klasse+Lehrkraft, je Basis-Fach (A_WP/B_WP = WP): Gruppe-a- und Gruppe-b-
+      // Blöcke u/g-GESPIEGELT (a in einer, b in der anderen Woche, selber Tag+Stunden).
+      const baseFach = (f: string): string => f.trim().toLowerCase().replace(/^[abcd][_-]/, '');
+      const placeWerkSet = (setCards: Card[]): void => {
+        const byBase = new Map<string, Card[]>();
+        for (const c of setCards) (byBase.get(baseFach(c.fach)) ?? byBase.set(baseFach(c.fach), []).get(baseFach(c.fach))!).push(c);
+        for (const fc of byBase.values()) {
+          const aCh = chunkWerk(fc.filter((c) => c.labGroup === 'a'));
+          const bCh = chunkWerk(fc.filter((c) => c.labGroup === 'b'));
+          const nCh = chunkWerk(fc.filter((c) => c.labGroup !== 'a' && c.labGroup !== 'b'));
+          for (let i = 0; i < Math.max(aCh.length, bCh.length); i++) {
+            const ac = aCh[i];
+            const bc = bCh[i];
+            if (ac && bc) {
+              const slot = placeWerkChunk(ac);
+              placeWerkChunk(bc, slot ? { d: slot.d, w: slot.w === 'u' ? 'g' : 'u', starts: slot.starts } : undefined);
+            } else if (ac) placeWerkChunk(ac);
+            else if (bc) placeWerkChunk(bc);
+          }
+          for (const nc of nCh) placeWerkChunk(nc);
+        }
       };
 
       // Reihenfolge: Werkstatt-Paare/-Reste (Anker) → HAUPTFÄCHER (sichern den Morgen)
       // → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
       stepPairs(abPairs.filter((p) => p[0].isWerkstatt));
       const loneWerk = [...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))];
-      // Je (Klasse|Lehrkraft) ein Set; darin Blöcke je (Fach|Gruppe). Die Blöcke einer
-      // Klasse werden DIREKT NACHEINANDER platziert (a zuerst, b spiegelt auf denselben
-      // Slot in der anderen Woche) – damit keine andere Klasse den Spiegel-Slot wegnimmt.
-      const werkSets = new Map<string, Map<string, Card[]>>();
+      // Je (Klasse|Lehrkraft) ein Set – zusammen platzieren, damit die u/g-Spiegelung greift.
+      const werkSets = new Map<string, Card[]>();
       for (const c of loneWerk) {
         const sk = `${c.klasse.trim().toLowerCase()}|${c.abbr.trim().toLowerCase()}`;
-        const bk = `${c.fach.trim().toLowerCase()}|${c.labGroup}`;
-        const m = werkSets.get(sk) ?? werkSets.set(sk, new Map()).get(sk)!;
-        (m.get(bk) ?? m.set(bk, []).get(bk)!).push(c);
+        (werkSets.get(sk) ?? werkSets.set(sk, []).get(sk)!).push(c);
       }
       const werkSetList = [...werkSets.values()];
       if (shuffleOrder) shuffle(werkSetList, rng);
-      for (const blockMap of werkSetList) {
-        const blocks = [...blockMap.values()].sort((x, y) => x[0].labGroup.localeCompare(y[0].labGroup));
-        for (const members of blocks) placeWerkBlock(members);
-      }
+      for (const setCards of werkSetList) placeWerkSet(setCards);
       // Spanisch-/Seminarkurs-Kopplungen ZUERST: Spanisch braucht eine Randstunde
       // 1+2 (sonst füllen die Hauptfächer den Morgen), Seminarkurs Montag 8+9.
       const allCoup = [...couplingMap.values()];

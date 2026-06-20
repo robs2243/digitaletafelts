@@ -62,7 +62,10 @@ Quelle: Vorgaben des Anwenders.
 
 ## Werkstatt
 
-13. Werkstatt darf **4–8 Stunden am Stück** sein.
+13. Werkstatt ist **immer mindestens 4 Stunden** und darf bis **8 Stunden am Stück**
+    gehen. **Es gibt KEINE 2-Stunden-Werkstatt.** Der Planer bündelt die 2h-Karten zu
+    Blöcken à 4h (2 Karten); bei ungerader Kartenzahl entsteht **ein** 6h-Block (3 Karten),
+    nie ein einzelner 2h-Block. Werkstatt wird nie in einzelne 2h-Stücke zerlegt.
 14. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
 15. Werkstatt darf **auch in der 7. Stunde** stattfinden.
 15a. **Nachmittag bevorzugt:** Werkstätten werden möglichst auf die Stunden **6.–9.**
