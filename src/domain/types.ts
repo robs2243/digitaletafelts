@@ -42,6 +42,8 @@ export interface CardProps {
   collision: boolean;
   /** Hauptfach: beim Planen bevorzugt (möglichst Stunden 1–6, max. 2/Tag). */
   mainSubject: boolean;
+  /** Schiene über mehrere Klassen: zeigt ein „S"-Abzeichen auf der Karte. */
+  schiene: boolean;
   /** Freitext-Kommentar (leer = ''), per Doppelklick auf die Karte gepflegt. */
   comment: string;
 }

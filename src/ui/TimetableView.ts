@@ -442,6 +442,7 @@ export class TimetableView {
         ${pl.isLabor ? `<div class="p-range">⚗ Labor${pl.labGroup ? ` ${pl.labGroup}` : ''}</div>` : ''}
         ${pl.isWerkstatt ? '<div class="p-range">🔧 Werkstatt</div>' : ''}
         ${pl.isVierwoechig ? '<div class="p-range">¼ 4-wö.</div>' : ''}
+        ${pl.schiene ? '<span class="schiene-badge" title="Schiene über mehrere Klassen">S</span>' : ''}
         ${pl.noCount ? '<div class="p-range">∅ zählt nicht</div>' : ''}
         ${pl.coupling ? `<div class="p-range">⛓ ${esc(pl.coupling)}</div>` : ''}
         ${pl.teamTeaching ? `<div class="p-range">👥 ${esc(pl.teamTeaching)}</div>` : ''}
@@ -472,6 +473,7 @@ export class TimetableView {
             ${pl.klasse ? `<div class="p-klasse">${esc(pl.klasse)}</div>` : ''}
             <div class="p-abbr">${esc(pl.abbr)}</div>
             ${(pl.isLabor || pl.isWerkstatt) && pl.labGroup ? `<div class="p-grp" title="Gruppe ${esc(pl.labGroup)}">${esc(pl.labGroup)}</div>` : ''}
+            ${pl.schiene ? '<span class="schiene-badge schiene-badge-mini" title="Schiene über mehrere Klassen">S</span>' : ''}
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
             ${pl.room ? `<div class="p-room">${esc(pl.room)}</div>` : ''}
             ${half ? `<div class="p-range p-half">${half}</div>` : ''}

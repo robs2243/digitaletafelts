@@ -85,6 +85,7 @@ export class PoolView {
             <span class="tc-dur">${c.duration}h</span>
             ${badge ? `<span class="labor-badge">${badge}</span>` : ''}
             ${c.coupling ? `<span class="cpl-badge${badge ? ' cpl-badge-low' : ''}" title="Kopplung ${esc(c.coupling)}">🔗</span>` : ''}
+            ${c.schiene ? '<span class="schiene-badge" title="Schiene über mehrere Klassen">S</span>' : ''}
             ${half ? `<span class="tc-half">${half}</span>` : ''}
             ${c.klasse ? `<div class="tc-klasse">${esc(c.klasse)}</div>` : ''}
             <div class="tc-abbr" style="${badge ? 'margin-top:10px' : ''}">${esc(c.abbr)}</div>

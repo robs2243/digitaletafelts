@@ -38,6 +38,8 @@ const HEADER_MAP: Record<string, keyof CardProps> = {
   teamid: 'teamTeaching',
   hauptfach: 'mainSubject',
   hf: 'mainSubject',
+  schiene: 'schiene',
+  schienen: 'schiene',
   kommentar: 'comment',
 };
 
@@ -129,6 +131,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
       teamTeaching: String(cell(row, 'teamTeaching') ?? '').trim(),
       collision: false,
       mainSubject: truthy(cell(row, 'mainSubject')),
+      schiene: truthy(cell(row, 'schiene')),
       comment: String(cell(row, 'comment') ?? '').trim(),
     });
   }
@@ -191,7 +194,7 @@ export function convertUntisToTemplate(rows: unknown[][]): (string | number)[][]
       // Reihenfolge wie TEMPLATE_AOA-Kopf: Klasse,Kürzel,Fach,Raum,Dauer,Labor,
       // Labor a/b,Werkstatt,Werkstatt a/b,4-wöchig,1.HJ,2.HJ,Kopplung,Teamteaching,
       // Hauptfach,Nicht zählen,Kommentar.
-      out.push([kl, lehrer, fach, raum, wst, labor, laborAB, werk, werkAB, '', '', '', kopplung, '', '', '', text]);
+      out.push([kl, lehrer, fach, raum, wst, labor, laborAB, werk, werkAB, '', '', '', kopplung, '', '', '', '', text]);
     }
   }
   out.sort(
@@ -307,7 +310,7 @@ export function convertUntisDeputate(rows: unknown[][]): UntisResult {
     // eigenen Karten aus ihrem Block – gekoppelt über dieselbe K-ID).
     for (let u = 0; u < count; u++) {
       const kop = coupled ? couplingFor(lehrer, fach, partners, u) : '';
-      out.push([block, lehrer, fach, '', 2, labor, laborAB, werk, werkAB, '', '', '', kop, '', '', '', note]);
+      out.push([block, lehrer, fach, '', 2, labor, laborAB, werk, werkAB, '', '', '', kop, '', '', '', '', note]);
       if (isBetrieb) betrieb.set(block, (betrieb.get(block) ?? 0) + 1);
       else ist.set(block, (ist.get(block) ?? 0) + 1);
     }
@@ -327,17 +330,17 @@ export function convertUntisDeputate(rows: unknown[][]): UntisResult {
 
 /** Vorlage-Inhalt (Überschriften + Beispielzeilen). */
 export const TEMPLATE_AOA: (string | number)[][] = [
-  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Nicht zählen', 'Kommentar'],
-  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '', '', '', '', '', '', '', '', '', 'x', '', 'Hauptfach – bevorzugt 1.–6. Std'],
-  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', '', '', 'x', '', ''],
-  ['7b', 'RD', 'Chemie', 'L1', 2, 'x', 'a', '', '', '', '', '', '', '', '', '', 'Labor Gruppe a'],
-  ['7b', 'GH', 'Physik', 'L2', 2, 'x', 'b', '', '', '', '', '', '', '', '', '', 'Labor Gruppe b'],
-  ['M1', 'ST', 'Metall', 'W1', 6, '', '', 'x', 'a', '', '', '', '', '', '', '', 'Werkstatt Gruppe a'],
-  ['M1', 'KL', 'Metall', 'W2', 6, '', '', 'x', 'b', '', '', '', '', '', '', '', 'Werkstatt Gruppe b'],
-  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '', '', '', '', '4-wöchiger Turnus'],
-  ['E2EG', 'BM', 'Deutsch', 'A5', 2, '', '', '', '', '', '', '', 'K1', '', 'x', '', 'Kopplung mit M2WZ'],
-  ['M2WZ', 'BM', 'Deutsch', 'A5', 2, '', '', '', '', '', '', '', 'K1', '', 'x', '', 'Kopplung mit E2EG'],
-  ['9c', 'AB', 'WuK', 'C103', 2, '', '', '', '', '', '', '', '', 'T1', '', '', 'Teamteaching mit CD'],
-  ['9c', 'CD', 'WuK', 'C103', 2, '', '', '', '', '', '', '', '', 'T1', '', '', 'Teamteaching mit AB'],
-  ['5a', 'KN', 'gesperrt', '', 2, '', '', '', '', '', '', '', '', '', '', 'x', 'Block 1.+2. Std – zählt nicht'],
+  ['Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Labor a/b', 'Werkstatt', 'Werkstatt a/b', '4-wöchig', '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Schiene', 'Nicht zählen', 'Kommentar'],
+  ['E3EG', 'KN', 'Mathematik', 'C103', 2, '', '', '', '', '', '', '', '', '', 'x', '', '', 'Hauptfach – bevorzugt 1.–6. Std'],
+  ['5a', 'LZ', 'Deutsch', 'A12', 1, '', '', '', '', '', 'x', '', '', '', 'x', '', '', ''],
+  ['7b', 'RD', 'Chemie', 'L1', 2, 'x', 'a', '', '', '', '', '', '', '', '', '', '', 'Labor Gruppe a'],
+  ['7b', 'GH', 'Physik', 'L2', 2, 'x', 'b', '', '', '', '', '', '', '', '', '', '', 'Labor Gruppe b'],
+  ['M1', 'ST', 'Metall', 'W1', 6, '', '', 'x', 'a', '', '', '', '', '', '', '', '', 'Werkstatt Gruppe a'],
+  ['M1', 'KL', 'Metall', 'W2', 6, '', '', 'x', 'b', '', '', '', '', '', '', '', '', 'Werkstatt Gruppe b'],
+  ['E3EG', 'MÜ', 'Sport', 'Halle', 2, '', '', '', '', 'x', '', '', '', '', '', '', '', '4-wöchiger Turnus'],
+  ['E2EG', 'BM', 'Deutsch', 'A5', 2, '', '', '', '', '', '', '', 'K1', '', 'x', 'x', '', 'Kopplung + Schiene (S) über mehrere Klassen'],
+  ['M2WZ', 'BM', 'Deutsch', 'A5', 2, '', '', '', '', '', '', '', 'K1', '', 'x', 'x', '', 'Kopplung + Schiene (S) über mehrere Klassen'],
+  ['9c', 'AB', 'WuK', 'C103', 2, '', '', '', '', '', '', '', '', 'T1', '', '', '', 'Teamteaching mit CD'],
+  ['9c', 'CD', 'WuK', 'C103', 2, '', '', '', '', '', '', '', '', 'T1', '', '', '', 'Teamteaching mit AB'],
+  ['5a', 'KN', 'gesperrt', '', 2, '', '', '', '', '', '', '', '', '', '', '', 'x', 'Block 1.+2. Std – zählt nicht'],
 ];

@@ -1321,7 +1321,7 @@ export class App {
     const yn = (b: boolean): string => (b ? 'x' : '');
     const header = [
       'Klasse', 'Kürzel', 'Fach', 'Raum', 'Dauer', 'Labor', 'Gruppe a/b', 'Werkstatt', '4-wöchig',
-      '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Nicht zählen', 'Kollision', 'Status', 'Tag', 'Stunde', 'Woche', 'Kommentar',
+      '1. Halbjahr', '2. Halbjahr', 'Kopplung', 'Teamteaching', 'Hauptfach', 'Schiene', 'Nicht zählen', 'Kollision', 'Status', 'Tag', 'Stunde', 'Woche', 'Kommentar',
     ];
     const aoa: (string | number)[][] = [header];
     for (const r of rows) {
@@ -1329,7 +1329,7 @@ export class App {
         r.startPeriod === null ? '' : r.duration > 1 ? `${r.startPeriod}–${r.startPeriod + r.duration - 1}` : `${r.startPeriod}`;
       aoa.push([
         r.klasse, r.abbr, r.fach, r.room, r.duration, yn(r.isLabor), r.labGroup, yn(r.isWerkstatt), yn(r.isVierwoechig),
-        yn(r.firstHalf), yn(r.secondHalf), r.coupling, r.teamTeaching, yn(r.mainSubject), yn(r.noCount), yn(r.collision),
+        yn(r.firstHalf), yn(r.secondHalf), r.coupling, r.teamTeaching, yn(r.mainSubject), yn(r.schiene), yn(r.noCount), yn(r.collision),
         r.placed ? 'verplant' : 'Pool', r.day === null ? '' : DAYS[r.day], stunde, r.week ?? '', r.comment,
       ]);
     }

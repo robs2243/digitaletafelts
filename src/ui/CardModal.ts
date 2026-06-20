@@ -31,6 +31,7 @@ export class CardModal {
   private readonly noCountCheckbox: HTMLInputElement;
   private readonly collisionCheckbox: HTMLInputElement;
   private readonly mainSubjectCheckbox: HTMLInputElement;
+  private readonly schieneCheckbox: HTMLInputElement;
   private readonly couplingInput: HTMLInputElement;
   private readonly teamCheckbox: HTMLInputElement;
   private readonly teamInput: HTMLInputElement;
@@ -62,6 +63,7 @@ export class CardModal {
     this.noCountCheckbox = document.getElementById('am-nocount') as HTMLInputElement;
     this.collisionCheckbox = document.getElementById('am-collision') as HTMLInputElement;
     this.mainSubjectCheckbox = document.getElementById('am-mainsubject') as HTMLInputElement;
+    this.schieneCheckbox = document.getElementById('am-schiene') as HTMLInputElement;
     this.couplingInput = document.getElementById('am-coupling') as HTMLInputElement;
     this.teamCheckbox = document.getElementById('am-teamteaching') as HTMLInputElement;
     this.teamInput = document.getElementById('am-team') as HTMLInputElement;
@@ -122,6 +124,7 @@ export class CardModal {
     this.noCountCheckbox.checked = false;
     this.collisionCheckbox.checked = false;
     this.mainSubjectCheckbox.checked = false;
+    this.schieneCheckbox.checked = false;
     this.couplingInput.value = '';
     this.teamCheckbox.checked = false;
     this.teamInput.value = '';
@@ -149,6 +152,7 @@ export class CardModal {
     this.noCountCheckbox.checked = card.noCount;
     this.collisionCheckbox.checked = card.collision;
     this.mainSubjectCheckbox.checked = card.mainSubject;
+    this.schieneCheckbox.checked = card.schiene;
     this.couplingInput.value = card.coupling;
     this.teamCheckbox.checked = !!card.teamTeaching;
     this.teamInput.value = card.teamTeaching;
@@ -176,6 +180,7 @@ export class CardModal {
       teamTeaching: this.teamCheckbox.checked ? this.teamInput.value.trim() : '',
       collision: this.collisionCheckbox.checked,
       mainSubject: this.mainSubjectCheckbox.checked,
+      schiene: this.schieneCheckbox.checked,
       comment: this.existingComment,
     };
     if (this.handlers.onSave(this.editingId, props)) this.close();
