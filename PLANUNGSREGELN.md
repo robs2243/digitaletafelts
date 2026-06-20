@@ -68,13 +68,16 @@ Quelle: Vorgaben des Anwenders.
 15a. **Nachmittag bevorzugt:** Werkstätten werden möglichst auf die Stunden **6.–9.**
     gelegt (Morgen bleibt für Theorie frei). Gepaarte Werkstätten (zwei Lehrkräfte)
     dürfen 1.–4. **oder** 6.–9., bevorzugt 6.–9.
-15b. **Ohne Gegenpartner → 6.–9. als 4h-Block (Pflicht):** Hat eine Werkstatt **keinen
-    Partner** einer anderen Lehrkraft (z. B. dieselbe Lehrkraft macht Gruppe a *und* b),
-    werden ihre 2h-Karten (Dauer 2 = 1 Karte, Anzahl bleibt!) je Gruppe zu **einem
-    zusammenhängenden ≥4-Stunden-Block** gebündelt und **fest auf 6.–9.** gelegt –
-    nicht als einzelne 2h-Karten und nicht u/g-gespiegelt nach vorne. **u/g-Alternation:**
-    die Gegengruppe wird am **selben Tag in der anderen Woche** bevorzugt (eine Woche
-    Gruppe a, andere Woche Gruppe b → die jeweils freie Gruppe kann nach Hause).
+15b. **Ohne Gegenpartner → 6.–9. als 4h-Block, u/g-gespiegelt (Pflicht):** Hat eine
+    Werkstatt **keinen Partner** einer anderen Lehrkraft (z. B. dieselbe Lehrkraft macht
+    Gruppe a *und* b), werden ihre 2h-Karten (Dauer 2 = 1 Karte, Anzahl bleibt!) je
+    Gruppe zu **einem zusammenhängenden ≥4-Stunden-Block** gebündelt und **fest auf
+    6.–9.** gelegt. **u/g-Spiegelung (verbindlich):** Die Werkstatt einer Klasse liegt im
+    **gleichen Slot (Tag + Stunden) in u UND g** – eine Woche Gruppe a, andere Woche
+    Gruppe b (u und g sollen nahezu gleich aussehen; die jeweils freie Gruppe kann heim).
+    Folge: Unterrichtet **dieselbe Lehrkraft eine zweite Klasse**, rückt deren Werkstatt
+    automatisch auf einen **anderen Tag** (die Lehrkraft ist an dem Tag in beiden Wochen
+    belegt).
 16. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
     **Gruppe a** muss immer auf eine Werkstatt der **Gruppe b** gelegt werden
     (gestapelt, gleicher Slot) – analog zu den Laboren.

@@ -1665,7 +1665,7 @@ export class AppState {
       // und nachmittags (6.–9.) verplant. u/g-Alternation: die Gegengruppe wird am
       // selben Tag in der ANDEREN Woche bevorzugt → eine Woche Gruppe a, andere
       // Woche Gruppe b, die jeweils freie Gruppe kann heimgehen.
-      const werkBlockSlot = new Map<string, { d: number; w: Week }>();
+      const werkBlockSlot = new Map<string, { d: number; w: Week; start: number }>();
       const lexLtA = (a: number[], b: number[]): boolean => {
         for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
         return false;
@@ -1680,26 +1680,42 @@ export class AppState {
         const lead = members[0];
         const klow = lead.klasse.trim().toLowerCase();
         const alow = lead.abbr.trim().toLowerCase();
+        // Passt der ganze Block (Mitglieder konsekutiv ab start) in Spalte c, Tag d, Woche w?
+        const fits = (c: number, d: number, w: Week, start: number): boolean => {
+          let off = 0;
+          for (const m of members) {
+            if (check(m, c, d, w, start + off) !== null) return false;
+            off += m.duration;
+          }
+          return (teachH.get(thK(lead.abbr, d, w)) ?? 0) + total <= 6;
+        };
+        const applyAt = (c: number, d: number, w: Week, start: number): void => {
+          let off = 0;
+          for (const m of members) {
+            apply(m, c, d, w, start + off);
+            off += m.duration;
+          }
+          werkBlockSlot.set(`${klow}|${alow}|${lead.labGroup}`, { d, w, start });
+        };
+        // 1) Liegt die Gegengruppe (gleiche Klasse+Lehrkraft) schon? → GENAU denselben
+        //    Slot in der ANDEREN Woche erzwingen, damit die Werkstatt der Klasse in u
+        //    und g identisch liegt (eine Woche Gruppe a, andere Woche Gruppe b).
         const partner = werkBlockSlot.get(`${klow}|${alow}|${lead.labGroup === 'a' ? 'b' : 'a'}`);
+        if (partner) {
+          const ow: Week = partner.w === 'u' ? 'g' : 'u';
+          const c = columnFor(lead, partner.d, ow);
+          if (c !== null && fits(c, partner.d, ow, partner.start)) {
+            applyAt(c, partner.d, ow, partner.start);
+            return;
+          }
+        }
+        // 2) Sonst bester freier Slot: Nachmittag (6.–9.) bevorzugt, dann Lastausgleich.
         let best: { c: number; d: number; w: Week; start: number; score: number[] } | null = null;
         for (const { c, d, w } of contexts(lead)) {
           for (const start of [6, 1]) {
-            // Mitglieder konsekutiv ab start (start, start+2, …) prüfen.
-            let off = 0;
-            let ok = true;
-            for (const m of members) {
-              if (check(m, c, d, w, start + off) !== null) {
-                ok = false;
-                break;
-              }
-              off += m.duration;
-            }
-            if (!ok) continue;
-            // Kumulative Lehrerlast des Blocks (check zählt je Karte nur einzeln).
-            if ((teachH.get(thK(lead.abbr, d, w)) ?? 0) + total > 6) continue;
+            if (!fits(c, d, w, start)) continue;
             const afternoon = start >= 6 ? 0 : 1;
-            const altPush = !partner ? 1 : partner.d === d && partner.w !== w ? 0 : partner.w !== w ? 1 : 3;
-            const score = [afternoon, altPush, teacherWeekLoad(lead.abbr, w), d, start];
+            const score = [afternoon, teacherWeekLoad(lead.abbr, w), d, start];
             if (!best || lexLtA(score, best.score)) best = { c, d, w, start, score };
           }
         }
@@ -1707,27 +1723,29 @@ export class AppState {
           for (const m of members) placeLoneWerk(m);
           return;
         }
-        const chosen = best;
-        let off = 0;
-        for (const m of members) {
-          apply(m, chosen.c, chosen.d, chosen.w, chosen.start + off);
-          off += m.duration;
-        }
-        werkBlockSlot.set(`${klow}|${alow}|${lead.labGroup}`, { d: chosen.d, w: chosen.w });
+        applyAt(best.c, best.d, best.w, best.start);
       };
 
       // Reihenfolge: Werkstatt-Paare/-Reste (Anker) → HAUPTFÄCHER (sichern den Morgen)
       // → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
       stepPairs(abPairs.filter((p) => p[0].isWerkstatt));
       const loneWerk = [...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))];
-      const werkBlocks = new Map<string, Card[]>();
+      // Je (Klasse|Lehrkraft) ein Set; darin Blöcke je (Fach|Gruppe). Die Blöcke einer
+      // Klasse werden DIREKT NACHEINANDER platziert (a zuerst, b spiegelt auf denselben
+      // Slot in der anderen Woche) – damit keine andere Klasse den Spiegel-Slot wegnimmt.
+      const werkSets = new Map<string, Map<string, Card[]>>();
       for (const c of loneWerk) {
-        const k = `${c.klasse.trim().toLowerCase()}|${c.abbr.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}|${c.labGroup}`;
-        (werkBlocks.get(k) ?? werkBlocks.set(k, []).get(k)!).push(c);
+        const sk = `${c.klasse.trim().toLowerCase()}|${c.abbr.trim().toLowerCase()}`;
+        const bk = `${c.fach.trim().toLowerCase()}|${c.labGroup}`;
+        const m = werkSets.get(sk) ?? werkSets.set(sk, new Map()).get(sk)!;
+        (m.get(bk) ?? m.set(bk, []).get(bk)!).push(c);
       }
-      const werkBlockList = [...werkBlocks.values()];
-      if (shuffleOrder) shuffle(werkBlockList, rng);
-      for (const members of werkBlockList) placeWerkBlock(members);
+      const werkSetList = [...werkSets.values()];
+      if (shuffleOrder) shuffle(werkSetList, rng);
+      for (const blockMap of werkSetList) {
+        const blocks = [...blockMap.values()].sort((x, y) => x[0].labGroup.localeCompare(y[0].labGroup));
+        for (const members of blocks) placeWerkBlock(members);
+      }
       // Spanisch-/Seminarkurs-Kopplungen ZUERST: Spanisch braucht eine Randstunde
       // 1+2 (sonst füllen die Hauptfächer den Morgen), Seminarkurs Montag 8+9.
       const allCoup = [...couplingMap.values()];
