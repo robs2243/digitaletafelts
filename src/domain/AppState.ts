@@ -1673,15 +1673,25 @@ export class AppState {
     let attempts = 1;
     let stop: 'continue' | 'accept' | 'cancel' = 'continue';
 
+    // WICHTIG: NICHT beim ersten „perfekten" Ergebnis (alle verplant + im Limit)
+    // abbrechen – das ignorierte die weichen Kriterien aus better() (u/g-Parallelität,
+    // offene Pflichtstunden, Lage) und stoppte sofort ohne Optimierung. Stattdessen
+    // per Zufalls-Neustarts WEITER suchen und das beste Ergebnis behalten. Abbruch
+    // bei Budget, Nutzer-Stopp oder Konvergenz (eine Weile keine Verbesserung mehr).
+    let lastImprove = Date.now();
+    const noImproveMs = 4000; // so lange ohne better()-Verbesserung → konvergiert
     // Zyklen in Zeitscheiben (je ~40 ms), dazwischen ans Event-Loop abgeben.
-    while (!perfect(best) && Date.now() - start < opts.budgetMs) {
+    while (Date.now() - start < opts.budgetMs) {
       stop = opts.shouldStop();
       if (stop !== 'continue') break;
       const sliceStart = Date.now();
-      while (Date.now() - sliceStart < 40 && !perfect(best) && Date.now() - start < opts.budgetMs) {
+      while (Date.now() - sliceStart < 40 && Date.now() - start < opts.budgetMs) {
         const cand = runOnce(true, rng);
         attempts++;
-        if (better(cand, best)) best = cand;
+        if (better(cand, best)) {
+          best = cand;
+          lastImprove = Date.now();
+        }
       }
       opts.onProgress?.({
         elapsedMs: Date.now() - start,
@@ -1692,6 +1702,7 @@ export class AppState {
         imbalance: best.imbalance,
         gaps: best.gaps,
       });
+      if (Date.now() - lastImprove > noImproveMs) break; // konvergiert → fertig
       await new Promise((r) => setTimeout(r));
     }
 
