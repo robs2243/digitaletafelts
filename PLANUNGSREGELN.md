@@ -133,6 +133,20 @@ Quelle: Vorgaben des Anwenders.
     Damit Spanisch eine 1+2-Stunde sichern kann, werden Spanisch-/Seminarkurs-Kopplungen
     **vor** den Hauptfächern verplant (sonst füllen diese den Morgen).
 
+## Schienen & Planungs-Reihenfolge
+
+23. **Schienen werden ZUERST verplant.** Eine Schiene (Karte mit gesetztem Schiene-„S",
+    über mehrere Klassen gekoppelt) ist am stärksten eingeschränkt: sie kann nur an einem
+    Tag/Slot liegen, an dem **alle zugehörigen Klassen gleichzeitig** da sind. Deshalb
+    werden Schienen-Kopplungen **vor allem anderen** platziert (vor Werkstatt, Hauptfächern,
+    Labor, übrigen Kopplungen), damit sie die knappen gemeinsamen Slots sicher bekommen.
+    Reihenfolge: **Schienen → Werkstatt-Blöcke → Werkstatt-Kopplungen → Spanisch/Seminar →
+    Hauptfächer → Labor → restliche Kopplungen → Teamteaching → Rest.**
+24. **Suchzeit:** Der Planer sucht per Zufalls-Neustarts das beste Ergebnis. Ist bereits
+    eine **vollständige** Lösung gefunden, stoppt er nach kurzer Zeit ohne Verbesserung
+    (~5 s). Sind **noch Karten offen**, sucht er **deutlich länger** weiter (bis ~90 s ohne
+    Verbesserung bzw. bis zum Zeit-Budget von 10 Min) – „Stopp" bricht jederzeit ab.
+
 ## Entscheidungen zur Umsetzung
 
 - **Labor-Gruppe a/b:** eigenes Feld an der Karte (Gruppe a / b). Der Planer legt

@@ -1819,30 +1819,43 @@ export class AppState {
       }
       const werkSetList = [...werkSets.values()];
       if (shuffleOrder) shuffle(werkSetList, rng);
-      for (const setCards of werkSetList) placeWerkSet(setCards);
-      // GEKOPPELTE Werkstatt zu 4h-Blöcken bündeln: Kopplungen derselben Klasse(n)+Fach
-      // zusammen (konsekutive Nachmittags-Slots, gleiche Woche) – VOR den Hauptfächern.
+
+      // Kopplungen partitionieren – Priorität: SCHIENEN ZUERST (am stärksten
+      // eingeschränkt: brauchen einen Tag/Slot, an dem ALLE zugehörigen Klassen da
+      // sind) → Werkstatt-Kopplungen → Spanisch/Seminar → Rest.
       const allCoup = [...couplingMap.values()];
       const isWerkCoup = (ms: Card[]) => ms.some((m) => m.isWerkstatt);
-      const werkCoupGroups = new Map<string, Card[][]>();
-      for (const ms of allCoup.filter(isWerkCoup)) {
-        const classes = [...new Set(ms.map((m) => m.klasse.trim().toLowerCase()))].sort().join(',');
-        const bf = [...new Set(ms.map((m) => baseFach(m.fach)))].sort().join(',');
-        const key = `${classes}|${bf}`;
-        (werkCoupGroups.get(key) ?? werkCoupGroups.set(key, []).get(key)!).push(ms);
-      }
-      for (const coups of werkCoupGroups.values()) placeWerkCouplingSet(coups);
-      // Spanisch-/Seminarkurs-Kopplungen ZUERST: Spanisch braucht eine Randstunde
-      // 1+2 (sonst füllen die Hauptfächer den Morgen), Seminarkurs Montag 8+9.
-      const earlyCoup = allCoup.filter((ms) => !isWerkCoup(ms) && ms.some((m) => isSpan(m) || isSk(m)));
-      const restCoup = allCoup.filter((ms) => !isWerkCoup(ms) && !ms.some((m) => isSpan(m) || isSk(m)));
-      if (shuffleOrder) shuffle(earlyCoup, rng);
+      const isSchieneCoup = (ms: Card[]) => ms.some((m) => m.schiene);
+      const isEarlyCoup = (ms: Card[]) => ms.some((m) => isSpan(m) || isSk(m));
+      const schieneCoup = allCoup.filter((ms) => isSchieneCoup(ms));
+      const werkCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && isWerkCoup(ms));
+      const earlyCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && !isWerkCoup(ms) && isEarlyCoup(ms));
+      const restCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && !isWerkCoup(ms) && !isEarlyCoup(ms));
+      // Platziert eine Liste Kopplungen: Werkstatt-Kopplungen je Klasse+Fach als 4h-Block,
+      // alles andere über placeGroup (gemeinsamer Slot, wo ALLE Klassen Spalten haben).
+      const placeCoupList = (coups: Card[][]): void => {
+        const grp = new Map<string, Card[][]>();
+        for (const ms of coups.filter(isWerkCoup)) {
+          const classes = [...new Set(ms.map((m) => m.klasse.trim().toLowerCase()))].sort().join(',');
+          const bf = [...new Set(ms.map((m) => baseFach(m.fach)))].sort().join(',');
+          const k = `${classes}|${bf}`;
+          (grp.get(k) ?? grp.set(k, []).get(k)!).push(ms);
+        }
+        for (const g of grp.values()) placeWerkCouplingSet(g);
+        const rest = coups.filter((ms) => !isWerkCoup(ms));
+        if (shuffleOrder) shuffle(rest, rng);
+        for (const ms of rest) placeGroup(ms, 'coupling');
+      };
+
+      placeCoupList(schieneCoup); // 1. SCHIENEN zuerst
+      for (const setCards of werkSetList) placeWerkSet(setCards); // 2. nicht gekoppelte Werkstatt-Blöcke
+      placeCoupList(werkCoup); // 3. Werkstatt-Kopplungen (4h-Block)
+      if (shuffleOrder) shuffle(earlyCoup, rng); // 4. Spanisch/Seminar (vor Hauptfächern)
       for (const members of earlyCoup) placeGroup(members, 'coupling');
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
-      stepPairs(abPairs.filter((p) => !p[0].isWerkstatt));
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal); // 5. Hauptfächer
+      stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 6. Labor
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
-      if (shuffleOrder) shuffle(restCoup, rng);
-      for (const members of restCoup) placeGroup(members, 'coupling');
+      placeCoupList(restCoup); // 7. restliche Kopplungen
       const teamGroupsList = [...teamMap.values()];
       if (shuffleOrder) shuffle(teamGroupsList, rng);
       for (const members of teamGroupsList) placeGroup(members, 'team');
@@ -1916,7 +1929,13 @@ export class AppState {
     // per Zufalls-Neustarts WEITER suchen und das beste Ergebnis behalten. Abbruch
     // bei Budget, Nutzer-Stopp oder Konvergenz (eine Weile keine Verbesserung mehr).
     let lastImprove = Date.now();
-    const noImproveMs = 4000; // so lange ohne better()-Verbesserung → konvergiert
+    // Konvergenz-Fenster: Ist schon eine PERFEKTE Lösung gefunden (alles verplant, im
+    // Limit), reicht ein kurzes Fenster. Sind noch Karten offen, wird VIEL länger
+    // weitergesucht (Zufalls-Neustarts platzieren stark eingeschränkte Karten – z. B.
+    // Schienen – evtl. erst nach vielen Versuchen). Harte Obergrenze = budgetMs; der
+    // Nutzer kann jederzeit „Stopp" drücken.
+    const PERFECT_NO_IMPROVE = 5000; // perfekt: 5 s ohne Verbesserung → fertig
+    const HARD_NO_IMPROVE = 90000; // noch offen: 90 s ohne Verbesserung weitersuchen
     // Zyklen in Zeitscheiben (je ~40 ms), dazwischen ans Event-Loop abgeben.
     while (Date.now() - start < opts.budgetMs) {
       stop = opts.shouldStop();
@@ -1939,6 +1958,7 @@ export class AppState {
         imbalance: best.imbalance,
         gaps: best.gaps,
       });
+      const noImproveMs = perfect(best) ? PERFECT_NO_IMPROVE : HARD_NO_IMPROVE;
       if (Date.now() - lastImprove > noImproveMs) break; // konvergiert → fertig
       await new Promise((r) => setTimeout(r));
     }
