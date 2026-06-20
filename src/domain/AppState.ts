@@ -1183,6 +1183,7 @@ export class AppState {
       const teachSet = new Set<string>();
       const teachClass = new Set<string>(); // Lehrer unterrichtet in dieser Klasse: kürzel|c|d|w|p
       const teachH = new Map<string, number>();
+      const teachWerkLaborDay = new Set<string>(); // kürzel|d|w mit Werkstatt/Labor → 8 statt 6 Std erlaubt
       const teachWeek = new Map<string, [number, number]>(); // kürzel → [u-Stunden, g-Stunden]
       const teachDayPeriods = new Map<string, Set<number>>(); // kürzel|d|w → belegte Stunden (für Hohlstunden)
       const teachDaysUsed = new Map<string, Set<number>>(); // kürzel → genutzte Wochentage (für max. Anwesenheitstage)
@@ -1233,6 +1234,8 @@ export class AppState {
           for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
           const ad = card.abbr.toLowerCase();
           (teachDaysUsed.get(ad) ?? teachDaysUsed.set(ad, new Set()).get(ad)!).add(d);
+          // Tag mit Werkstatt/Labor → an dem Tag darf die Lehrkraft 8 statt 6 Std haben.
+          if (card.isWerkstatt || card.isLabor) teachWerkLaborDay.add(thK(card.abbr, d, w));
           if (countTeacher) {
             teachH.set(thK(card.abbr, d, w), (teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration);
             const tw = teachWeek.get(ad) ?? [0, 0];
@@ -1324,7 +1327,10 @@ export class AppState {
           if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
           if (teachSet.has(tK(card.abbr, d, w, p))) return 'Lehrer belegt';
         }
-        if ((teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration > 6) return 'Lehrer >6 Std/Tag';
+        // Lehrer max. 6 Std/Tag – ABER 8 Std, wenn der Tag Werkstatt/Labor enthält
+        // (lange Block-Tage sind erlaubt).
+        const dayMax = card.isWerkstatt || card.isLabor || teachWerkLaborDay.has(thK(card.abbr, d, w)) ? 8 : 6;
+        if ((teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration > dayMax) return `Lehrer >${dayMax} Std/Tag`;
         if (!card.isWerkstatt && streak(card.abbr, c, d, w, start, start + card.duration - 1) > MAX_STREAK)
           return 'max. 4 Std am Stück';
         const f = card.fach.trim().toLowerCase();
@@ -1699,7 +1705,7 @@ export class AppState {
         const total = members.reduce((s, m) => s + m.duration, 0);
         const fitsAt = (c: number, d: number, w: Week, starts: number[]): boolean => {
           for (let i = 0; i < members.length; i++) if (check(members[i], c, d, w, starts[i]) !== null) return false;
-          return (teachH.get(thK(lead.abbr, d, w)) ?? 0) + total <= 6;
+          return (teachH.get(thK(lead.abbr, d, w)) ?? 0) + total <= 8; // Werkstatt-Tag: bis 8 Std
         };
         const applyAt = (c: number, d: number, w: Week, starts: number[]): void =>
           members.forEach((m, i) => apply(m, c, d, w, starts[i]));
@@ -2070,6 +2076,7 @@ export class AppState {
     const roomAt = new Map<string, Placement[]>(); // tag|woche|stunde|raum
     const teachAt = new Map<string, Placement[]>(); // tag|woche|stunde|kürzel
     const teachDay = new Map<string, Set<number>>(); // kürzel|tag|woche → Unterrichtsstunden
+    const teachWerkLaborDay = new Set<string>(); // kürzel|tag|woche mit Werkstatt/Labor → 8 statt 6 Std erlaubt
     for (const p of pls) {
       for (const w of p.weeks) {
         for (const per of p.occupiedPeriods()) {
@@ -2084,6 +2091,7 @@ export class AppState {
         const set = teachDay.get(dk) ?? new Set<number>();
         for (const per of teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration)) set.add(per);
         teachDay.set(dk, set);
+        if (p.isWerkstatt || p.isLabor) teachWerkLaborDay.add(dk);
         if (!p.isWerkstatt && teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration).includes(7)) {
           out.push({ severity: 'warn', text: `7. Stunde belegt: ${lbl(p)} (${DAYS[p.day]}, ${w}-Woche)` });
         }
@@ -2118,11 +2126,12 @@ export class AppState {
       out.push({ severity: 'error', text: `${abbr.toUpperCase()} zeitgleich in mehreren Klassen (${DAYS[+d]}, ${w}-Woche): ${where}` });
     }
 
-    // Lehrkraft mehr als 6 Stunden an einem Tag.
+    // Lehrkraft zu viele Stunden an einem Tag (max. 6, aber 8 bei Werkstatt/Labor-Tag).
     for (const [dk, set] of teachDay) {
-      if (set.size > 6) {
+      const max = teachWerkLaborDay.has(dk) ? 8 : 6;
+      if (set.size > max) {
         const [abbr, d, w] = dk.split('|');
-        out.push({ severity: 'error', text: `${abbr.toUpperCase()} hat ${set.size} Std am ${DAYS[+d]} (${w}-Woche) – max. 6.` });
+        out.push({ severity: 'error', text: `${abbr.toUpperCase()} hat ${set.size} Std am ${DAYS[+d]} (${w}-Woche) – max. ${max}.` });
       }
     }
 
