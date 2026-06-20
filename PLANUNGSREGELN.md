@@ -85,6 +85,11 @@ Quelle: Vorgaben des Anwenders.
     belegt).
 16. Werkstätten haben **Gruppen a/b** (und ggf. **c/d**). Gruppen werden **gestapelt**
     (gleicher Slot, parallel) – analog zu den Laboren.
+16b. **Gekoppelte Werkstatt = 4h-Block:** Werden Werkstattgruppen über **Kopplungen**
+    vorgegeben (z. B. 3 Gruppen a/b/c), bündelt der Planer mehrere Kopplungen derselben
+    Klasse+Fach zu **einem zusammenhängenden 4-Stunden-Block** in **derselben Woche**
+    (z. B. K220 auf 6.+7., K221 auf 8.+9. – Gruppen je Slot gestapelt). Sie werden NICHT
+    u/g-gespiegelt (das ergäbe nur 2h je Woche). Üblich: **eine Kopplung je Stunden-Slot**.
 
 ## Gruppen a/b/c/d (Labor & Werkstatt)
 

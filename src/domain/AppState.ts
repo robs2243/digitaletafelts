@@ -1762,6 +1762,51 @@ export class AppState {
           }
         }
       };
+      // GEKOPPELTE Werkstatt: mehrere Kopplungen derselben Klasse(n)+Fach bilden EINEN
+      // 4h-Block – konsekutive Nachmittags-Slots in DERSELBEN Woche (statt u/g-gespiegelt,
+      // was nur 2h je Woche ergäbe). Jede Kopplung belegt einen Slot (Gruppen gestapelt).
+      const placeWerkCouplingSet = (coups: Card[][]): void => {
+        const n = coups.length;
+        const blockLoadOk = (d: number, w: Week): boolean => {
+          const add = new Map<string, number>();
+          for (const coup of coups)
+            for (const m of coup) {
+              const a = m.abbr.trim().toLowerCase();
+              if (a) add.set(a, (add.get(a) ?? 0) + m.duration);
+            }
+          for (const [a, dur] of add) if ((teachH.get(thK(a, d, w)) ?? 0) + dur > 6) return false;
+          return true;
+        };
+        for (const win of werkWindows(Math.min(n, WERK_SLOTS.length))) {
+          if (win.length < n) continue; // nicht genug konsekutive Slots (>4 Kopplungen)
+          for (let d = 0; d < DAYS.length; d++) {
+            for (const w of WEEKS) {
+              let ok = true;
+              for (let i = 0; i < coups.length && ok; i++)
+                for (const m of coups[i]) {
+                  const c = columnFor(m, d, w);
+                  if (c === null || check(m, c, d, w, win[i]) !== null) {
+                    ok = false;
+                    break;
+                  }
+                }
+              if (ok && blockLoadOk(d, w)) {
+                for (let i = 0; i < coups.length; i++) {
+                  const seen = new Set<string>();
+                  for (const m of coups[i]) {
+                    const a = m.abbr.trim().toLowerCase();
+                    const countT = !a || !seen.has(a);
+                    if (a) seen.add(a);
+                    apply(m, columnFor(m, d, w) as number, d, w, win[i], countT);
+                  }
+                }
+                return;
+              }
+            }
+          }
+        }
+        for (const coup of coups) placeGroup(coup, 'coupling'); // Ausweg: einzeln
+      };
 
       // Reihenfolge: Werkstatt-Blöcke (Anker, immer ≥4h) → HAUPTFÄCHER (sichern den
       // Morgen) → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
@@ -1775,11 +1820,22 @@ export class AppState {
       const werkSetList = [...werkSets.values()];
       if (shuffleOrder) shuffle(werkSetList, rng);
       for (const setCards of werkSetList) placeWerkSet(setCards);
+      // GEKOPPELTE Werkstatt zu 4h-Blöcken bündeln: Kopplungen derselben Klasse(n)+Fach
+      // zusammen (konsekutive Nachmittags-Slots, gleiche Woche) – VOR den Hauptfächern.
+      const allCoup = [...couplingMap.values()];
+      const isWerkCoup = (ms: Card[]) => ms.some((m) => m.isWerkstatt);
+      const werkCoupGroups = new Map<string, Card[][]>();
+      for (const ms of allCoup.filter(isWerkCoup)) {
+        const classes = [...new Set(ms.map((m) => m.klasse.trim().toLowerCase()))].sort().join(',');
+        const bf = [...new Set(ms.map((m) => baseFach(m.fach)))].sort().join(',');
+        const key = `${classes}|${bf}`;
+        (werkCoupGroups.get(key) ?? werkCoupGroups.set(key, []).get(key)!).push(ms);
+      }
+      for (const coups of werkCoupGroups.values()) placeWerkCouplingSet(coups);
       // Spanisch-/Seminarkurs-Kopplungen ZUERST: Spanisch braucht eine Randstunde
       // 1+2 (sonst füllen die Hauptfächer den Morgen), Seminarkurs Montag 8+9.
-      const allCoup = [...couplingMap.values()];
-      const earlyCoup = allCoup.filter((ms) => ms.some((m) => isSpan(m) || isSk(m)));
-      const restCoup = allCoup.filter((ms) => !ms.some((m) => isSpan(m) || isSk(m)));
+      const earlyCoup = allCoup.filter((ms) => !isWerkCoup(ms) && ms.some((m) => isSpan(m) || isSk(m)));
+      const restCoup = allCoup.filter((ms) => !isWerkCoup(ms) && !ms.some((m) => isSpan(m) || isSk(m)));
       if (shuffleOrder) shuffle(earlyCoup, rng);
       for (const members of earlyCoup) placeGroup(members, 'coupling');
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
