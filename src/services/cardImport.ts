@@ -105,8 +105,10 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
     // Untis-Stunden wie „Betrieb" werden der Klasse zugeordnet).
     if (!abbr && !klasse) continue;
     const dur = parseInt(String(cell(row, 'duration') ?? ''), 10);
+    const room = String(cell(row, 'room') ?? '').trim();
     const isLabor = truthy(cell(row, 'isLabor'));
-    const isWerkstatt = truthy(cell(row, 'isWerkstatt'));
+    // Werkstatt = Flag gesetzt ODER „W-…"-Raum (ein W-Raum kennzeichnet immer Werkstatt).
+    const isWerkstatt = truthy(cell(row, 'isWerkstatt')) || /^w-/i.test(room);
     // Gruppe a/b aus der jeweils passenden Spalte; sonst generische Gruppen-Spalte.
     const labGroup =
       (isWerkstatt ? group(raw(row, 'werkstattab')) : '') ||
@@ -117,7 +119,7 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
       abbr,
       fach: String(cell(row, 'fach') ?? '').trim(),
       name: '',
-      room: String(cell(row, 'room') ?? '').trim(),
+      room,
       duration: Number.isFinite(dur) && dur >= 1 && dur <= 9 ? dur : 2,
       color: parseColor(cell(row, 'color')),
       isLabor,

@@ -62,6 +62,9 @@ Quelle: Vorgaben des Anwenders.
 
 ## Werkstatt
 
+12b. **Eine Karte mit „W-…"-Raum ist IMMER eine Werkstatt** – auch wenn das Werkstatt-
+    Kennzeichen nicht gesetzt ist. Der Raum (z. B. `W-Fk`) genügt; sie wird dann mit
+    Pause in der 5. Stunde und im Raster 1.–4./6.–9. verplant (nie auf Stunde 5).
 13. Werkstatt ist **immer mindestens 4 Stunden** und darf bis **8 Stunden am Stück**
     gehen. **Es gibt KEINE 2-Stunden-Werkstatt.** Der Planer bündelt die 2h-Karten zu
     Blöcken à 4h (2 Karten); bei ungerader Kartenzahl entsteht **ein** 6h-Block (3 Karten),

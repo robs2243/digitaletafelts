@@ -1,5 +1,10 @@
 import type { CardProps, PersistedCard } from './types';
 
+/** Ein „W-…"-Raum kennzeichnet immer eine Werkstatt (auch ohne gesetztes Flag). */
+export function isWerkstattRoom(room: string | undefined): boolean {
+  return /^w-/i.test((room ?? '').trim());
+}
+
 /**
  * Eine Karte im Lehrer-Pool: repräsentiert eine Lehrer/Fach-Einheit,
  * die in den Stundenplan gezogen werden kann.
@@ -38,7 +43,7 @@ export class Card {
     this.color = props.color;
     this.isLabor = props.isLabor;
     this.labGroup = props.labGroup;
-    this.isWerkstatt = props.isWerkstatt;
+    this.isWerkstatt = props.isWerkstatt || isWerkstattRoom(props.room);
     this.isVierwoechig = props.isVierwoechig;
     this.firstHalf = props.firstHalf;
     this.secondHalf = props.secondHalf;
@@ -61,7 +66,7 @@ export class Card {
     this.color = props.color;
     this.isLabor = props.isLabor;
     this.labGroup = props.labGroup;
-    this.isWerkstatt = props.isWerkstatt;
+    this.isWerkstatt = props.isWerkstatt || isWerkstattRoom(props.room);
     this.isVierwoechig = props.isVierwoechig;
     this.firstHalf = props.firstHalf;
     this.secondHalf = props.secondHalf;

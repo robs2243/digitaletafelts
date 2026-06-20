@@ -1,3 +1,4 @@
+import { isWerkstattRoom } from './Card';
 import { blockedPeriods } from './periods';
 import type { CardProps, PersistedPlacement, PlacementPosition, Week } from './types';
 
@@ -49,7 +50,7 @@ export class Placement {
     this.color = card.color;
     this.isLabor = card.isLabor;
     this.labGroup = card.labGroup;
-    this.isWerkstatt = card.isWerkstatt;
+    this.isWerkstatt = card.isWerkstatt || isWerkstattRoom(card.room);
     this.isVierwoechig = card.isVierwoechig;
     this.firstHalf = card.firstHalf;
     this.secondHalf = card.secondHalf;
