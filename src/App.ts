@@ -557,6 +557,7 @@ export class App {
       untisFile.value = '';
     });
     byId('pl-del-abbr').addEventListener('click', () => this.handleDeletePoolByAbbr());
+    byId('pl-del-klasse').addEventListener('click', () => this.handleDeletePoolByClass());
     byId('pl-del-all').addEventListener('click', () => this.handleDeleteAllPool());
 
     const commentsOverlay = byId('comments-modal');
@@ -1166,6 +1167,24 @@ export class App {
       return;
     }
     if (!this.confirmJa(`${matches.length} nicht verplante Karten zu „${term}" löschen?`)) return;
+    const n = this.state.deletePoolCards(matches.map((c) => c.id));
+    this.renderPoolList();
+    this.toast.show(`🗑 ${n} Karten gelöscht`, 'inf');
+  }
+
+  /** Löscht die nicht verplanten (Pool-)Karten der im „Klasse"-Feld gesuchten Klasse. */
+  private handleDeletePoolByClass(): void {
+    const term = byId<HTMLInputElement>('pl-klasse').value.trim().toLowerCase();
+    if (!term) {
+      this.toast.show('Bitte oben eine Klasse eingeben.', 'inf');
+      return;
+    }
+    const matches = this.state.pool.all.filter((c) => c.klasse.toLowerCase().includes(term));
+    if (!matches.length) {
+      this.toast.show(`Keine nicht verplanten Karten zur Klasse „${term}".`, 'inf');
+      return;
+    }
+    if (!this.confirmJa(`${matches.length} nicht verplante Karten der Klasse „${term}" löschen?`)) return;
     const n = this.state.deletePoolCards(matches.map((c) => c.id));
     this.renderPoolList();
     this.toast.show(`🗑 ${n} Karten gelöscht`, 'inf');
@@ -2106,13 +2125,18 @@ export class App {
       this.toast.show('Keine Karten zum Löschen vorhanden.', 'inf');
       return;
     }
-    this.clearModal.open(this.state.cardCountsByAbbr(), this.state.totalCardCount, (abbr) => {
-      if (abbr === null) {
+    const abbrOpts = this.state.cardCountsByAbbr().map((o) => ({ label: o.abbr, count: o.count }));
+    const classOpts = this.state.cardCountsByClass().map((o) => ({ label: o.klasse, count: o.count }));
+    this.clearModal.open(abbrOpts, classOpts, this.state.totalCardCount, (sel) => {
+      if (sel.kind === 'all') {
         this.state.deleteAllCards();
         this.toast.show('Alle Karten gelöscht', 'inf');
+      } else if (sel.kind === 'class') {
+        this.state.deleteCardsByClass(sel.value);
+        this.toast.show(`Karten der Klasse „${sel.value}“ gelöscht`, 'inf');
       } else {
-        this.state.deleteCardsByAbbr(abbr);
-        this.toast.show(`Karten „${abbr}“ gelöscht`, 'inf');
+        this.state.deleteCardsByAbbr(sel.value);
+        this.toast.show(`Karten „${sel.value}“ gelöscht`, 'inf');
       }
     });
   }

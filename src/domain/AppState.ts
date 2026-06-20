@@ -330,6 +330,19 @@ export class AppState {
     this.emit();
   }
 
+  /** Verschiedene Klassen mit Anzahl Karten (Pool + Plan), natürlich sortiert. */
+  cardCountsByClass(): { klasse: string; count: number }[] {
+    return this.cardCountByClass().map((r) => ({ klasse: r.klasse, count: r.total }));
+  }
+
+  /** Löscht alle Karten einer Klasse – im Pool und im Plan (auch fixierte). */
+  deleteCardsByClass(klasse: string): void {
+    const key = AppState.classKey(klasse);
+    this.pool.replaceAll(this.pool.all.filter((c) => AppState.classKey(c.klasse) !== key));
+    this.schedule.replaceAll(this.schedule.all.filter((p) => AppState.classKey(p.klasse) !== key));
+    this.emit();
+  }
+
   /** Vergleichs-Schlüssel einer Klasse (leere Klasse → „(ohne Klasse)"). */
   private static classKey(kl: string): string {
     return kl.trim() || '(ohne Klasse)';

@@ -228,8 +228,9 @@
       <div class="modal">
         <h2 style="color: #c62828">🗑 Karten löschen</h2>
         <div class="fg" style="margin-bottom: 0">
-          <label>Welche Karten sollen gelöscht werden?</label>
-          <select id="clear-select"></select>
+          <label>Welche Karten sollen gelöscht werden? (Pool + Plan)</label>
+          <input id="clear-search" type="text" placeholder="🔎 Kürzel oder Klasse suchen…" autocomplete="off" />
+          <select id="clear-select" size="8" style="margin-top: 6px"></select>
         </div>
         <div class="mbtns">
           <button class="btn btn-sec" id="clear-cancel">Abbrechen</button>
@@ -271,7 +272,8 @@
           <button class="btn btn-sec" id="pl-template" title="Excel-Vorlage herunterladen">📄 Vorlage</button>
           <button class="btn btn-sec" id="pl-untis" title="Untis-Stundentafel in das Vorlage-Format umwandeln (Download)">🔄 Untis umwandeln</button>
           <button class="btn btn-ok" id="pl-import">📥 Excel importieren</button>
-          <button class="btn btn-del" id="pl-del-abbr" title="Karten zum gesuchten Kürzel löschen" style="margin-left: auto">🗑 Kürzel löschen</button>
+          <button class="btn btn-del" id="pl-del-abbr" title="Nicht verplante Karten zum gesuchten Kürzel löschen" style="margin-left: auto">🗑 Kürzel löschen</button>
+          <button class="btn btn-del" id="pl-del-klasse" title="Nicht verplante Karten zur gesuchten Klasse löschen">🗑 Klasse löschen</button>
           <button class="btn btn-del" id="pl-del-all" title="Alle nicht verplanten Karten löschen">🗑 Alle löschen</button>
           <button class="btn btn-sec" id="pl-close">Schließen</button>
         </div>
