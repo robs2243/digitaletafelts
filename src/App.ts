@@ -1698,9 +1698,9 @@ export class App {
     if (collision.type === 'class') {
       const c = dragData.card;
       const laborLike = c.isLabor || c.isWerkstatt;
-      // Labor/Werkstatt: nur eine a auf eine b → max. 2 Karten je Stapel. Liegen
-      // schon 2 Karten, NICHT still stapeln, sondern Rückfrage (Stapeln erzwingbar).
-      const overStack = laborLike && this.state.slotCardCount(pos) >= 2;
+      // Labor/Werkstatt: Gruppen a/b/c/d parallel → max. 4 Karten je Stapel. Liegen
+      // schon 4 Karten, NICHT still stapeln, sondern Rückfrage (Stapeln erzwingbar).
+      const overStack = laborLike && this.state.slotCardCount(pos) >= 4;
       if ((laborLike || c.isVierwoechig || c.noCount) && !overStack) {
         // Labor-/Werkstatt-/4-wöchig-/Block-Karten stapeln ohne Rückfrage
         this.placeDrag(dragData, pos);

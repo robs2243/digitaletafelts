@@ -1141,9 +1141,10 @@ export class AppState {
     };
 
     type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; isLabor: boolean; labGroup: string; fach: string };
-    // Stapelbar (a-auf-b): Labor-/Werkstatt-Karte mit Gruppe a oder b.
+    // Stapelbar: Labor-/Werkstatt-Karte mit Gruppe a/b/c/d (bis zu 4 parallel).
+    const GROUPS = ['a', 'b', 'c', 'd'];
     const stackable = (p: { isLabor: boolean; isWerkstatt: boolean; labGroup: string }): boolean =>
-      (p.isLabor || p.isWerkstatt) && (p.labGroup === 'a' || p.labGroup === 'b');
+      (p.isLabor || p.isWerkstatt) && GROUPS.includes(p.labGroup);
     type Assign = { card: Card; c: number; d: number; w: Week; start: number };
     interface Outcome {
       assigns: Assign[];
@@ -1314,10 +1315,10 @@ export class AppState {
         for (const p of blk) {
           const e = cellOcc.get(cK(d, w, c, p));
           if (!stackOnB && e && e.total > 0) {
-            // Stapeln nur, wenn ALLE Belegungen stapelbar sind, die andere Gruppe
-            // (a/b) ergänzen und höchstens 2 Karten entstehen.
+            // Stapeln nur, wenn ALLE Belegungen stapelbar sind, eine ANDERE Gruppe
+            // ergänzen (a/b/c/d, jede nur einmal) und höchstens 4 Karten entstehen.
             const compatible =
-              canStack && e.total === e.stack && e.stack < 2 && !e.groups.has(card.labGroup);
+              canStack && e.total === e.stack && e.stack < 4 && !e.groups.has(card.labGroup);
             if (!compatible) return 'Platz belegt';
           }
           if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
@@ -1591,7 +1592,9 @@ export class AppState {
 
       const isA = (c: Card) => c.labGroup === 'a';
       const isB = (c: Card) => c.labGroup === 'b';
-      const isGrouped = (c: Card) => isA(c) || isB(c);
+      // Die Auto-Paarung (pairAB) kann nur a↔b; c/d-Parallelität wird über Kopplungen
+      // gesteuert (placeGroup stapelt sie), sonst werden c/d einzeln verplant.
+      const isAB = (c: Card) => isA(c) || isB(c);
       const step = (list: Card[], fn: (c: Card) => void): void => {
         // Heuristik (1. Durchlauf): längere/schwerer platzierbare Blöcke zuerst.
         const seq = shuffleOrder ? shuffle([...list], rng) : [...list].sort((a, b) => b.duration - a.duration);
@@ -1656,7 +1659,7 @@ export class AppState {
       // Nur LABORE werden hier gepaart. Werkstätten laufen IMMER über die 4h-Block-
       // Logik (placeWerkSet) – auch gepaarte a/b (verschiedene Lehrkräfte), sonst
       // entstünden 2h-Stapel.
-      const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => c.isLabor && !c.isWerkstatt && isGrouped(c)));
+      const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => c.isLabor && !c.isWerkstatt && isAB(c)));
 
       // Werkstatt ist IMMER mind. 4 Stunden (nie nur 2h) und liegt nachmittags.
       // Einzelne 2h-Karte ohne Blockpartner: notfalls Nachmittag (Datenanomalie).
@@ -1723,33 +1726,40 @@ export class AppState {
         applyAt(best.c, best.d, best.w, best.win);
         return { d: best.d, w: best.w, starts: best.win };
       };
-      // Eine KLASSE, je Basis-Fach (A_WP/B_WP = WP): Gruppe a und b als 4h-Blöcke.
-      //  • gleiche Lehrkraft (a UND b von ihr) → u/g-GESPIEGELT (a eine Woche, b die
-      //    andere, selber Tag+Stunden; die jeweils freie Gruppe geht heim).
-      //  • verschiedene Lehrkräfte → im SELBEN Slot GESTAPELT (beide Gruppen parallel).
+      // Eine KLASSE, je Basis-Fach (A_WP/B_WP = WP): die Gruppen a/b/c/d als 4h-Blöcke.
+      // Erste vorhandene Gruppe ankert (Nachmittag); jede WEITERE Gruppe wird auf DENSELBEN
+      // Slot gelegt:
+      //  • andere Lehrkraft → selbe Woche, GESTAPELT (Gruppen parallel, bis zu 4),
+      //  • gleiche Lehrkraft → andere Woche, GESPIEGELT (kann nicht gleichzeitig; freie
+      //    Gruppe geht heim) – u und g sehen gleich aus.
       const baseFach = (f: string): string => f.trim().toLowerCase().replace(/^[abcd][_-]/, '');
       const placeWerkSet = (setCards: Card[]): void => {
         const byBase = new Map<string, Card[]>();
         for (const c of setCards) (byBase.get(baseFach(c.fach)) ?? byBase.set(baseFach(c.fach), []).get(baseFach(c.fach))!).push(c);
         for (const fc of byBase.values()) {
-          const aCh = chunkWerk(fc.filter((c) => c.labGroup === 'a'));
-          const bCh = chunkWerk(fc.filter((c) => c.labGroup === 'b'));
-          const nCh = chunkWerk(fc.filter((c) => c.labGroup !== 'a' && c.labGroup !== 'b'));
-          for (let i = 0; i < Math.max(aCh.length, bCh.length); i++) {
-            const ac = aCh[i];
-            const bc = bCh[i];
-            if (ac && bc) {
-              const slot = placeWerkChunk(ac);
-              if (slot) {
-                const sameTeacher = ac[0].abbr.trim().toLowerCase() === bc[0].abbr.trim().toLowerCase();
-                // gleiche Lehrkraft → andere Woche (gespiegelt); sonst selbe Woche (gestapelt).
-                const w: Week = sameTeacher ? (slot.w === 'u' ? 'g' : 'u') : slot.w;
-                placeWerkChunk(bc, { d: slot.d, w, starts: slot.starts });
-              } else placeWerkChunk(bc);
-            } else if (ac) placeWerkChunk(ac);
-            else if (bc) placeWerkChunk(bc);
+          // Blöcke je Gruppe (a,b,c,d); ungruppierte als eigene „Gruppe".
+          const chunksByGroup = [...GROUPS, ''].map((g) =>
+            chunkWerk(fc.filter((c) => (g ? c.labGroup === g : !GROUPS.includes(c.labGroup)))),
+          );
+          const maxBlocks = Math.max(0, ...chunksByGroup.map((cs) => cs.length));
+          for (let i = 0; i < maxBlocks; i++) {
+            let anchor: { d: number; w: Week; starts: number[] } | null = null;
+            const teachersAtSlot = new Set<string>(); // Lehrkräfte in der Anker-Woche
+            for (const chunks of chunksByGroup) {
+              const ch = chunks[i];
+              if (!ch) continue;
+              const ab = ch[0].abbr.trim().toLowerCase();
+              if (!anchor) {
+                anchor = placeWerkChunk(ch);
+                if (anchor) teachersAtSlot.add(ab);
+                continue;
+              }
+              const sameTeacher = teachersAtSlot.has(ab);
+              const w: Week = sameTeacher ? (anchor.w === 'u' ? 'g' : 'u') : anchor.w;
+              const slot = placeWerkChunk(ch, { d: anchor.d, w, starts: anchor.starts });
+              if (slot && !sameTeacher) teachersAtSlot.add(ab);
+            }
           }
-          for (const nc of nCh) placeWerkChunk(nc);
         }
       };
 
@@ -1774,7 +1784,7 @@ export class AppState {
       for (const members of earlyCoup) placeGroup(members, 'coupling');
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt));
-      step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c))], placeNormal);
+      step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
       if (shuffleOrder) shuffle(restCoup, rng);
       for (const members of restCoup) placeGroup(members, 'coupling');
       const teamGroupsList = [...teamMap.values()];
@@ -2093,7 +2103,7 @@ export class AppState {
       }
     }
 
-    // Labor/Werkstatt: höchstens 2 Karten je Stapel (eine a auf eine b).
+    // Labor/Werkstatt: höchstens 4 Karten je Stapel (Gruppen a/b/c/d parallel).
     const stackCount = new Map<string, number>();
     for (const p of pls) {
       if (!(p.isLabor || p.isWerkstatt) || p.teamTeaching.trim() || p.coupling.trim()) continue;
@@ -2104,12 +2114,12 @@ export class AppState {
     }
     const seenStack = new Set<string>();
     for (const [k, n] of stackCount) {
-      if (n <= 2) continue;
+      if (n <= 4) continue;
       const [c, d, w] = k.split('|');
       const sig = `${c}|${d}|${w}`;
       if (seenStack.has(sig)) continue;
       seenStack.add(sig);
-      out.push({ severity: 'error', text: `${this.classes.columnLabel(+c)} (${DAYS[+d]}, ${w}-Woche): ${n} Karten gestapelt – Labor/Werkstatt erlaubt nur 2 (a auf b).` });
+      out.push({ severity: 'error', text: `${this.classes.columnLabel(+c)} (${DAYS[+d]}, ${w}-Woche): ${n} Karten gestapelt – Labor/Werkstatt erlaubt höchstens 4 (Gruppen a/b/c/d).` });
     }
 
     // u/g-Differenz > 2 (Warnung).

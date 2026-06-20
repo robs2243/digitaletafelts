@@ -64,10 +64,10 @@ function parseColor(v: unknown): string {
   return m ? `#${m[1].toLowerCase()}` : '';
 }
 
-/** Wert auf eine gültige Gruppe ('a' | 'b' | '') reduzieren. */
+/** Wert auf eine gültige Gruppe ('a' | 'b' | 'c' | 'd' | '') reduzieren. */
 function group(v: unknown): string {
   const s = String(v ?? '').trim().toLowerCase();
-  return s === 'a' || s === 'b' ? s : '';
+  return ['a', 'b', 'c', 'd'].includes(s) ? s : '';
 }
 
 /**
@@ -179,7 +179,7 @@ export function convertUntisToTemplate(rows: unknown[][]): (string | number)[][]
     // Fach 1:1 aus Untis übernehmen. Gruppe a/b nur am Präfix (A_… / B_…) ERKENNEN,
     // den Namen aber NICHT verändern (z. B. „A_LBTW" bleibt „A_LBTW").
     const fach = col(row, 'fach');
-    const m = /^([ab])[_-]/i.exec(fach);
+    const m = /^([abcd])[_-]/i.exec(fach);
     const grp = m ? m[1].toLowerCase() : '';
     // Werkstatt erkennt man an einem „W-…"-Raum (Fachraum oder Stammraum), sonst Labor.
     const isWerk = /^w-/i.test(fachraum) || /^w-/i.test(stammraum);
@@ -287,9 +287,10 @@ export function convertUntisDeputate(rows: unknown[][]): UntisResult {
       .filter(Boolean);
     const coupled = partners.length > 1;
     const lehrer = String(row[3] ?? '').trim();
-    // Gruppe a/b aus Präfix X_ oder Suffix _X (A/C→a, B/D→b).
+    // Gruppe a/b/c/d aus Präfix X_ oder Suffix _X (1:1 übernommen – die Parallelität
+    // mehrerer Gruppen wird über die Kopplungen vorgegeben).
     const gm = /^([abcd])[_-]/i.exec(fach) ?? /[_-]([abcd])$/i.exec(fach);
-    const grp = gm ? (['a', 'c'].includes(gm[1].toLowerCase()) ? 'a' : 'b') : '';
+    const grp = gm ? gm[1].toLowerCase() : '';
     const isBetrieb = /betrieb/i.test(fach);
     const isWerk = !isBetrieb && /(lbp|lbtw|wp[_-]?atm)/i.test(fach);
     const labor = !isBetrieb && grp && !isWerk ? 'x' : '';

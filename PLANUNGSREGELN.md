@@ -83,19 +83,20 @@ Quelle: Vorgaben des Anwenders.
     Folge: Unterrichtet **dieselbe Lehrkraft eine zweite Klasse**, rückt deren Werkstatt
     automatisch auf einen **anderen Tag** (die Lehrkraft ist an dem Tag in beiden Wochen
     belegt).
-16. Werkstätten gibt es **immer als Gruppe a und Gruppe b**. Eine Werkstatt der
-    **Gruppe a** muss immer auf eine Werkstatt der **Gruppe b** gelegt werden
-    (gestapelt, gleicher Slot) – analog zu den Laboren.
+16. Werkstätten haben **Gruppen a/b** (und ggf. **c/d**). Gruppen werden **gestapelt**
+    (gleicher Slot, parallel) – analog zu den Laboren.
 
-## Labore
+## Gruppen a/b/c/d (Labor & Werkstatt)
 
-17. Labore gibt es immer als **Gruppe a** und **Gruppe b**.
-18. Ein Labor der **Gruppe a** muss immer auf ein Labor der **Gruppe b** gelegt
-    werden (gestapelt). Das **Fach muss nicht übereinstimmen**.
-18a. **Höchstens 2 Karten je Stapel:** Genau **eine** a-Karte auf **eine** b-Karte.
-    Mehrere a-Karten dürfen **nicht** auf dieselbe b-Karte; es entstehen also nie
-    mehr als 2 gestapelte Karten. Bei vielen Laboren einer Klasse bildet der Planer
-    entsprechend **mehrere Paare** auf verschiedenen Slots (jede b nur einmal belegt).
+16a. **Es gibt die Gruppen a, b und zusätzlich c und d.** Sind 3 oder 4 Gruppen
+    vorhanden, wird die **Parallelität über die Kopplung vorgegeben** (gekoppelte Karten
+    werden auf denselben Slot gelegt). a/b ohne Kopplung paart der Planer automatisch.
+17. Labore gibt es als **Gruppe a/b** (und ggf. c/d).
+18. Ein Labor der **Gruppe a** wird auf ein Labor der **Gruppe b** gelegt (gestapelt).
+    Das **Fach muss nicht übereinstimmen**. Mit c/d analog (über Kopplung).
+18a. **Höchstens 4 Karten je Stapel** (Gruppen a/b/c/d, jede Gruppe nur einmal je Slot).
+    Ohne c/d bleibt es bei max. 2 (a auf b). Bei vielen Laboren einer Klasse bildet der
+    Planer **mehrere Stapel** auf verschiedenen Slots.
 
 ## Gruppen a/b – Ausnahmen (Labor & Werkstatt)
 
