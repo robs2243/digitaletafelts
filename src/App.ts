@@ -335,6 +335,12 @@ export class App {
     validateOverlay.addEventListener('click', (e) => {
       if (e.target === validateOverlay) validateOverlay.classList.remove('open');
     });
+    byId('va-list').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button.va-del') as HTMLButtonElement | null;
+      if (btn) this.handleValidateAction('one', btn.dataset.text ?? '');
+    });
+    byId('va-clear').addEventListener('click', () => this.handleValidateAction('all'));
+    byId('va-restore').addEventListener('click', () => this.handleValidateAction('restore'));
 
     byId('btn-settings').addEventListener('click', () => this.openSettings());
     const settingsOverlay = byId('settings-modal');
@@ -810,19 +816,36 @@ export class App {
 
   // ── Plan-Prüfbericht ──────────────────────────────────────────────────────
 
+  /** Sitzungsweit ausgeblendete Prüfbericht-Meldungen (nach Meldungstext). */
+  private readonly dismissedValidations = new Set<string>();
+
   private openValidate(): void {
-    const issues = this.state.validatePlan();
+    const all = this.state.validatePlan();
+    const hiddenCount = all.filter((i) => this.dismissedValidations.has(i.text)).length;
+    const issues = all.filter((i) => !this.dismissedValidations.has(i.text));
     const errors = issues.filter((i) => i.severity === 'error');
     const warns = issues.filter((i) => i.severity === 'warn');
     byId('va-sub').textContent = issues.length
-      ? `${errors.length} Fehler · ${warns.length} Warnung(en)`
-      : 'Keine Fehler, keine Warnungen.';
+      ? `${errors.length} Fehler · ${warns.length} Warnung(en)` + (hiddenCount ? ` · ${hiddenCount} ausgeblendet` : '')
+      : hiddenCount
+        ? `Alle ${hiddenCount} Meldung(en) ausgeblendet.`
+        : 'Keine Fehler, keine Warnungen.';
     const row = (i: { severity: 'error' | 'warn'; text: string }): string =>
-      `<div class="va-item va-${i.severity}"><span class="va-ico">${i.severity === 'error' ? '⛔' : '⚠️'}</span><span>${esc(i.text)}</span></div>`;
+      `<div class="va-item va-${i.severity}"><span class="va-ico">${i.severity === 'error' ? '⛔' : '⚠️'}</span><span class="va-txt">${esc(i.text)}</span><button class="va-del" data-text="${esc(i.text)}" title="Meldung ausblenden">×</button></div>`;
     byId('va-list').innerHTML = issues.length
       ? [...errors, ...warns].map(row).join('')
-      : '<div class="tm-empty">✅ Alles in Ordnung – keine Regelverstöße gefunden.</div>';
+      : '<div class="tm-empty">✅ Alles in Ordnung – keine (sichtbaren) Regelverstöße.</div>';
+    byId('va-clear').style.display = issues.length ? '' : 'none';
+    byId('va-restore').style.display = hiddenCount ? '' : 'none';
     byId('validate-modal').classList.add('open');
+  }
+
+  /** Aktion aus dem Prüfbericht (einzeln/alle ausblenden, zurücksetzen). */
+  private handleValidateAction(kind: 'one' | 'all' | 'restore', text?: string): void {
+    if (kind === 'one' && text) this.dismissedValidations.add(text);
+    else if (kind === 'all') for (const i of this.state.validatePlan()) this.dismissedValidations.add(i.text);
+    else if (kind === 'restore') this.dismissedValidations.clear();
+    this.openValidate(); // neu aufbauen
   }
 
   // ── Planungsregeln (Bedingungs-Editor) ──────────────────────────────────
