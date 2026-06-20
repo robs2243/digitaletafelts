@@ -1092,6 +1092,11 @@ export class AppState {
     // Hauptfach: explizit angehakt ODER über das Fach erkannt (D/M/E/Gk/Wk).
     const isMain = (c: { mainSubject: boolean; fach: string }): boolean =>
       c.mainSubject || MAIN.has(c.fach.trim().toLowerCase());
+    // Sozialkunde (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde
+    // (Mittag, mit den Betrieben ist der Montag dafür reserviert).
+    const isSk = (c: { fach: string }): boolean => /^([abcd][_-])?sk\d*$/i.test(c.fach.trim());
+    // Spanisch (SB1/SB2/SB3): nur Randstunden 1.+2. ODER 8.+9. (nicht alle Schüler).
+    const isSpan = (c: { fach: string }): boolean => /^([abcd][_-])?sb\d+$/i.test(c.fach.trim());
     // Schlüssel für u/g-Parallelität: gleiche Lehrkraft + Klasse + Fach.
     const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
       `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
@@ -1135,7 +1140,10 @@ export class AppState {
       return arr;
     };
 
-    type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; fach: string };
+    type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; isLabor: boolean; labGroup: string; fach: string };
+    // Stapelbar (a-auf-b): Labor-/Werkstatt-Karte mit Gruppe a oder b.
+    const stackable = (p: { isLabor: boolean; isWerkstatt: boolean; labGroup: string }): boolean =>
+      (p.isLabor || p.isWerkstatt) && (p.labGroup === 'a' || p.labGroup === 'b');
     type Assign = { card: Card; c: number; d: number; w: Week; start: number };
     interface Outcome {
       assigns: Assign[];
@@ -1153,7 +1161,15 @@ export class AppState {
     // Werkstatt: 4-stündig auch nachmittags (6.–9.) möglich – die Bewertung
     // bevorzugt den Nachmittag, damit der Morgen für Theorie frei bleibt.
     const baseStarts = (card: Card): number[] =>
-      card.isWerkstatt ? (card.duration <= 4 ? [1, 6] : [1]) : [1, 2, 3, 4, 5, 6, 8];
+      isSk(card)
+        ? [8] // Sozialkunde: 8.+9. (Montag erzwingt check())
+        : isSpan(card)
+          ? [1, 8] // Spanisch: nur Randstunden 1.+2. oder 8.+9.
+          : card.isWerkstatt
+            ? card.duration <= 4
+              ? [1, 6]
+              : [1]
+            : [1, 2, 3, 4, 5, 6, 8];
 
     /**
      * Ein vollständiger Verplanungs-Durchlauf auf einer eigenen Belegungs-Simulation.
@@ -1171,6 +1187,12 @@ export class AppState {
       const teachDaysUsed = new Map<string, Set<number>>(); // kürzel → genutzte Wochentage (für max. Anwesenheitstage)
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
       const mirrorSlots = new Map<string, Set<string>>(); // kürzel|klasse|fach → belegte „tag|start|woche" (für u/g-Parallelität)
+      const spanDays = new Map<string, Set<number>>(); // klasse|w → Spanisch-Tage (für Tag-Pause)
+      const spanStarts = new Map<string, Set<number>>(); // klasse|w → genutzte Randstunden 1/8 (für 1+2/8+9-Alternation)
+      // Belegung je Zelle (für a-auf-b-Stapeln): total = alle Karten, stack = stapelbare
+      // Labor/Werkstatt-Karten, groups = deren Gruppen (a/b). Erlaubt Stapeln auch über
+      // getrennte Kopplungen (z. B. A_SK1 auf B_SK1), höchstens 2 je Stapel.
+      const cellOcc = new Map<string, { total: number; stack: number; groups: Set<string> }>();
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
@@ -1189,8 +1211,17 @@ export class AppState {
             teachDayPeriods.set(thK(card.abbr, d, w), dayPeriods);
           }
         }
+        const canStack = stackable(card);
         for (const p of blockedPeriods(card.isWerkstatt, start, card.duration)) {
-          cell.add(cK(d, w, c, p));
+          const key = cK(d, w, c, p);
+          cell.add(key);
+          const e = cellOcc.get(key) ?? { total: 0, stack: 0, groups: new Set<string>() };
+          e.total++;
+          if (canStack) {
+            e.stack++;
+            e.groups.add(card.labGroup);
+          }
+          cellOcc.set(key, e);
           if (card.room) roomSet.add(rK(d, w, p, card.room));
           if (hasAbbr) {
             teachSet.add(tK(card.abbr, d, w, p));
@@ -1212,6 +1243,20 @@ export class AppState {
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
         const mk = mirrorKey({ abbr: card.abbr, klasse: kl, fach: card.fach });
         (mirrorSlots.get(mk) ?? mirrorSlots.set(mk, new Set()).get(mk)!).add(`${d}|${start}|${w}`);
+        if (isSpan(card)) {
+          const rk = kl.trim().toLowerCase(); // pro Klasse (wochenübergreifend)
+          (spanDays.get(rk) ?? spanDays.set(rk, new Set()).get(rk)!).add(d);
+          (spanStarts.get(rk) ?? spanStarts.set(rk, new Set()).get(rk)!).add(start);
+        }
+      };
+
+      /** Spanisch-Bewertung: Tag-Pause (kein Nachbartag) + Randstunden-Alternation (1↔8). */
+      const spanScore = (klasse: string, d: number, _w: Week, start: number): { adj: number; same: number } => {
+        const rk = klasse.trim().toLowerCase();
+        const days = spanDays.get(rk);
+        const adj = days && (days.has(d) || days.has(d - 1) || days.has(d + 1)) ? 1 : 0;
+        const same = spanStarts.get(rk)?.has(start) ? 1 : 0;
+        return { adj, same };
       };
 
       /** Aktuelle Stunden der Lehrkraft in der angegebenen Woche (für den Ausgleich). */
@@ -1251,6 +1296,8 @@ export class AppState {
       };
 
       const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false): string | null => {
+        // Sozialkunde fest auf Montag (Tag 0), 8.+9. Stunde (Start 8).
+        if (isSk(card) && (d !== 0 || start !== 8)) return 'Sk nur Mo 8.+9.';
         const teach = teaching(card.isWerkstatt, start, card.duration);
         if (teach.length < card.duration) return 'über Stunde 9';
         const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
@@ -1263,8 +1310,16 @@ export class AppState {
           const used = teachDaysUsed.get(card.abbr.toLowerCase());
           if (used && !used.has(d) && used.size >= md) return 'max. Anwesenheitstage';
         }
+        const canStack = stackable(card);
         for (const p of blk) {
-          if (!stackOnB && cell.has(cK(d, w, c, p))) return 'Platz belegt';
+          const e = cellOcc.get(cK(d, w, c, p));
+          if (!stackOnB && e && e.total > 0) {
+            // Stapeln nur, wenn ALLE Belegungen stapelbar sind, die andere Gruppe
+            // (a/b) ergänzen und höchstens 2 Karten entstehen.
+            const compatible =
+              canStack && e.total === e.stack && e.stack < 2 && !e.groups.has(card.labGroup);
+            if (!compatible) return 'Platz belegt';
+          }
           if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
           if (teachSet.has(tK(card.abbr, d, w, p))) return 'Lehrer belegt';
         }
@@ -1401,9 +1456,20 @@ export class AppState {
             const mirrorPush = members.some((m) => hasMirror(m, d, w, start)) ? 0 : 1;
             // Werkstatt bevorzugt nachmittags (Start ≥ 6) → Morgen frei für Theorie.
             const werkAfternoon = members[0].isWerkstatt && start < 6 ? 1 : 0;
+            // Spanisch (gekoppelt): Tag-Pause + Randstunden-Alternation über alle Mitglieder.
+            const span = members.reduce(
+              (acc, m) => {
+                if (!isSpan(m)) return acc;
+                const s = spanScore(m.klasse, d, w, start);
+                return { adj: Math.max(acc.adj, s.adj), same: Math.max(acc.same, s.same) };
+              },
+              { adj: 0, same: 0 },
+            );
             const score = [
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
               werkAfternoon, // Werkstatt möglichst 6.–9. (0 = Nachmittag)
+              span.adj, // Spanisch: mind. ein Tag Pause
+              span.same, // Spanisch: 1.+2. und 8.+9. abwechseln
               mainGroup && start > 6 ? 1 : 0,
               mirrorPush, // u/g-PARALLEL: möglichst gleicher Slot in u und g
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
@@ -1475,9 +1541,13 @@ export class AppState {
             // selben Slot → 0 (parallel, bevorzugt); sonst 1. Bildet aus mehreren
             // Karten Paare (gleicher Slot in u und g); ungerade Stunde bleibt einzeln.
             const mirrorPush = hasMirror(card, d, w, start) ? 0 : 1;
+            // Spanisch: Tag-Pause + Randstunden 1↔8 alternieren (sonst 0).
+            const span = isSpan(card) ? spanScore(card.klasse, d, w, start) : { adj: 0, same: 0 };
             const score = [
               imbalancePush, // u/g-Differenz ≤ Limit hat Vorrang
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
+              span.adj, // Spanisch: mind. ein Tag Pause zwischen den Stunden
+              span.same, // Spanisch: 1.+2. und 8.+9. abwechseln (nicht beide gleich)
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
               mirrorPush, // u/g-PARALLEL: möglichst gleicher Slot in u und g
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
@@ -1658,12 +1728,18 @@ export class AppState {
       const werkBlockList = [...werkBlocks.values()];
       if (shuffleOrder) shuffle(werkBlockList, rng);
       for (const members of werkBlockList) placeWerkBlock(members);
+      // Spanisch-/Sozialkunde-Kopplungen ZUERST: Spanisch braucht eine Randstunde
+      // 1+2 (sonst füllen die Hauptfächer den Morgen), Sozialkunde Montag 8+9.
+      const allCoup = [...couplingMap.values()];
+      const earlyCoup = allCoup.filter((ms) => ms.some((m) => isSpan(m) || isSk(m)));
+      const restCoup = allCoup.filter((ms) => !ms.some((m) => isSpan(m) || isSk(m)));
+      if (shuffleOrder) shuffle(earlyCoup, rng);
+      for (const members of earlyCoup) placeGroup(members, 'coupling');
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal);
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt));
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isGrouped(c))], placeNormal);
-      const groups = [...couplingMap.values()];
-      if (shuffleOrder) shuffle(groups, rng);
-      for (const members of groups) placeGroup(members, 'coupling');
+      if (shuffleOrder) shuffle(restCoup, rng);
+      for (const members of restCoup) placeGroup(members, 'coupling');
       const teamGroupsList = [...teamMap.values()];
       if (shuffleOrder) shuffle(teamGroupsList, rng);
       for (const members of teamGroupsList) placeGroup(members, 'team');

@@ -98,6 +98,23 @@ Quelle: Vorgaben des Anwenders.
     hat, dürfen diese **nicht aufeinander** liegen (sie kann nicht gleichzeitig an
     beiden Gruppen sein). Sie werden dann zu **verschiedenen Zeiten** verplant.
     Gestapelt wird nur, wenn die Gruppe b von einer **anderen Lehrkraft** kommt.
+20a. **Stapeln auch über getrennte Kopplungen:** Gruppe-a-/Gruppe-b-Karten dürfen
+    sich auch dann a-auf-b stapeln, wenn sie **nicht** als Paar, sondern getrennt
+    (z. B. zwei eigene Kopplungen wie A_SK1 und B_SK1) verplant werden – höchstens 2
+    je Stapel, andere Lehrkraft, andere/leere Raumbelegung.
+
+## Fach-spezifische Lagen
+
+21. **Sozialkunde (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde.** Mit den
+    Betrieben ist der Montag-Nachmittag dafür reserviert. Hart erzwungen (`check()`),
+    Start 8; die a/b-Gruppen stapeln sich am selben Slot (siehe 20a), SK1 und SK2
+    verteilen sich über u-/g-Woche.
+22. **Spanisch (SB1/SB2/SB3): nur Randstunden 1.+2. ODER 8.+9.** (nicht alle Schüler
+    besuchen es). `baseStarts` = [1, 8]. **Tag-Pause:** mindestens ein Tag zwischen den
+    Spanisch-Stunden einer Klasse (kein Nachbartag). **Alternation:** liegt eine Stunde
+    schon 1.+2., wird die andere 8.+9. bevorzugt (und umgekehrt) – pro Klasse, woche­n­übergreifend.
+    Damit Spanisch eine 1+2-Stunde sichern kann, werden Spanisch-/Sozialkunde-Kopplungen
+    **vor** den Hauptfächern verplant (sonst füllen diese den Morgen).
 
 ## Entscheidungen zur Umsetzung
 
