@@ -396,6 +396,11 @@ export class App {
     cardcountOverlay.addEventListener('click', (e) => {
       if (e.target === cardcountOverlay) cardcountOverlay.classList.remove('open');
     });
+    byId('cc-list').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest('button[data-act]') as HTMLButtonElement | null;
+      if (!btn || btn.disabled) return;
+      this.handleClassAction(btn.dataset.act ?? '', btn.dataset.class ?? '');
+    });
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
 
@@ -860,19 +865,45 @@ export class App {
     const rows = this.state.cardCountByClass();
     const totalCards = rows.reduce((s, r) => s + r.total, 0);
     byId('cc-sub').textContent = rows.length
-      ? `${totalCards} Karten in ${rows.length} Klassen (Pool + verplant). Vergleiche die „gesamt"-Spalte mit dem Untis-Import.`
+      ? `${totalCards} Karten in ${rows.length} Klassen. „gesamt" mit dem Untis-Import vergleichen. Aktionen je Klasse: entplanen (nicht-fixierte → Pool), fixierte löschen, Pool-Karten löschen.`
       : 'Noch keine Karten vorhanden.';
+    // Aktions-Button (deaktiviert, wenn die jeweilige Anzahl 0 ist).
+    const act = (cls: string, kind: string, n: number, label: string, title: string): string =>
+      `<button class="cc-btn cc-${kind}" data-act="${kind}" data-class="${esc(cls)}"${n ? '' : ' disabled'} title="${esc(title)}">${label}</button>`;
     byId('cc-list').innerHTML = rows.length
-      ? '<table class="cc-table"><thead><tr><th>Klasse</th><th>gesamt</th><th>Pool</th><th>verplant</th></tr></thead><tbody>' +
+      ? '<table class="cc-table"><thead><tr><th>Klasse</th><th>ges.</th><th>Pool</th><th>verpl.</th><th>fix</th><th>Aktionen</th></tr></thead><tbody>' +
         rows
           .map(
             (r) =>
-              `<tr><td class="cc-cls">${esc(r.klasse)}</td><td class="cc-num cc-total">${r.total}</td><td class="cc-num">${r.pool}</td><td class="cc-num">${r.placed}</td></tr>`,
+              `<tr><td class="cc-cls">${esc(r.klasse)}</td><td class="cc-num cc-total">${r.total}</td><td class="cc-num">${r.pool}</td><td class="cc-num">${r.placed}</td><td class="cc-num">${r.locked || ''}</td><td class="cc-acts">` +
+              act(r.klasse, 'unplace', r.placed - r.locked, '🧹 entplanen', 'Nicht fixierte verplante Karten zurück in den Pool') +
+              act(r.klasse, 'dellocked', r.locked, '🔓 fixierte löschen', 'Fixierte verplante Karten löschen') +
+              act(r.klasse, 'delpool', r.pool, '🗑 Pool löschen', 'Nicht verplante (Pool-)Karten der Klasse löschen') +
+              '</td></tr>',
           )
           .join('') +
-        `</tbody><tfoot><tr><td class="cc-cls">Summe</td><td class="cc-num cc-total">${totalCards}</td><td class="cc-num">${rows.reduce((s, r) => s + r.pool, 0)}</td><td class="cc-num">${rows.reduce((s, r) => s + r.placed, 0)}</td></tr></tfoot></table>`
+        `</tbody><tfoot><tr><td class="cc-cls">Summe</td><td class="cc-num cc-total">${totalCards}</td><td class="cc-num">${rows.reduce((s, r) => s + r.pool, 0)}</td><td class="cc-num">${rows.reduce((s, r) => s + r.placed, 0)}</td><td class="cc-num">${rows.reduce((s, r) => s + r.locked, 0) || ''}</td><td></td></tr></tfoot></table>`
       : '<div class="tm-empty">Noch keine Karten – erst importieren oder erstellen.</div>';
     byId('cardcount-modal').classList.add('open');
+  }
+
+  /** Klassen-Aktion aus dem „Karten je Klasse"-Modal (entplanen / löschen). */
+  private handleClassAction(kind: string, klasse: string): void {
+    const name = klasse || '(ohne Klasse)';
+    if (kind === 'unplace') {
+      if (!confirm(`Alle NICHT fixierten verplanten Karten der Klasse „${name}" entplanen (zurück in den Pool)?`)) return;
+      const n = this.state.unplaceClass(klasse);
+      this.toast.show(n ? `${n} Karte(n) der Klasse ${name} entplant.` : 'Nichts zu entplanen.', n ? 'ok' : 'inf');
+    } else if (kind === 'dellocked') {
+      if (!confirm(`Die FIXIERTEN verplanten Karten der Klasse „${name}" endgültig löschen? (Rückgängig mit Strg+Z möglich.)`)) return;
+      const n = this.state.deleteLockedPlacedByClass(klasse);
+      this.toast.show(n ? `${n} fixierte Karte(n) der Klasse ${name} gelöscht.` : 'Keine fixierten Karten.', n ? 'ok' : 'inf');
+    } else if (kind === 'delpool') {
+      if (!confirm(`Die nicht verplanten (Pool-)Karten der Klasse „${name}" löschen? (Rückgängig mit Strg+Z möglich.)`)) return;
+      const n = this.state.deletePoolByClass(klasse);
+      this.toast.show(n ? `${n} Pool-Karte(n) der Klasse ${name} gelöscht.` : 'Keine Pool-Karten.', n ? 'ok' : 'inf');
+    }
+    this.openCardCount(); // Liste neu aufbauen (Zahlen aktualisieren)
   }
 
   // ── Kürzel-Farben ────────────────────────────────────────────────────────

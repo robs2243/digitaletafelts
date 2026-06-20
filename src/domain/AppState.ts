@@ -330,23 +330,68 @@ export class AppState {
     this.emit();
   }
 
-  /** Anzahl Karten je Klasse (Pool + Plan) – für den Soll-/Ist-Vergleich mit Untis. */
-  cardCountByClass(): { klasse: string; pool: number; placed: number; total: number }[] {
-    const m = new Map<string, { pool: number; placed: number }>();
-    const slot = (kl: string): { pool: number; placed: number } => {
-      const k = kl.trim() || '(ohne Klasse)';
+  /** Vergleichs-Schlüssel einer Klasse (leere Klasse → „(ohne Klasse)"). */
+  private static classKey(kl: string): string {
+    return kl.trim() || '(ohne Klasse)';
+  }
+
+  /** Anzahl Karten je Klasse (Pool + Plan) – für den Soll-/Ist-Vergleich mit Untis
+   *  und die Klassen-Verwaltung. `locked` = davon fixierte (verplante) Karten. */
+  cardCountByClass(): { klasse: string; pool: number; placed: number; locked: number; total: number }[] {
+    const m = new Map<string, { pool: number; placed: number; locked: number }>();
+    const slot = (kl: string): { pool: number; placed: number; locked: number } => {
+      const k = AppState.classKey(kl);
       let e = m.get(k);
       if (!e) {
-        e = { pool: 0, placed: 0 };
+        e = { pool: 0, placed: 0, locked: 0 };
         m.set(k, e);
       }
       return e;
     };
     for (const c of this.pool.all) slot(c.klasse).pool++;
-    for (const p of this.schedule.all) slot(p.klasse).placed++;
+    for (const p of this.schedule.all) {
+      const e = slot(p.klasse);
+      e.placed++;
+      if (p.locked) e.locked++;
+    }
     return [...m.entries()]
-      .map(([klasse, v]) => ({ klasse, pool: v.pool, placed: v.placed, total: v.pool + v.placed }))
+      .map(([klasse, v]) => ({ klasse, pool: v.pool, placed: v.placed, locked: v.locked, total: v.pool + v.placed }))
       .sort((a, b) => a.klasse.localeCompare(b.klasse, 'de', { numeric: true }));
+  }
+
+  /** Entplant alle NICHT fixierten Karten einer Klasse (zurück in den Pool);
+   *  fixierte bleiben im Plan. Liefert die Anzahl verschobener Karten. */
+  unplaceClass(klasse: string): number {
+    const key = AppState.classKey(klasse);
+    const moving = this.schedule.all.filter((p) => !p.locked && AppState.classKey(p.klasse) === key);
+    for (const p of moving) this.pool.add(new Card(this.nextId(), p.cardSnapshot()));
+    if (moving.length) {
+      const ids = new Set(moving.map((p) => p.id));
+      this.schedule.replaceAll(this.schedule.all.filter((p) => !ids.has(p.id)));
+      this.emit();
+    }
+    return moving.length;
+  }
+
+  /** Löscht die FIXIERTEN verplanten Karten einer Klasse aus dem Plan (extra Schritt,
+   *  da sie vom normalen Entplanen verschont bleiben). Liefert die Anzahl. */
+  deleteLockedPlacedByClass(klasse: string): number {
+    const key = AppState.classKey(klasse);
+    const before = this.schedule.all.length;
+    this.schedule.replaceAll(this.schedule.all.filter((p) => !(p.locked && AppState.classKey(p.klasse) === key)));
+    const removed = before - this.schedule.all.length;
+    if (removed) this.emit();
+    return removed;
+  }
+
+  /** Löscht alle noch nicht verplanten (Pool-)Karten einer Klasse. Liefert die Anzahl. */
+  deletePoolByClass(klasse: string): number {
+    const key = AppState.classKey(klasse);
+    const before = this.pool.all.length;
+    this.pool.replaceAll(this.pool.all.filter((c) => AppState.classKey(c.klasse) !== key));
+    const removed = before - this.pool.all.length;
+    if (removed) this.emit();
+    return removed;
   }
 
   // ── Lehrer-Sperrzeiten ────────────────────────────────────────────────────
