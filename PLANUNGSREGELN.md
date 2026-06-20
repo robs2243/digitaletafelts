@@ -68,9 +68,11 @@ Quelle: Vorgaben des Anwenders.
     nie ein einzelner 2h-Block. Werkstatt wird nie in einzelne 2h-Stücke zerlegt.
 14. Bei Werkstatt liegt die **Pause immer in der 5. Stunde** (Stunde 5 bleibt frei).
 15. Werkstatt darf **auch in der 7. Stunde** stattfinden.
-15a. **Nachmittag bevorzugt:** Werkstätten werden möglichst auf die Stunden **6.–9.**
-    gelegt (Morgen bleibt für Theorie frei). Gepaarte Werkstätten (zwei Lehrkräfte)
-    dürfen 1.–4. **oder** 6.–9., bevorzugt 6.–9.
+15a. **Nachmittag bevorzugt, gepaarte Werkstätten als 4h-Block gestapelt:** Werkstätten
+    werden möglichst auf die Stunden **6.–9.** gelegt (Morgen bleibt für Theorie frei).
+    Sind Gruppe a und b von **verschiedenen Lehrkräften** (gepaart), arbeiten beide Gruppen
+    **parallel im selben Slot, gestapelt** – als **≥4-Stunden-Block** (NICHT als 2h-Stapel!).
+    Gilt auch hier: Werkstatt wird über die 4h-Block-Logik verplant, nie als 2 Stunden.
 15b. **Ohne Gegenpartner → 6.–9. als 4h-Block, u/g-gespiegelt (Pflicht):** Hat eine
     Werkstatt **keinen Partner** einer anderen Lehrkraft (z. B. dieselbe Lehrkraft macht
     Gruppe a *und* b), werden ihre 2h-Karten (Dauer 2 = 1 Karte, Anzahl bleibt!) je

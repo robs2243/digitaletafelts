@@ -1653,7 +1653,10 @@ export class AppState {
         const seq = shuffleOrder ? shuffle([...ps], rng) : ps;
         for (const pair of seq) placeGroup(pair, 'lab');
       };
-      const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => (c.isLabor || c.isWerkstatt) && isGrouped(c)));
+      // Nur LABORE werden hier gepaart. Werkstätten laufen IMMER über die 4h-Block-
+      // Logik (placeWerkSet) – auch gepaarte a/b (verschiedene Lehrkräfte), sonst
+      // entstünden 2h-Stapel.
+      const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => c.isLabor && !c.isWerkstatt && isGrouped(c)));
 
       // Werkstatt ist IMMER mind. 4 Stunden (nie nur 2h) und liegt nachmittags.
       // Einzelne 2h-Karte ohne Blockpartner: notfalls Nachmittag (Datenanomalie).
@@ -1720,8 +1723,10 @@ export class AppState {
         applyAt(best.c, best.d, best.w, best.win);
         return { d: best.d, w: best.w, starts: best.win };
       };
-      // Eine Klasse+Lehrkraft, je Basis-Fach (A_WP/B_WP = WP): Gruppe-a- und Gruppe-b-
-      // Blöcke u/g-GESPIEGELT (a in einer, b in der anderen Woche, selber Tag+Stunden).
+      // Eine KLASSE, je Basis-Fach (A_WP/B_WP = WP): Gruppe a und b als 4h-Blöcke.
+      //  • gleiche Lehrkraft (a UND b von ihr) → u/g-GESPIEGELT (a eine Woche, b die
+      //    andere, selber Tag+Stunden; die jeweils freie Gruppe geht heim).
+      //  • verschiedene Lehrkräfte → im SELBEN Slot GESTAPELT (beide Gruppen parallel).
       const baseFach = (f: string): string => f.trim().toLowerCase().replace(/^[abcd][_-]/, '');
       const placeWerkSet = (setCards: Card[]): void => {
         const byBase = new Map<string, Card[]>();
@@ -1735,7 +1740,12 @@ export class AppState {
             const bc = bCh[i];
             if (ac && bc) {
               const slot = placeWerkChunk(ac);
-              placeWerkChunk(bc, slot ? { d: slot.d, w: slot.w === 'u' ? 'g' : 'u', starts: slot.starts } : undefined);
+              if (slot) {
+                const sameTeacher = ac[0].abbr.trim().toLowerCase() === bc[0].abbr.trim().toLowerCase();
+                // gleiche Lehrkraft → andere Woche (gespiegelt); sonst selbe Woche (gestapelt).
+                const w: Week = sameTeacher ? (slot.w === 'u' ? 'g' : 'u') : slot.w;
+                placeWerkChunk(bc, { d: slot.d, w, starts: slot.starts });
+              } else placeWerkChunk(bc);
             } else if (ac) placeWerkChunk(ac);
             else if (bc) placeWerkChunk(bc);
           }
@@ -1743,14 +1753,13 @@ export class AppState {
         }
       };
 
-      // Reihenfolge: Werkstatt-Paare/-Reste (Anker) → HAUPTFÄCHER (sichern den Morgen)
-      // → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
-      stepPairs(abPairs.filter((p) => p[0].isWerkstatt));
-      const loneWerk = [...abRest.filter((c) => c.isWerkstatt), ...cards.filter((c) => c.isWerkstatt && !isGrouped(c))];
-      // Je (Klasse|Lehrkraft) ein Set – zusammen platzieren, damit die u/g-Spiegelung greift.
+      // Reihenfolge: Werkstatt-Blöcke (Anker, immer ≥4h) → HAUPTFÄCHER (sichern den
+      // Morgen) → Labor-Paare/-Reste → Kopplungen → Teamteaching → restliche Fächer.
+      // ALLE (nicht gekoppelten) Werkstätten je KLASSE sammeln (Gruppe a/b können von
+      // verschiedenen Lehrkräften kommen → in placeWerkSet gestapelt bzw. gespiegelt).
       const werkSets = new Map<string, Card[]>();
-      for (const c of loneWerk) {
-        const sk = `${c.klasse.trim().toLowerCase()}|${c.abbr.trim().toLowerCase()}`;
+      for (const c of cards.filter((c) => c.isWerkstatt)) {
+        const sk = c.klasse.trim().toLowerCase();
         (werkSets.get(sk) ?? werkSets.set(sk, []).get(sk)!).push(c);
       }
       const werkSetList = [...werkSets.values()];
