@@ -58,7 +58,9 @@ export interface PlanSettings {
   forbidSeventh: boolean;
   /** Hauptfächer hart in den Stunden 8./9. verbieten (sonst nur abwerten). */
   mainNoLate: boolean;
-  /** Erlaubte u/g-Stunden-Differenz je Lehrkraft (Ziel ≤ diesem Wert). */
+  /** Erlaubte u/g-Stunden-Differenz JE LEHRKRAFT (Ziel ≤ diesem Wert; die Gesamtsumme
+   *  über alle Lehrkräfte ist irrelevant). Überschreitung wird gemeldet, aber die
+   *  Stunden trotzdem verplant. */
   imbalanceLimit: number;
   /** Erlaubte Hohlstunden je Lehrkraft und Woche. */
   gapLimit: number;
@@ -176,6 +178,8 @@ export interface PlanProgress {
   skipped: number;
   /** Summe der u/g-Überschreitungen (über alle Lehrkräfte). */
   imbalance: number;
+  /** Anzahl Lehrkräfte mit u/g-Differenz über dem Limit (pro Lehrkraft). */
+  imbalTeachers: number;
   /** Summe der Hohlstunden über dem Limit (6) über alle Lehrkraft-Wochen. */
   gaps: number;
 }

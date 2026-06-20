@@ -2116,7 +2116,7 @@ export class App {
       `Zeit: ${time} · Versuche: ${p.attempts.toLocaleString('de-DE')}\n` +
       `Beste Lösung: ${p.placed}/${p.total} Karten verplant` +
       (p.skipped ? `, ${p.skipped} noch offen` : '') +
-      `\nu/g-Differenz über Limit: ${p.imbalance} Std` +
+      `\nLehrkräfte mit u/g-Differenz > ${this.state.getPlanSettings().imbalanceLimit} Std: ${p.imbalTeachers}` +
       `\nHohlstunden über Limit: ${p.gaps} Std`;
   }
 

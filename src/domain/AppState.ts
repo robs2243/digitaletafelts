@@ -1150,8 +1150,11 @@ export class AppState {
       assigns: Assign[];
       skipped: { card: string; reason: string }[];
       openMandatory: number;
-      /** Summe der Überschreitungen der erlaubten u/g-Differenz (2) über alle Lehrkräfte. */
+      /** Summe der Überschreitungen der erlaubten u/g-Differenz JE LEHRKRAFT (für die
+       *  Optimierung; treibt jede einzelne Lehrkraft Richtung Limit, Gesamtsumme egal). */
       imbalance: number;
+      /** Anzahl Lehrkräfte mit u/g-Differenz ÜBER dem Limit (für die Anzeige/Meldung). */
+      imbalTeachers: number;
       /** Summe der Hohlstunden über dem Limit (6) über alle Lehrkraft-Wochen. */
       gaps: number;
       /** Nicht-parallele Stunden: gleiche Lehrkraft+Klasse+Fach, die nur in einer
@@ -1877,7 +1880,12 @@ export class AppState {
         }
       }
       let imbalance = 0;
-      for (const [u, g] of teachWeek.values()) imbalance += Math.max(0, Math.abs(u - g) - IMBAL);
+      let imbalTeachers = 0; // Anzahl Lehrkräfte mit |u−g| > Limit (für Anzeige/Meldung)
+      for (const [u, g] of teachWeek.values()) {
+        const over = Math.max(0, Math.abs(u - g) - IMBAL);
+        imbalance += over;
+        if (over > 0) imbalTeachers++;
+      }
 
       // Hohlstunden je Lehrkraft und Woche (Freistunden zwischen erster und letzter
       // belegter Stunde, über die Tage summiert); zähle nur die Überschreitung von 6.
@@ -1906,13 +1914,17 @@ export class AppState {
         for (const x of gSet) if (!uSet.has(x)) mirrorMismatch++;
       }
 
-      return { assigns, skipped, openMandatory, imbalance, gaps, mirrorMismatch };
+      return { assigns, skipped, openMandatory, imbalance, imbalTeachers, gaps, mirrorMismatch };
     };
 
     // Auswahlkriterium (Priorität): meiste platzierte Karten → u/g-Stunden-Balance
     // → meiste u/g-Parallelität → wenigste Hohlstunden → wenigste offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean => {
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
+      // u/g-Differenz wird PRO LEHRKRAFT bewertet: zuerst möglichst WENIGE Lehrkräfte
+      // über dem Limit, dann möglichst kleine Überschreitung. Die Gesamtsumme allein
+      // ist nicht das Ziel.
+      if (a.imbalTeachers !== b.imbalTeachers) return a.imbalTeachers < b.imbalTeachers;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
       if (a.mirrorMismatch !== b.mirrorMismatch) return a.mirrorMismatch < b.mirrorMismatch;
       if (a.gaps !== b.gaps) return a.gaps < b.gaps;
@@ -1962,6 +1974,7 @@ export class AppState {
         total,
         skipped: best.skipped.length,
         imbalance: best.imbalance,
+        imbalTeachers: best.imbalTeachers,
         gaps: best.gaps,
       });
       const noImproveMs = perfect(best) ? PERFECT_NO_IMPROVE : HARD_NO_IMPROVE;
