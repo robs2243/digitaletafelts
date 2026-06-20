@@ -1092,7 +1092,7 @@ export class AppState {
     // Hauptfach: explizit angehakt ODER über das Fach erkannt (D/M/E/Gk/Wk).
     const isMain = (c: { mainSubject: boolean; fach: string }): boolean =>
       c.mainSubject || MAIN.has(c.fach.trim().toLowerCase());
-    // Sozialkunde (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde
+    // Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde
     // (Mittag, mit den Betrieben ist der Montag dafür reserviert).
     const isSk = (c: { fach: string }): boolean => /^([abcd][_-])?sk\d*$/i.test(c.fach.trim());
     // Spanisch (SB1/SB2/SB3): nur Randstunden 1.+2. ODER 8.+9. (nicht alle Schüler).
@@ -1162,7 +1162,7 @@ export class AppState {
     // bevorzugt den Nachmittag, damit der Morgen für Theorie frei bleibt.
     const baseStarts = (card: Card): number[] =>
       isSk(card)
-        ? [8] // Sozialkunde: 8.+9. (Montag erzwingt check())
+        ? [8] // Seminarkurs: 8.+9. (Montag erzwingt check())
         : isSpan(card)
           ? [1, 8] // Spanisch: nur Randstunden 1.+2. oder 8.+9.
           : card.isWerkstatt
@@ -1296,7 +1296,7 @@ export class AppState {
       };
 
       const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false): string | null => {
-        // Sozialkunde fest auf Montag (Tag 0), 8.+9. Stunde (Start 8).
+        // Seminarkurs fest auf Montag (Tag 0), 8.+9. Stunde (Start 8).
         if (isSk(card) && (d !== 0 || start !== 8)) return 'Sk nur Mo 8.+9.';
         const teach = teaching(card.isWerkstatt, start, card.duration);
         if (teach.length < card.duration) return 'über Stunde 9';
@@ -1728,8 +1728,8 @@ export class AppState {
       const werkBlockList = [...werkBlocks.values()];
       if (shuffleOrder) shuffle(werkBlockList, rng);
       for (const members of werkBlockList) placeWerkBlock(members);
-      // Spanisch-/Sozialkunde-Kopplungen ZUERST: Spanisch braucht eine Randstunde
-      // 1+2 (sonst füllen die Hauptfächer den Morgen), Sozialkunde Montag 8+9.
+      // Spanisch-/Seminarkurs-Kopplungen ZUERST: Spanisch braucht eine Randstunde
+      // 1+2 (sonst füllen die Hauptfächer den Morgen), Seminarkurs Montag 8+9.
       const allCoup = [...couplingMap.values()];
       const earlyCoup = allCoup.filter((ms) => ms.some((m) => isSpan(m) || isSk(m)));
       const restCoup = allCoup.filter((ms) => !ms.some((m) => isSpan(m) || isSk(m)));

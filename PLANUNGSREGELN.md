@@ -105,7 +105,7 @@ Quelle: Vorgaben des Anwenders.
 
 ## Fach-spezifische Lagen
 
-21. **Sozialkunde (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde.** Mit den
+21. **Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde.** Mit den
     Betrieben ist der Montag-Nachmittag dafür reserviert. Hart erzwungen (`check()`),
     Start 8; die a/b-Gruppen stapeln sich am selben Slot (siehe 20a), SK1 und SK2
     verteilen sich über u-/g-Woche.
@@ -113,7 +113,7 @@ Quelle: Vorgaben des Anwenders.
     besuchen es). `baseStarts` = [1, 8]. **Tag-Pause:** mindestens ein Tag zwischen den
     Spanisch-Stunden einer Klasse (kein Nachbartag). **Alternation:** liegt eine Stunde
     schon 1.+2., wird die andere 8.+9. bevorzugt (und umgekehrt) – pro Klasse, woche­n­übergreifend.
-    Damit Spanisch eine 1+2-Stunde sichern kann, werden Spanisch-/Sozialkunde-Kopplungen
+    Damit Spanisch eine 1+2-Stunde sichern kann, werden Spanisch-/Seminarkurs-Kopplungen
     **vor** den Hauptfächern verplant (sonst füllen diese den Morgen).
 
 ## Entscheidungen zur Umsetzung
