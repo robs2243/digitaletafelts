@@ -170,8 +170,16 @@ header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
   font-size: 9px; font-weight: 700;
   background: rgba(0,0,0,.18); border-radius: 8px; padding: 1px 5px;
 }
-.tc-klasse { font-size: 11px; font-weight: 700; opacity: .92; line-height: 1.1; }
-.tc-abbr { font-weight: 800; font-size: 16px; line-height: 1.2; }
+.tc-klasse {
+  align-self: center; max-width: 100%;
+  background: rgba(255,255,255,.93); color: #15206b;
+  font-size: 13px; font-weight: 800; letter-spacing: .3px; line-height: 1.25;
+  padding: 1px 9px; margin-bottom: 3px; border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.22);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tc-abbr { font-weight: 800; font-size: 16px; line-height: 1.2; text-align: center; }
+.tc-sub, .tc-sub2 { text-align: center; }
 .tc-sub  { font-size: 11px; opacity: .82; margin-top: 1px; }
 .tc-sub2 { font-size: 9px; opacity: .62; }
 .tc-editbtn, .tc-delbtn {
