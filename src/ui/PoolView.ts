@@ -80,24 +80,28 @@ export class PoolView {
         const half = semesterLabel(c);
         const badge = c.isLabor ? `⚗${c.labGroup}` : c.isWerkstatt ? '🔧' : '';
         const cardCls = c.isLabor ? ' labor-card' : c.isWerkstatt ? ' werkstatt-card' : '';
+        const subj = c.fach || c.name; // Fach, sonst Lehrername
+        // Zusatzinfos kompakt in eine zweite, kleine Zeile.
+        const meta: string[] = [];
+        if (c.name && c.fach) meta.push(esc(c.name));
+        if (c.coupling) meta.push(`⛓ ${esc(c.coupling)}`);
+        if (c.teamTeaching) meta.push(`👥 ${esc(c.teamTeaching)}`);
+        if (c.isVierwoechig) meta.push('¼ 4-wö.');
+        if (c.noCount) meta.push('∅ zählt nicht');
+        if (c.collision) meta.push('💥 Kollision');
         return `<div class="tc${cardCls}" data-id="${c.id}" data-abbr="${esc(c.abbr)}" data-room="${esc(c.room)}" data-klasse="${esc(c.klasse)}" data-coupling="${esc(c.coupling)}" data-team="${esc(c.teamTeaching)}" data-labor="${c.isLabor ? '1' : '0'}" data-werkstatt="${c.isWerkstatt ? '1' : '0'}"
               style="background:${c.color};color:${fg}" draggable="true">
             <span class="tc-dur">${c.duration}h</span>
             ${badge ? `<span class="labor-badge">${badge}</span>` : ''}
-            ${c.coupling ? `<span class="cpl-badge${badge ? ' cpl-badge-low' : ''}" title="Kopplung ${esc(c.coupling)}">🔗</span>` : ''}
             ${c.schiene ? '<span class="schiene-badge" title="Schiene über mehrere Klassen">S</span>' : ''}
             ${half ? `<span class="tc-half">${half}</span>` : ''}
-            ${c.klasse ? `<div class="tc-klasse">${esc(c.klasse)}</div>` : ''}
-            <div class="tc-abbr" style="${badge ? 'margin-top:10px' : ''}">${esc(c.abbr)}</div>
-            ${c.fach ? `<div class="tc-sub">${esc(c.fach)}</div>` : ''}
-            ${c.name && !c.fach ? `<div class="tc-sub">${esc(c.name)}</div>` : ''}
-            ${c.name && c.fach ? `<div class="tc-sub2">${esc(c.name)}</div>` : ''}
-            ${c.room ? `<div class="tc-sub2">${esc(c.room)}</div>` : ''}
-            ${c.isVierwoechig ? '<div class="tc-sub2">¼ 4-wö.</div>' : ''}
-            ${c.noCount ? '<div class="tc-sub2">∅ zählt nicht</div>' : ''}
-            ${c.coupling ? `<div class="tc-sub2">⛓ ${esc(c.coupling)}</div>` : ''}
-            ${c.teamTeaching ? `<div class="tc-sub2">👥 ${esc(c.teamTeaching)}</div>` : ''}
-            ${c.collision ? '<div class="tc-sub2">💥 Kollision</div>' : ''}
+            <div class="tc-main">
+              ${c.klasse ? `<span class="tc-klasse">${esc(c.klasse)}</span>` : ''}
+              <span class="tc-abbr">${esc(c.abbr)}</span>
+              ${subj ? `<span class="tc-fach">${esc(subj)}</span>` : ''}
+              ${c.room ? `<span class="tc-room">${esc(c.room)}</span>` : ''}
+            </div>
+            ${meta.length ? `<div class="tc-meta">${meta.join(' · ')}</div>` : ''}
             ${c.comment ? `<span class="tc-comment" title="${esc(c.comment)}">💬</span>` : ''}
             <button class="tc-editbtn" title="Bearbeiten">✎</button>
             <button class="tc-delbtn" title="Karte löschen">✕</button>
