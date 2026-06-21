@@ -81,9 +81,11 @@ export class PoolView {
         const badge = c.isLabor ? `⚗${c.labGroup}` : c.isWerkstatt ? '🔧' : '';
         const cardCls = c.isLabor ? ' labor-card' : c.isWerkstatt ? ' werkstatt-card' : '';
         const subj = c.fach || c.name; // Fach, sonst Lehrername
-        // Zusatzinfos kompakt in eine zweite, kleine Zeile.
+        // Zeile 2 (klein): Fach · Raum · Kopplung · Zusatzinfos.
         const meta: string[] = [];
+        if (subj) meta.push(esc(subj));
         if (c.name && c.fach) meta.push(esc(c.name));
+        if (c.room) meta.push(esc(c.room));
         if (c.coupling) meta.push(`⛓ ${esc(c.coupling)}`);
         if (c.teamTeaching) meta.push(`👥 ${esc(c.teamTeaching)}`);
         if (c.isVierwoechig) meta.push('¼ 4-wö.');
@@ -98,8 +100,6 @@ export class PoolView {
             <div class="tc-main">
               ${c.klasse ? `<span class="tc-klasse">${esc(c.klasse)}</span>` : ''}
               <span class="tc-abbr">${esc(c.abbr)}</span>
-              ${subj ? `<span class="tc-fach">${esc(subj)}</span>` : ''}
-              ${c.room ? `<span class="tc-room">${esc(c.room)}</span>` : ''}
             </div>
             ${meta.length ? `<div class="tc-meta">${meta.join(' · ')}</div>` : ''}
             ${c.comment ? `<span class="tc-comment" title="${esc(c.comment)}">💬</span>` : ''}
