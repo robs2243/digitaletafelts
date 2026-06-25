@@ -2038,12 +2038,13 @@ export class AppState {
       const werkSetList = [...werkSets.values()];
       if (shuffleOrder) shuffle(werkSetList, rng);
 
-      // Kopplungen partitionieren – Priorität: SCHIENEN ZUERST (am stärksten
-      // eingeschränkt: brauchen einen Tag/Slot, an dem ALLE zugehörigen Klassen da
-      // sind) → Werkstatt-Kopplungen → Spanisch/Seminar → Rest.
+      // Kopplungen partitionieren – Priorität: SCHIENEN / große Kopplungen über ≥3 KLASSEN
+      // ZUERST (am stärksten eingeschränkt: brauchen einen Slot, an dem ALLE beteiligten
+      // Klassen GLEICHZEITIG frei sind) → Werkstatt-Kopplungen → Spanisch/Seminar → Rest.
       const allCoup = [...couplingMap.values()];
       const isWerkCoup = (ms: Card[]) => ms.some((m) => m.isWerkstatt);
-      const isSchieneCoup = (ms: Card[]) => ms.some((m) => m.schiene);
+      const classCount = (ms: Card[]) => new Set(ms.map((m) => m.klasse.trim().toLowerCase())).size;
+      const isSchieneCoup = (ms: Card[]) => ms.some((m) => m.schiene) || classCount(ms) >= 3;
       const isEarlyCoup = (ms: Card[]) => ms.some((m) => isSpan(m) || isSk(m));
       const schieneCoup = allCoup.filter((ms) => isSchieneCoup(ms));
       const werkCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && isWerkCoup(ms));
@@ -2069,8 +2070,8 @@ export class AppState {
       // (Klasse im Betrieb / gesperrt) und oft starre 4h-Blöcke → als ANKER zuerst
       // verplanen, sonst ist später 1.–4. voll und sie fallen raus.
       const fixedBlocks = (c: Card) => c.noCount && !c.isWerkstatt && !c.isLabor && !c.coupling.trim() && !c.teamTeaching.trim();
-      placeCoupList(schieneCoup); // 1. SCHIENEN zuerst
-      step(cards.filter(fixedBlocks), placeNormal); // 2. Betrieb-/Block-Karten (Anker)
+      step(cards.filter(fixedBlocks), placeNormal); // 1. BETRIEBSTAGE/Block-Karten zuerst (starrster Ganztags-Anker)
+      placeCoupList(schieneCoup); // 2. große SCHIENEN über ≥3 Klassen (Anker)
       for (const setCards of werkSetList) placeWerkSet(setCards); // 3. nicht gekoppelte Werkstatt-Blöcke
       placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
       if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
@@ -2324,6 +2325,24 @@ export class AppState {
    */
   validatePlan(): { severity: 'error' | 'warn'; text: string }[] {
     const out: { severity: 'error' | 'warn'; text: string }[] = [];
+
+    // Datenkonsistenz der KARTEN (Pool UND verplant): widersprüchliche Markierungen
+    // früh melden – z. B. ein Betriebstag, der versehentlich als Labor/Werkstatt
+    // gekennzeichnet ist, oder eine Karte, die gleichzeitig Labor UND Werkstatt ist.
+    const seenData = new Set<string>();
+    for (const c of [...this.pool.all, ...this.schedule.all]) {
+      const isBet = /betrieb/i.test(c.fach);
+      const probs: string[] = [];
+      if (isBet && c.isLabor) probs.push('Betrieb ist als Labor markiert');
+      if (isBet && c.isWerkstatt) probs.push('Betrieb ist als Werkstatt markiert');
+      if (!isBet && c.isLabor && c.isWerkstatt) probs.push('ist gleichzeitig Labor UND Werkstatt');
+      if (!probs.length) continue;
+      const sig = `${c.klasse}|${c.fach.toLowerCase()}|${probs.join(',')}`;
+      if (seenData.has(sig)) continue;
+      seenData.add(sig);
+      out.push({ severity: 'error', text: `Daten: ${c.klasse || '?'} „${c.fach}" – ${probs.join(', ')}. Bitte Markierung in der Excel prüfen.` });
+    }
+
     const pls = this.schedule.all;
     const linked = (a: Placement, b: Placement): boolean =>
       (!!a.coupling && a.coupling === b.coupling) || (!!a.teamTeaching && a.teamTeaching === b.teamTeaching);

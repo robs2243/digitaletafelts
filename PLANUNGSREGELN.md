@@ -142,18 +142,18 @@ Quelle: Vorgaben des Anwenders.
 
 ## Schienen & Planungs-Reihenfolge
 
-23. **Schienen werden ZUERST verplant.** Eine Schiene (Karte mit gesetztem Schiene-„S",
-    über mehrere Klassen gekoppelt) ist am stärksten eingeschränkt: sie kann nur an einem
-    Tag/Slot liegen, an dem **alle zugehörigen Klassen gleichzeitig** da sind. Deshalb
-    werden Schienen-Kopplungen **vor allem anderen** platziert (vor Werkstatt, Hauptfächern,
-    Labor, übrigen Kopplungen), damit sie die knappen gemeinsamen Slots sicher bekommen.
-    Reihenfolge: **Schienen → Betrieb/Block-Anker → Werkstatt-Blöcke → Werkstatt-Kopplungen
-    → Spanisch/Seminar → Hauptfächer → Labor → restliche Kopplungen → Teamteaching → Rest.**
-23a. **Betrieb-/Block-Karten als Anker (zuerst nach den Schienen).** „nicht zählen"-Karten
-    ohne Lehrkraft (Betrieb = Klasse im Betrieb) bzw. Sperr-Blöcke sind **feste Belegungen**
-    und oft starre 4-Stunden-Blöcke. Sie werden **früh** verplant, damit nicht später
-    1.–4. voll ist und sie keinen Platz mehr finden. Berufsschulklassen sind oft zu 100 %
-    ausgelastet (24 Std auf 2 Wochen, asymmetrisch 16/8) – da ist die Reihenfolge entscheidend.
+23. **Reihenfolge: Betriebstage → große Schienen → Rest.** Zuerst die **Betriebstage/Block-
+    Anker** (starrster Ganztags-Block), dann **große Schienen** (Karte mit Schiene-„S" ODER
+    Kopplung über **≥3 Klassen**, z. B. CH/PH der TG-Klassen). Beide sind am stärksten
+    eingeschränkt (Schiene braucht einen Slot, an dem **alle** Klassen gleichzeitig da sind).
+    Volle Reihenfolge: **Betrieb/Block-Anker → große Schienen → Werkstatt-Blöcke →
+    Werkstatt-Kopplungen → Spanisch/Seminar → Hauptfächer → Labor → restliche Kopplungen →
+    Teamteaching → Rest.**
+23a. **Betrieb-/Block-Karten als Anker (ganz zuerst).** „nicht zählen"-Karten ohne Lehrkraft
+    (Betrieb = Klasse im Betrieb) bzw. Sperr-Blöcke sind **feste Belegungen** und oft starre
+    4-Stunden-Blöcke. Sie werden **als Erstes** verplant, damit nicht später 1.–4. voll ist und
+    sie keinen Platz mehr finden. Berufsschulklassen sind oft zu 100 % ausgelastet – da ist die
+    Reihenfolge entscheidend.
 23b. **Betriebstag je Klasse.** Manche Klassen haben einen festen Betriebstag, z. B. **1BFB =
     Montag**, **1BFK = Mittwoch** (`BETRIEB_DAY`-Tabelle im Planer, erweiterbar). Betrieb-Karten der Klasse dürfen
     dann nur an diesem Tag liegen. Am Betriebstag ist die **ganze Klasse** im Betrieb –
@@ -185,6 +185,10 @@ Quelle: Vorgaben des Anwenders.
     dieselbe Prüfung wie der Planer (keine neuen Regelverstöße). **Grenze:** Karten, die nur
     durch **gekoppelte** Stunden blockiert sind (z. B. gemeinsame Fächer pinned auf einen Tag),
     können so nicht frei werden – dafür braucht es etwas Luft (z. B. einen 2. Raum).
+27. **Datencheck im Prüfbericht.** Widersprüchliche Karten-Markierungen werden als **Fehler**
+    gemeldet (Pool UND verplant), damit Excel-Fehler sofort auffallen: ein **Betriebstag, der
+    als Labor/Werkstatt markiert** ist, oder eine Karte, die **gleichzeitig Labor UND Werkstatt**
+    ist. (Ein als Labor markierter Betrieb fällt sonst unbemerkt aus der Betrieb-Anker-Logik.)
 
 ## Entscheidungen zur Umsetzung
 
