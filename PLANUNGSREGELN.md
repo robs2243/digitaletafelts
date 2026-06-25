@@ -103,6 +103,9 @@ Quelle: Vorgaben des Anwenders.
     vorhanden, wird die **Parallelität über die Kopplung vorgegeben** (gekoppelte Karten
     werden auf denselben Slot gelegt). a/b ohne Kopplung paart der Planer automatisch.
 17. Labore gibt es als **Gruppe a/b** (und ggf. c/d).
+17a. **Labor liegt im Block 1.–4. ODER 6.–9.** (nie über die Pause in Stunde 5). Labor
+    darf – wie Werkstatt – auch die **7. Stunde** belegen. So sind 4h-Labore als **1.–4.**
+    oder **6.–9.** planbar (kürzere Labore entsprechend in diesen Fenstern).
 18. Ein Labor der **Gruppe a** wird auf ein Labor der **Gruppe b** gelegt (gestapelt).
     Das **Fach muss nicht übereinstimmen**. Mit c/d analog (über Kopplung).
 18a. **Höchstens 4 Karten je Stapel** (Gruppen a/b/c/d, jede Gruppe nur einmal je Slot).
