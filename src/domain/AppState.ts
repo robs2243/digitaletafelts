@@ -1181,14 +1181,6 @@ export class AppState {
 
     // Werkstatt: 4-stündig auch nachmittags (6.–9.) möglich – die Bewertung
     // bevorzugt den Nachmittag, damit der Morgen für Theorie frei bleibt.
-    // Labor liegt in den Blöcken 1.–4. ODER 6.–9. (nie über die Pause in Stunde 5);
-    // die 7. Stunde darf belegt werden (wie Werkstatt). Ergibt z. B. 4h-Labor 1.–4./6.–9.
-    const laborStarts = (dur: number): number[] => {
-      const out: number[] = [];
-      for (let s = 1; s + dur - 1 <= 4; s++) out.push(s); // Block 1.–4.
-      for (let s = 6; s + dur - 1 <= 9; s++) out.push(s); // Block 6.–9.
-      return out.length ? out : [1];
-    };
     const baseStarts = (card: Card): number[] =>
       isSk(card)
         ? [7, 8, 9].filter((s) => s + card.duration - 1 <= 9).reverse() // Seminarkurs: Block im Fenster 7.–9. (Montag erzwingt check())
@@ -1198,9 +1190,7 @@ export class AppState {
             ? card.duration <= 4
               ? [1, 6]
               : [1]
-            : card.isLabor
-              ? laborStarts(card.duration)
-              : [1, 2, 3, 4, 5, 6, 8];
+            : [1, 2, 3, 4, 5, 6, 8]; // inkl. Labor: 1.–6. und 8.+9. (die 7. ist über check() gesperrt)
 
     /**
      * Ein vollständiger Verplanungs-Durchlauf auf einer eigenen Belegungs-Simulation.
@@ -1361,9 +1351,9 @@ export class AppState {
         if (teach.length < card.duration) return 'über Stunde 9';
         const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
         if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
-        // 7. Stunde ist Mittagspause (außer Werkstatt/Labor) – Seminarkurs darf 7.–9.
-        // belegen, Betrieb (Ganztags-Block) ebenfalls. Labor liegt in 1.–4./6.–9.
-        if (cfg.forbidSeventh && !card.isWerkstatt && !card.isLabor && !isSk(card) && !isBetrieb(card) && teach.includes(7))
+        // 7. Stunde ist Mittagspause (außer Werkstatt) – Seminarkurs darf 7.–9. belegen,
+        // Betrieb (Ganztags-Block) ebenfalls. Labor liegt in 1.–6./8.–9., NICHT in der 7.
+        if (cfg.forbidSeventh && !card.isWerkstatt && !isSk(card) && !isBetrieb(card) && teach.includes(7))
           return '7. Stunde frei';
         if (cfg.mainNoLate && isMain(card) && teach.some((p) => p > 6)) return 'Hauptfach 8./9. gesperrt';
         for (const p of teach) if (this.isTeacherBlocked(card.abbr, d, w, p)) return 'Lehrer-Sperrzeit';
@@ -2376,7 +2366,7 @@ export class AppState {
         teachDay.set(dk, set);
         if (p.isWerkstatt || p.isLabor) teachWerkLaborDay.add(dk);
         if (isLongDay(p)) teachLongDay.add(dk);
-        if (!p.isWerkstatt && !p.isLabor && !/betrieb/i.test(p.fach) && teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration).includes(7)) {
+        if (!p.isWerkstatt && !/betrieb/i.test(p.fach) && teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration).includes(7)) {
           out.push({ severity: 'warn', text: `7. Stunde belegt: ${lbl(p)} (${DAYS[p.day]}, ${w}-Woche)` });
         }
       }
