@@ -2013,14 +2013,23 @@ export class AppState {
     };
   }
 
-  /** Lehrkräfte, deren u-/g-Stunden um mehr als 2 auseinanderliegen (für die Warnung). */
+  /** Lehrkräfte, deren u-/g-Stunden um mehr als das Limit auseinanderliegen (Warnung).
+   *  Gekoppelte Stunden (gleiche Lehrkraft parallel in mehreren Klassen) zählen je
+   *  Slot nur EINMAL – wie der Planer intern und wie stats(). */
   teacherWeekImbalance(): { abbr: string; u: number; g: number }[] {
     const map = new Map<string, [number, number]>();
+    const seen = new Set<string>(); // coupling|kürzel|tag|stunde|woche → 1×
     for (const p of this.schedule.all) {
-      const tw = map.get(p.abbr) ?? [0, 0];
-      // Wöchentliche Karten zählen in beide Wochen.
-      for (const w of p.weeks) tw[w === 'u' ? 0 : 1] += p.duration;
-      map.set(p.abbr, tw);
+      for (const w of p.weeks) {
+        if (p.coupling.trim()) {
+          const k = `${p.coupling}|${p.abbr.toLowerCase()}|${p.day}|${p.startPeriod}|${w}`;
+          if (seen.has(k)) continue;
+          seen.add(k);
+        }
+        const tw = map.get(p.abbr) ?? [0, 0];
+        tw[w === 'u' ? 0 : 1] += p.duration;
+        map.set(p.abbr, tw);
+      }
     }
     return [...map.entries()]
       .filter(([, [u, g]]) => Math.abs(u - g) > this.planSettings.imbalanceLimit)
@@ -2047,20 +2056,22 @@ export class AppState {
 
   /** Lehrkräfte mit mehr als 6 Hohlstunden (Freistunden) in einer Woche (für die Warnung). */
   teacherWeekGaps(): { abbr: string; week: Week; gaps: number }[] {
-    const byDay = new Map<string, number[]>(); // kürzel|tag|woche → belegte Stunden
+    const byDay = new Map<string, Set<number>>(); // kürzel|tag|woche → belegte Stunden (Menge)
     for (const p of this.schedule.all) {
       const periods = this.occupiedPeriodsOf(p);
-      // Wöchentliche Karten belegen u und g.
+      // Wöchentliche Karten belegen u und g. Gekoppelte Parallel-Karten belegen
+      // dieselben Stunden → als Menge zählen (keine Doppelung).
       for (const w of p.weeks) {
         const key = `${p.abbr}|${p.day}|${w}`;
-        const arr = byDay.get(key) ?? [];
-        arr.push(...periods);
-        byDay.set(key, arr);
+        const set = byDay.get(key) ?? new Set<number>();
+        for (const per of periods) set.add(per);
+        byDay.set(key, set);
       }
     }
     const weekly = new Map<string, number>(); // kürzel|woche → Hohlstunden gesamt
-    for (const [key, periods] of byDay) {
+    for (const [key, set] of byDay) {
       const [abbr, , w] = key.split('|');
+      const periods = [...set];
       const gap = Math.max(...periods) - Math.min(...periods) + 1 - periods.length;
       const wk = `${abbr}|${w}`;
       weekly.set(wk, (weekly.get(wk) ?? 0) + gap);
