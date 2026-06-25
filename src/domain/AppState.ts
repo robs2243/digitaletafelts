@@ -1161,6 +1161,7 @@ export class AppState {
     const GROUPS = ['a', 'b', 'c', 'd'];
     const stackable = (p: { isLabor: boolean; isWerkstatt: boolean; labGroup: string; fach: string }): boolean =>
       (p.isLabor || p.isWerkstatt || isBetrieb(p)) && GROUPS.includes(p.labGroup);
+    const EMPTY_FOCUS: ReadonlySet<string> = new Set();
     type Assign = { card: Card; c: number; d: number; w: Week; start: number };
     interface Outcome {
       assigns: Assign[];
@@ -1196,7 +1197,9 @@ export class AppState {
      * Bestehende Platzierungen (auch fixierte) werden NICHT verschoben, sondern nur
      * als Belegung berücksichtigt. shuffleOrder=true variiert die Reihenfolge.
      */
-    const runOnce = (shuffleOrder: boolean, rng: () => number): Outcome => {
+    // focus = IDs zuletzt NICHT verplanter Karten → in diesem Durchlauf ZUERST platzieren,
+    // damit sie die knappen Slots gewinnen (gezielter Neustart statt rein zufällig).
+    const runOnce = (shuffleOrder: boolean, rng: () => number, focus: ReadonlySet<string> = EMPTY_FOCUS): Outcome => {
       const cell = new Set<string>();
       const roomSet = new Set<string>();
       const teachSet = new Set<string>();
@@ -1651,10 +1654,17 @@ export class AppState {
       // Die Auto-Paarung (pairAB) kann nur a↔b; c/d-Parallelität wird über Kopplungen
       // gesteuert (placeGroup stapelt sie), sonst werden c/d einzeln verplant.
       const isAB = (c: Card) => isA(c) || isB(c);
+      // Karten/Gruppen, die zuletzt offen blieben, ZUERST (stabile Teil-Sortierung).
+      const focusFirstCards = (list: Card[]): Card[] =>
+        focus.size ? [...list].sort((a, b) => (focus.has(a.id) ? 0 : 1) - (focus.has(b.id) ? 0 : 1)) : list;
+      const focusFirstGroups = (groups: Card[][]): Card[][] =>
+        focus.size
+          ? [...groups].sort((a, b) => (a.some((m) => focus.has(m.id)) ? 0 : 1) - (b.some((m) => focus.has(m.id)) ? 0 : 1))
+          : groups;
       const step = (list: Card[], fn: (c: Card) => void): void => {
         // Heuristik (1. Durchlauf): längere/schwerer platzierbare Blöcke zuerst.
         const seq = shuffleOrder ? shuffle([...list], rng) : [...list].sort((a, b) => b.duration - a.duration);
-        for (const card of seq) fn(card);
+        for (const card of focusFirstCards(seq)) fn(card);
       };
       // Labor/Werkstatt a/b VORAB zu Paaren bündeln: je eine a- mit einer b-Karte
       // (gleiche Klasse+Dauer, ANDERE Lehrkraft, anderer/leerer Raum). Statt greedy
@@ -1900,7 +1910,7 @@ export class AppState {
         for (const g of grp.values()) placeWerkCouplingSet(g);
         const rest = coups.filter((ms) => !isWerkCoup(ms));
         if (shuffleOrder) shuffle(rest, rng);
-        for (const ms of rest) placeGroup(ms, 'coupling');
+        for (const ms of focusFirstGroups(rest)) placeGroup(ms, 'coupling');
       };
 
       // Betrieb-/Block-Karten (noCount, nicht Werkstatt/Labor) sind FESTE Belegungen
@@ -1912,14 +1922,14 @@ export class AppState {
       for (const setCards of werkSetList) placeWerkSet(setCards); // 3. nicht gekoppelte Werkstatt-Blöcke
       placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
       if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
-      for (const members of earlyCoup) placeGroup(members, 'coupling');
+      for (const members of focusFirstGroups(earlyCoup)) placeGroup(members, 'coupling');
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal); // 6. Hauptfächer
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 7. Labor
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
       placeCoupList(restCoup); // 8. restliche Kopplungen
       const teamGroupsList = [...teamMap.values()];
       if (shuffleOrder) shuffle(teamGroupsList, rng);
-      for (const members of teamGroupsList) placeGroup(members, 'team');
+      for (const members of focusFirstGroups(teamGroupsList)) placeGroup(members, 'team');
       // 9. Rest (ohne die bereits als Anker verplanten Betrieb-/Block-Karten).
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c)), placeNormal);
 
@@ -2006,14 +2016,26 @@ export class AppState {
     // Schienen – evtl. erst nach vielen Versuchen). Harte Obergrenze = budgetMs; der
     // Nutzer kann jederzeit „Stopp" drücken.
     const PERFECT_NO_IMPROVE = 5000; // perfekt: 5 s ohne Verbesserung → fertig
-    const HARD_NO_IMPROVE = 90000; // noch offen: 90 s ohne Verbesserung weitersuchen
-    // Zyklen in Zeitscheiben (je ~40 ms), dazwischen ans Event-Loop abgeben.
+    const PLACED_NO_IMPROVE = 20000; // alles verplant (aber u/g/Hohlst. nicht ideal): 20 s feinjustieren
+    const OPEN_NO_IMPROVE = 120000; // noch offen: 120 s ohne Verbesserung weitersuchen, dann aufgeben
+    // IDs der noch nicht verplanten Karten – die werden im nächsten Durchlauf ZUERST
+    // platziert (gezielter Neustart), damit knappe Slots an die schweren Karten gehen.
+    const openIds = (o: Outcome): Set<string> => {
+      const placed = new Set(o.assigns.map((a) => a.card.id));
+      return new Set(this.pool.all.map((c) => c.id).filter((id) => !placed.has(id)));
+    };
+    // Zyklen in Zeitscheiben (je ~40 ms), dazwischen ans Event-Loop abgeben. Solange noch
+    // Karten offen sind, wird – abwechselnd zufällig UND gezielt (focus) – bis zum vollen
+    // Budget weitergesucht; „Stopp" bricht jederzeit ab.
     while (Date.now() - start < opts.budgetMs) {
       stop = opts.shouldStop();
       if (stop !== 'continue') break;
       const sliceStart = Date.now();
+      const focus = best.skipped.length ? openIds(best) : EMPTY_FOCUS;
       while (Date.now() - sliceStart < 40 && Date.now() - start < opts.budgetMs) {
-        const cand = runOnce(true, rng);
+        // Jeder zweite Versuch gezielt (offene Karten zuerst), sonst rein zufällig –
+        // so wird sowohl breit gestreut als auch der Engpass gezielt angegangen.
+        const cand = focus.size && attempts % 2 === 0 ? runOnce(true, rng, focus) : runOnce(true, rng);
         attempts++;
         if (better(cand, best)) {
           best = cand;
@@ -2030,7 +2052,10 @@ export class AppState {
         imbalTeachers: best.imbalTeachers,
         gaps: best.gaps,
       });
-      const noImproveMs = perfect(best) ? PERFECT_NO_IMPROVE : HARD_NO_IMPROVE;
+      // Noch Karten offen → lange weitersuchen (gezielte Neustarts); alles verplant →
+      // kurzes Fenster zum Feinjustieren. Obergrenze bleibt budgetMs; „Stopp" jederzeit.
+      const noImproveMs =
+        best.skipped.length > 0 ? OPEN_NO_IMPROVE : perfect(best) ? PERFECT_NO_IMPROVE : PLACED_NO_IMPROVE;
       if (Date.now() - lastImprove > noImproveMs) break; // konvergiert → fertig
       await new Promise((r) => setTimeout(r));
     }
