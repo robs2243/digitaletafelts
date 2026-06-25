@@ -24,9 +24,11 @@ Quelle: Vorgaben des Anwenders.
 
 ## Fächer-Verteilung
 
-7. **Hauptfächer** (Karten-Checkbox „⭐ Hauptfach" oder Fach **D, M, E, Gk, Wk**):
-   beim Planen **bevorzugt** und **möglichst in den Stunden 1–6**. Am **gleichen Tag
-   höchstens 2 Stunden** (pro Klasse), möglichst mit **einem Tag Pause dazwischen**.
+7. **Hauptfächer** – **NUR** Karten mit gesetztem „⭐ Hauptfach" (Excel-Spalte „Hauptfach" = `x`).
+   **Keine** automatische Erkennung mehr über den Fachnamen (D/M/E/Gk/Wk zählen ohne `x` nicht
+   als Hauptfach). Hauptfächer werden beim Planen **bevorzugt** und **möglichst in den Stunden
+   1–6**. Am **gleichen Tag höchstens 2 Stunden** (pro Klasse), möglichst mit **einem Tag Pause
+   dazwischen**.
 8. **Fächer variieren:** Über den Tag sollen die Fächer **abwechseln** (nicht das
    gleiche Fach häufen) – der Planer verteilt gleiche Fächer möglichst auf
    unterschiedliche Tage.
@@ -193,8 +195,8 @@ Quelle: Vorgaben des Anwenders.
   Klasse werden gezählt (inkl. angrenzender Blöcke); >4 ist nur bei Werkstatt erlaubt.
 - **Fächer-Variation:** gleiche Fächer werden bevorzugt auf unterschiedliche Tage
   verteilt.
-- **Hauptfach:** Karten-Checkbox „⭐ Hauptfach" (oder Excel-Spalte „Hauptfach") bzw.
-  Fach D/M/E/Gk/Wk. Hauptfächer werden **direkt nach den Werkstatt-Blöcken** verplant
+- **Hauptfach:** ausschließlich Karten-Checkbox „⭐ Hauptfach" bzw. Excel-Spalte „Hauptfach" = `x`
+  (keine Fachnamen-Automatik). Hauptfächer werden **direkt nach den Werkstatt-Blöcken** verplant
   (vor Laboren, Kopplungen, Teamteaching, Rest), damit sie sich den Morgen sichern.
   Platz-Priorität (von hoch nach niedrig): u/g-Differenz ≤ 2 → **Stunden 1–6** →
   **mind. ein Tag Pause** zum gleichnamigen Hauptfach → **u/g-Parallelität** →
@@ -240,5 +242,5 @@ Quelle: Vorgaben des Anwenders.
   normal** (beide Lehrkräfte unterrichten). Der Planer legt sie gemeinsam auf denselben
   Slot; beim Ziehen/Entplanen wandern die Partner mit. Zuordnung über die Checkbox/das
   Feld beim Erstellen, das Header-Fenster „👥 Teamteaching" oder die Excel-Spalte.
-- **Hauptfächer-Erkennung:** über das Feld „Fach" der Karte (Abgleich mit Liste
-  D, M, E, Gk, Wk). **LBT** wird ebenfalls über das Feld „Fach" erkannt (max. 6/Tag).
+- **Hauptfächer-Erkennung:** ausschließlich über das Feld „Hauptfach" (`x`) der Karte –
+  keine Fachnamen-Automatik mehr. **LBT** wird weiterhin über das Feld „Fach" erkannt (max. 6/Tag).

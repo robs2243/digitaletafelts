@@ -1082,16 +1082,15 @@ export class AppState {
     shouldStop: () => 'continue' | 'accept' | 'cancel';
     onProgress?: (p: PlanProgress) => void;
   }): Promise<PlanRunResult> {
-    const MAIN = new Set(['d', 'm', 'e', 'gk', 'wk']);
     const cfg = this.planSettings;
     const MAX_STREAK = cfg.maxStreak; // max. Stunden am Stück derselben Lehrkraft in einer Klasse (außer Werkstatt)
     const LBT_MAX = cfg.lbtMax; // max. Stunden „LBT" je Klasse und Tag
     const IMBAL = cfg.imbalanceLimit; // erlaubte u/g-Differenz
     const GAP_LIMIT = cfg.gapLimit; // erlaubte Hohlstunden je Lehrkraft+Woche
     const maxDaysOf = (abbr: string): number => this.teacherMaxDays.get(abbr.toLowerCase()) ?? 0;
-    // Hauptfach: explizit angehakt ODER über das Fach erkannt (D/M/E/Gk/Wk).
-    const isMain = (c: { mainSubject: boolean; fach: string }): boolean =>
-      c.mainSubject || MAIN.has(c.fach.trim().toLowerCase());
+    // Hauptfach: NUR wenn in der Excel-Spalte „Hauptfach" ein „x" gesetzt ist
+    // (keine automatische Erkennung mehr über den Fachnamen).
+    const isMain = (c: { mainSubject: boolean }): boolean => c.mainSubject;
     // Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde
     // (Mittag, mit den Betrieben ist der Montag dafür reserviert).
     const isSk = (c: { fach: string }): boolean => /^([abcd][_-])?sk\d*$/i.test(c.fach.trim());
