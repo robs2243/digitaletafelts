@@ -142,8 +142,13 @@ Quelle: Vorgaben des Anwenders.
     Tag/Slot liegen, an dem **alle zugehörigen Klassen gleichzeitig** da sind. Deshalb
     werden Schienen-Kopplungen **vor allem anderen** platziert (vor Werkstatt, Hauptfächern,
     Labor, übrigen Kopplungen), damit sie die knappen gemeinsamen Slots sicher bekommen.
-    Reihenfolge: **Schienen → Werkstatt-Blöcke → Werkstatt-Kopplungen → Spanisch/Seminar →
-    Hauptfächer → Labor → restliche Kopplungen → Teamteaching → Rest.**
+    Reihenfolge: **Schienen → Betrieb/Block-Anker → Werkstatt-Blöcke → Werkstatt-Kopplungen
+    → Spanisch/Seminar → Hauptfächer → Labor → restliche Kopplungen → Teamteaching → Rest.**
+23a. **Betrieb-/Block-Karten als Anker (zuerst nach den Schienen).** „nicht zählen"-Karten
+    ohne Lehrkraft (Betrieb = Klasse im Betrieb) bzw. Sperr-Blöcke sind **feste Belegungen**
+    und oft starre 4-Stunden-Blöcke. Sie werden **früh** verplant, damit nicht später
+    1.–4. voll ist und sie keinen Platz mehr finden. Berufsschulklassen sind oft zu 100 %
+    ausgelastet (24 Std auf 2 Wochen, asymmetrisch 16/8) – da ist die Reihenfolge entscheidend.
 24. **Suchzeit:** Der Planer sucht per Zufalls-Neustarts das beste Ergebnis. Ist bereits
     eine **vollständige** Lösung gefunden, stoppt er nach kurzer Zeit ohne Verbesserung
     (~5 s). Sind **noch Karten offen**, sucht er **deutlich länger** weiter (bis ~90 s ohne

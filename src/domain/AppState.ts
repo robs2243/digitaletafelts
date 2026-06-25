@@ -1858,19 +1858,25 @@ export class AppState {
         for (const ms of rest) placeGroup(ms, 'coupling');
       };
 
+      // Betrieb-/Block-Karten (noCount, nicht Werkstatt/Labor) sind FESTE Belegungen
+      // (Klasse im Betrieb / gesperrt) und oft starre 4h-Blöcke → als ANKER zuerst
+      // verplanen, sonst ist später 1.–4. voll und sie fallen raus.
+      const fixedBlocks = (c: Card) => c.noCount && !c.isWerkstatt && !c.isLabor && !c.coupling.trim() && !c.teamTeaching.trim();
       placeCoupList(schieneCoup); // 1. SCHIENEN zuerst
-      for (const setCards of werkSetList) placeWerkSet(setCards); // 2. nicht gekoppelte Werkstatt-Blöcke
-      placeCoupList(werkCoup); // 3. Werkstatt-Kopplungen (4h-Block)
-      if (shuffleOrder) shuffle(earlyCoup, rng); // 4. Spanisch/Seminar (vor Hauptfächern)
+      step(cards.filter(fixedBlocks), placeNormal); // 2. Betrieb-/Block-Karten (Anker)
+      for (const setCards of werkSetList) placeWerkSet(setCards); // 3. nicht gekoppelte Werkstatt-Blöcke
+      placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
+      if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
       for (const members of earlyCoup) placeGroup(members, 'coupling');
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal); // 5. Hauptfächer
-      stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 6. Labor
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal); // 6. Hauptfächer
+      stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 7. Labor
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
-      placeCoupList(restCoup); // 7. restliche Kopplungen
+      placeCoupList(restCoup); // 8. restliche Kopplungen
       const teamGroupsList = [...teamMap.values()];
       if (shuffleOrder) shuffle(teamGroupsList, rng);
       for (const members of teamGroupsList) placeGroup(members, 'team');
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c)), placeNormal);
+      // 9. Rest (ohne die bereits als Anker verplanten Betrieb-/Block-Karten).
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c)), placeNormal);
 
       let openMandatory = 0;
       for (let c = 0; c < this.classes.count; c++) {
