@@ -1107,6 +1107,11 @@ export class AppState {
     // (randvolle Berufsschulklassen mit wenigen Anwesenheitstagen).
     const LONG_DAY_CLASSES = new Set<string>(['k2fr', 'k3fr']);
     const isLongDay = (c: { klasse: string }): boolean => LONG_DAY_CLASSES.has(c.klasse.trim().toLowerCase());
+    // Raumtreue: Schüler sollen möglichst im selben Raum bleiben (wenig „herumlaufen").
+    // Ausnahmen mit eigenem Fachraum: Labor, Werkstatt sowie Chemie (CH) und Physik (PH).
+    const CH_PH = new Set(['ch', 'ph', 'chemie', 'physik']);
+    const roomFlexible = (c: { isLabor: boolean; isWerkstatt: boolean; fach: string }): boolean =>
+      c.isLabor || c.isWerkstatt || CH_PH.has(c.fach.trim().toLowerCase().replace(/^[abcd][_-]/, ''));
     // Schlüssel für u/g-Parallelität: gleiche Lehrkraft + Klasse + Fach.
     const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
       `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
@@ -1209,6 +1214,7 @@ export class AppState {
       // Labor/Werkstatt-Karten, groups = deren Gruppen (a/b). Erlaubt Stapeln auch über
       // getrennte Kopplungen (z. B. A_SK1 auf B_SK1), höchstens 2 je Stapel.
       const cellOcc = new Map<string, { total: number; stack: number; groups: Set<string> }>();
+      const classDayRooms = new Map<string, Set<string>>(); // c|d|w → bereits genutzte (nicht-flexible) Räume der Klasse
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
@@ -1257,6 +1263,11 @@ export class AppState {
             teachWeek.set(ad, tw);
           }
         }
+        // Raumtreue: genutzten Raum der Klasse je Tag merken (außer Labor/Werkstatt/CH/PH).
+        if (card.room.trim() && !roomFlexible(card)) {
+          const rkk = `${c}|${d}|${w}`;
+          (classDayRooms.get(rkk) ?? classDayRooms.set(rkk, new Set()).get(rkk)!).add(card.room.trim().toLowerCase());
+        }
         const f = card.fach.trim().toLowerCase();
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
         const mk = mirrorKey({ abbr: card.abbr, klasse: kl, fach: card.fach });
@@ -1275,6 +1286,14 @@ export class AppState {
         const adj = days && (days.has(d) || days.has(d - 1) || days.has(d + 1)) ? 1 : 0;
         const same = spanStarts.get(rk)?.has(start) ? 1 : 0;
         return { adj, same };
+      };
+
+      /** 1, wenn die Karte am Klassentag einen ANDEREN als den bereits genutzten Raum
+       *  einführt (= Raumwechsel/„herumlaufen"); sonst 0. Labor/Werkstatt/CH/PH ausgenommen. */
+      const roomChange = (card: { room: string; isLabor: boolean; isWerkstatt: boolean; fach: string }, c: number, d: number, w: Week): number => {
+        if (!card.room.trim() || roomFlexible(card)) return 0;
+        const s = classDayRooms.get(`${c}|${d}|${w}`);
+        return s && s.size > 0 && !s.has(card.room.trim().toLowerCase()) ? 1 : 0;
       };
 
       /** Aktuelle Stunden der Lehrkraft in der angegebenen Woche (für den Ausgleich). */
@@ -1500,6 +1519,7 @@ export class AppState {
               },
               { adj: 0, same: 0 },
             );
+            const roomChangePush = members.reduce((acc, m, i) => acc + roomChange(m, cols[i], d, w), 0);
             const score = [
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
               werkAfternoon, // Werkstatt möglichst 6.–9. (0 = Nachmittag)
@@ -1508,6 +1528,7 @@ export class AppState {
               mainGroup && start > 6 ? 1 : 0,
               mirrorPush, // u/g-PARALLEL: möglichst gleicher Slot in u und g
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
+              roomChangePush, // Raumtreue: möglichst im selben Raum bleiben
               start,
             ];
             if (!best || lexLt(score, best.score)) best = { d, w, cols, start, score };
@@ -1586,6 +1607,7 @@ export class AppState {
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6
               mirrorPush, // u/g-PARALLEL: möglichst gleicher Slot in u und g
               mainAdj, // Hauptfach: möglichst ein Tag Pause (Nachbartag nur als Ausweg)
+              roomChange(card, c, d, w), // Raumtreue: möglichst im selben Raum bleiben
               bundlePush, // Teilzeit: Tage bündeln (0, wenn unbegrenzt)
               subj.get(sK(card.klasse, d, w, f)) ?? 0, // Fächer-Variation am Tag
               teacherWeekLoad(card.abbr, w), // u/g-Ausgleich: leichtere Woche bevorzugen

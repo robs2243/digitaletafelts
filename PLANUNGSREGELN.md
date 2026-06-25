@@ -162,6 +162,12 @@ Quelle: Vorgaben des Anwenders.
 23d. **8-Stunden-Lehrer-Tag (am Stück) je Klasse.** In randvollen Berufsschulklassen mit wenigen
     Anwesenheitstagen ist ein durchgehender 8-Std-Tag der Lehrkraft normal (`LONG_DAY_CLASSES`,
     z. B. **K2FR, K3FR**). Dort gilt Lehrer-Tag bis **8 Std** und **bis 8 Std am Stück** statt 6/4.
+23e. **Raumtreue – möglichst im selben Raum bleiben.** Schüler sollen so wenig wie möglich den
+    Raum wechseln. Der Planer bevorzugt daher Plätze, an denen die Klasse an dem Tag **im bereits
+    genutzten Raum** bleibt (weiche Bedingung). **Ausnahmen** (eigener Fachraum, Wechsel erlaubt):
+    **Labor, Werkstatt** sowie die Fächer **Chemie (CH)** und **Physik (PH)**. Hinweis: Räume sind
+    fest je Karte vergeben – der Planer kann Räume nicht umverteilen, sondern nur vermeidbare
+    Wechsel reduzieren; sind einer Klasse am selben Tag fest zwei Räume zugeordnet, bleibt der Wechsel.
 24. **Suchzeit:** Der Planer sucht per Zufalls-Neustarts das beste Ergebnis. Ist bereits
     eine **vollständige** Lösung gefunden, stoppt er nach kurzer Zeit ohne Verbesserung
     (~5 s). Sind **noch Karten offen**, sucht er **deutlich länger** weiter (bis ~90 s ohne
