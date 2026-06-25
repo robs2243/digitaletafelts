@@ -185,10 +185,12 @@ Quelle: Vorgaben des Anwenders.
     dieselbe Prüfung wie der Planer (keine neuen Regelverstöße). **Grenze:** Karten, die nur
     durch **gekoppelte** Stunden blockiert sind (z. B. gemeinsame Fächer pinned auf einen Tag),
     können so nicht frei werden – dafür braucht es etwas Luft (z. B. einen 2. Raum).
-27. **Datencheck im Prüfbericht.** Widersprüchliche Karten-Markierungen werden als **Fehler**
-    gemeldet (Pool UND verplant), damit Excel-Fehler sofort auffallen: ein **Betriebstag, der
-    als Labor/Werkstatt markiert** ist, oder eine Karte, die **gleichzeitig Labor UND Werkstatt**
-    ist. (Ein als Labor markierter Betrieb fällt sonst unbemerkt aus der Betrieb-Anker-Logik.)
+27. **Datencheck im Prüfbericht.** Widersprüchliche/unnötige Karten-Markierungen werden als
+    **Fehler** gemeldet (Pool UND verplant), damit Excel-Fehler sofort auffallen: ein
+    **Betriebstag, der als Labor/Werkstatt markiert** ist, ein **gekoppelter Betrieb** (Betrieb
+    braucht keine Kopplung – A/B stapeln automatisch; eine Kopplung verhindert die Anker-
+    Platzierung), oder eine Karte, die **gleichzeitig Labor UND Werkstatt** ist. (Solche
+    Markierungen ziehen die Karte sonst unbemerkt aus der richtigen Platzierungs-Logik.)
 
 ## Entscheidungen zur Umsetzung
 

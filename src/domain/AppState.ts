@@ -2335,6 +2335,7 @@ export class AppState {
       const probs: string[] = [];
       if (isBet && c.isLabor) probs.push('Betrieb ist als Labor markiert');
       if (isBet && c.isWerkstatt) probs.push('Betrieb ist als Werkstatt markiert');
+      if (isBet && c.coupling.trim()) probs.push('Betrieb ist gekoppelt (nicht nötig – A/B stapeln automatisch; Kopplung verhindert die Anker-Platzierung)');
       if (!isBet && c.isLabor && c.isWerkstatt) probs.push('ist gleichzeitig Labor UND Werkstatt');
       if (!probs.length) continue;
       const sig = `${c.klasse}|${c.fach.toLowerCase()}|${probs.join(',')}`;
