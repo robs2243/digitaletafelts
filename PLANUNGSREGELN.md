@@ -154,6 +154,12 @@ Quelle: Vorgaben des Anwenders.
     dann nur an diesem Tag liegen. Am Betriebstag ist die **ganze Klasse** im Betrieb –
     deshalb liegen **A_Betrieb und B_Betrieb parallel (gestapelt)**: Betrieb-Karten bekommen
     ihre Gruppe (a/b/c/d) aus dem Fach-Präfix und sind wie Labor/Werkstatt stapelbar.
+23c. **Betrieb als Ganztags-Block.** Ist die ganze Klasse einen Tag im Betrieb, wird das als
+    EIN Block über den ganzen Tag abgebildet (z. B. 1BFK = Mittwoch 1.–8., je 1× u + 1× g).
+    Betrieb darf daher die **7. Stunde belegen** und unterliegt **keinem 4-Std-Block-Limit**.
+23d. **8-Stunden-Lehrer-Tag (am Stück) je Klasse.** In randvollen Berufsschulklassen mit wenigen
+    Anwesenheitstagen ist ein durchgehender 8-Std-Tag der Lehrkraft normal (`LONG_DAY_CLASSES`,
+    z. B. **K2FR, K3FR**). Dort gilt Lehrer-Tag bis **8 Std** und **bis 8 Std am Stück** statt 6/4.
 24. **Suchzeit:** Der Planer sucht per Zufalls-Neustarts das beste Ergebnis. Ist bereits
     eine **vollständige** Lösung gefunden, stoppt er nach kurzer Zeit ohne Verbesserung
     (~5 s). Sind **noch Karten offen**, sucht er **deutlich länger** weiter (bis ~90 s ohne

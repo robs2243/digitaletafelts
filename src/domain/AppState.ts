@@ -1104,6 +1104,10 @@ export class AppState {
       ['1bfb', 0], // 1BFB → Montag
       ['1bfk', 2], // 1BFK → Mittwoch
     ]); // Betriebstag je Klasse (Tag-Index 0=Mo … 4=Fr)
+    // Klassen, in denen ein 8-Stunden-Lehrer-Tag (am Stück) normal/erlaubt ist
+    // (randvolle Berufsschulklassen mit wenigen Anwesenheitstagen).
+    const LONG_DAY_CLASSES = new Set<string>(['k2fr', 'k3fr']);
+    const isLongDay = (c: { klasse: string }): boolean => LONG_DAY_CLASSES.has(c.klasse.trim().toLowerCase());
     // Schlüssel für u/g-Parallelität: gleiche Lehrkraft + Klasse + Fach.
     const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
       `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
@@ -1323,8 +1327,10 @@ export class AppState {
         if (teach.length < card.duration) return 'über Stunde 9';
         const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
         if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
-        // 7. Stunde ist Mittagspause (außer Werkstatt) – Seminarkurs darf 7.–9. belegen.
-        if (cfg.forbidSeventh && !card.isWerkstatt && !isSk(card) && teach.includes(7)) return '7. Stunde frei';
+        // 7. Stunde ist Mittagspause (außer Werkstatt) – Seminarkurs darf 7.–9. belegen,
+        // Betrieb (Ganztags-Block 1.–8.) ebenfalls.
+        if (cfg.forbidSeventh && !card.isWerkstatt && !isSk(card) && !isBetrieb(card) && teach.includes(7))
+          return '7. Stunde frei';
         if (cfg.mainNoLate && isMain(card) && teach.some((p) => p > 6)) return 'Hauptfach 8./9. gesperrt';
         for (const p of teach) if (this.isTeacherBlocked(card.abbr, d, w, p)) return 'Lehrer-Sperrzeit';
         const md = maxDaysOf(card.abbr);
@@ -1345,12 +1351,17 @@ export class AppState {
           if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
           if (teachSet.has(tK(card.abbr, d, w, p))) return 'Lehrer belegt';
         }
-        // Lehrer max. 6 Std/Tag – ABER 8 Std, wenn der Tag Werkstatt/Labor enthält
-        // (lange Block-Tage sind erlaubt).
-        const dayMax = card.isWerkstatt || card.isLabor || teachWerkLaborDay.has(thK(card.abbr, d, w)) ? 8 : 6;
+        // Lehrer max. 6 Std/Tag – ABER 8 Std, wenn der Tag Werkstatt/Labor enthält oder
+        // die Klasse einen 8-Std-Tag erlaubt (K2FR/K3FR); Betrieb ist lehrerlos/Ganztag.
+        const dayMax =
+          card.isWerkstatt || card.isLabor || isBetrieb(card) || isLongDay(card) || teachWerkLaborDay.has(thK(card.abbr, d, w))
+            ? 8
+            : 6;
         if ((teachH.get(thK(card.abbr, d, w)) ?? 0) + card.duration > dayMax) return `Lehrer >${dayMax} Std/Tag`;
-        if (!card.isWerkstatt && streak(card.abbr, c, d, w, start, start + card.duration - 1) > MAX_STREAK)
-          return 'max. 4 Std am Stück';
+        // „am Stück": Werkstatt/Betrieb ohne Limit; 8-Std-Klassen bis 8, sonst MAX_STREAK.
+        const streakMax = isBetrieb(card) || isLongDay(card) ? 8 : MAX_STREAK;
+        if (!card.isWerkstatt && streak(card.abbr, c, d, w, start, start + card.duration - 1) > streakMax)
+          return `max. ${streakMax} Std am Stück`;
         const f = card.fach.trim().toLowerCase();
         if (isMain(card) && (subj.get(sK(card.klasse, d, w, f)) ?? 0) + card.duration > 2) return 'Hauptfach >2/Tag';
         if (f === 'lbt' && (subj.get(sK(card.klasse, d, w, f)) ?? 0) + card.duration > LBT_MAX) return 'LBT >6/Tag';
@@ -2116,12 +2127,17 @@ export class AppState {
       (!!a.coupling && a.coupling === b.coupling) || (!!a.teamTeaching && a.teamTeaching === b.teamTeaching);
     const slotKey = (d: number, w: Week, p: number): string => `${d}|${w}|${p}`;
     const lbl = (p: Placement): string => `${p.klasse || '?'} ${p.abbr}${p.fach ? ' ' + p.fach : ''}`;
+    // 8-Std-Tag am Stück erlaubt: K2FR/K3FR (randvoll) und Betrieb-Ganztagsblöcke.
+    const LONG_DAY_CLASSES = new Set<string>(['k2fr', 'k3fr']);
+    const isLongDay = (p: Placement): boolean =>
+      LONG_DAY_CLASSES.has(p.klasse.trim().toLowerCase()) || /betrieb/i.test(p.fach);
 
     // Belegung je Stunde sammeln.
     const roomAt = new Map<string, Placement[]>(); // tag|woche|stunde|raum
     const teachAt = new Map<string, Placement[]>(); // tag|woche|stunde|kürzel
     const teachDay = new Map<string, Set<number>>(); // kürzel|tag|woche → Unterrichtsstunden
     const teachWerkLaborDay = new Set<string>(); // kürzel|tag|woche mit Werkstatt/Labor → 8 statt 6 Std erlaubt
+    const teachLongDay = new Set<string>(); // kürzel|tag|woche mit 8-Std-Klasse/Betrieb → 8 statt 6 Std erlaubt
     for (const p of pls) {
       for (const w of p.weeks) {
         for (const per of p.occupiedPeriods()) {
@@ -2137,6 +2153,7 @@ export class AppState {
         for (const per of teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration)) set.add(per);
         teachDay.set(dk, set);
         if (p.isWerkstatt || p.isLabor) teachWerkLaborDay.add(dk);
+        if (isLongDay(p)) teachLongDay.add(dk);
         if (!p.isWerkstatt && teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration).includes(7)) {
           out.push({ severity: 'warn', text: `7. Stunde belegt: ${lbl(p)} (${DAYS[p.day]}, ${w}-Woche)` });
         }
@@ -2173,7 +2190,7 @@ export class AppState {
 
     // Lehrkraft zu viele Stunden an einem Tag (max. 6, aber 8 bei Werkstatt/Labor-Tag).
     for (const [dk, set] of teachDay) {
-      const max = teachWerkLaborDay.has(dk) ? 8 : 6;
+      const max = teachWerkLaborDay.has(dk) || teachLongDay.has(dk) ? 8 : 6;
       if (set.size > max) {
         const [abbr, d, w] = dk.split('|');
         out.push({ severity: 'error', text: `${abbr.toUpperCase()} hat ${set.size} Std am ${DAYS[+d]} (${w}-Woche) – max. ${max}.` });
@@ -2197,7 +2214,7 @@ export class AppState {
           run = uniq[i] === uniq[i - 1] + 1 ? run + 1 : 1;
           maxRun = Math.max(maxRun, run);
         }
-        if (maxRun > 4) {
+        if (maxRun > (isLongDay(p) ? 8 : 4)) {
           seenStreak.add(dk);
           out.push({ severity: 'warn', text: `${p.abbr} unterrichtet ${maxRun} Std am Stück in ${p.klasse} (${DAYS[p.day]}, ${w}-Woche).` });
         }
