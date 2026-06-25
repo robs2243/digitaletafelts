@@ -123,10 +123,11 @@ Quelle: Vorgaben des Anwenders.
 
 ## Fach-spezifische Lagen
 
-21. **Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2 …): fest auf Montag 8.+9. Stunde.** Mit den
-    Betrieben ist der Montag-Nachmittag dafür reserviert. Hart erzwungen (`check()`),
-    Start 8; die a/b-Gruppen stapeln sich am selben Slot (siehe 20a), SK1 und SK2
-    verteilen sich über u-/g-Woche.
+21. **Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2 …): FEST auf Montag, Block im Fenster 7.–9.**
+    (eigentlich 8.–10., aber das Raster endet bei der 9.). Hart erzwungen (`check()`):
+    Montag, Start so, dass der Block in 7.–9. liegt (z. B. 3h-Block → 7.–9.). Die
+    **7. Stunde ist für Seminarkurs freigegeben** (sonst Mittagspause). Die a/b-Gruppen
+    stapeln am selben Slot (siehe 20a); SK1 und SK2 verteilen sich über u-/g-Woche.
 22. **Spanisch (SB1/SB2/SB3): nur Randstunden 1.+2. ODER 8.+9.** (nicht alle Schüler
     besuchen es). `baseStarts` = [1, 8]. **Tag-Pause:** mindestens ein Tag zwischen den
     Spanisch-Stunden einer Klasse (kein Nachbartag). **Alternation:** liegt eine Stunde

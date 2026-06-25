@@ -1166,7 +1166,7 @@ export class AppState {
     // bevorzugt den Nachmittag, damit der Morgen für Theorie frei bleibt.
     const baseStarts = (card: Card): number[] =>
       isSk(card)
-        ? [8] // Seminarkurs: 8.+9. (Montag erzwingt check())
+        ? [7, 8, 9].filter((s) => s + card.duration - 1 <= 9).reverse() // Seminarkurs: Block im Fenster 7.–9. (Montag erzwingt check())
         : isSpan(card)
           ? [1, 8] // Spanisch: nur Randstunden 1.+2. oder 8.+9.
           : card.isWerkstatt
@@ -1303,13 +1303,15 @@ export class AppState {
       };
 
       const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false): string | null => {
-        // Seminarkurs fest auf Montag (Tag 0), 8.+9. Stunde (Start 8).
-        if (isSk(card) && (d !== 0 || start !== 8)) return 'Sk nur Mo 8.+9.';
+        // Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2): FEST auf Montag, Block im Fenster 7.–9.
+        // (eigentlich 8.–10., aber das Raster endet bei der 9.). Fixe Bedingung.
+        if (isSk(card) && (d !== 0 || start < 7 || start + card.duration - 1 > 9)) return 'Sk nur Mo 7.–9.';
         const teach = teaching(card.isWerkstatt, start, card.duration);
         if (teach.length < card.duration) return 'über Stunde 9';
         const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
         if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
-        if (cfg.forbidSeventh && !card.isWerkstatt && teach.includes(7)) return '7. Stunde frei';
+        // 7. Stunde ist Mittagspause (außer Werkstatt) – Seminarkurs darf 7.–9. belegen.
+        if (cfg.forbidSeventh && !card.isWerkstatt && !isSk(card) && teach.includes(7)) return '7. Stunde frei';
         if (cfg.mainNoLate && isMain(card) && teach.some((p) => p > 6)) return 'Hauptfach 8./9. gesperrt';
         for (const p of teach) if (this.isTeacherBlocked(card.abbr, d, w, p)) return 'Lehrer-Sperrzeit';
         const md = maxDaysOf(card.abbr);
