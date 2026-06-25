@@ -1197,6 +1197,9 @@ export class AppState {
      * Bestehende Platzierungen (auch fixierte) werden NICHT verschoben, sondern nur
      * als Belegung berücksichtigt. shuffleOrder=true variiert die Reihenfolge.
      */
+    // Reparatur (teuer) nur auf aussichtsreichen Läufen ausführen: erst wenn dieser Lauf
+    // mindestens so viele Karten platziert wie das bisher beste Ergebnis (Tempo schonen).
+    let bestPlaced = 0;
     // focus = IDs zuletzt NICHT verplanter Karten → in diesem Durchlauf ZUERST platzieren,
     // damit sie die knappen Slots gewinnen (gezielter Neustart statt rein zufällig).
     const runOnce = (shuffleOrder: boolean, rng: () => number, focus: ReadonlySet<string> = EMPTY_FOCUS): Outcome => {
@@ -1428,6 +1431,145 @@ export class AppState {
           groupB.push({ c, d, w, start, duration: card.duration, isWerk: card.isWerkstatt, klasse: card.klasse });
         }
         assigns.push({ card, c, d, w, start });
+      };
+
+      // „Einfache" Karte: eigene Lehrkraft + Raum, KEINE Kopplung/Team/Werkstatt/Labor/
+      // Betrieb/Gruppe. Nur solche werden beim Reparatur-Schritt verschoben/ausgeworfen –
+      // ihre Belegung lässt sich exakt und konfliktfrei rückgängig machen.
+      const isSimple = (c: Card): boolean =>
+        !!c.abbr.trim() &&
+        !!c.room.trim() &&
+        !c.coupling.trim() &&
+        !c.teamTeaching.trim() &&
+        !c.isWerkstatt &&
+        !c.isLabor &&
+        !c.labGroup.trim() &&
+        !isBetrieb(c);
+
+      /** Macht die Belegung einer EINFACHEN Karte rückgängig (exakte Umkehr von occupy)
+       *  und entfernt ihre Zuordnung aus assigns. Nur für isSimple-Karten gültig. */
+      const unapplySimple = (a: Assign): void => {
+        const { card, c, d, w, start } = a;
+        const ad = card.abbr.toLowerCase();
+        for (const p of blockedPeriods(false, start, card.duration)) {
+          const key = cK(d, w, c, p);
+          const e = cellOcc.get(key);
+          if (e) {
+            e.total--;
+            if (e.total <= 0) cellOcc.delete(key);
+          }
+          cell.delete(key);
+          roomSet.delete(rK(d, w, p, card.room));
+          teachSet.delete(tK(card.abbr, d, w, p));
+          teachClass.delete(tcK(card.abbr, c, d, w, p));
+          teachDayPeriods.get(thK(card.abbr, d, w))?.delete(p);
+        }
+        const hk = thK(card.abbr, d, w);
+        const th = (teachH.get(hk) ?? 0) - card.duration;
+        if (th > 0) teachH.set(hk, th);
+        else teachH.delete(hk);
+        const tw = teachWeek.get(ad);
+        if (tw) tw[w === 'u' ? 0 : 1] -= card.duration;
+        const f = card.fach.trim().toLowerCase();
+        if (f) {
+          const sk = sK(card.klasse, d, w, f);
+          const sv = (subj.get(sk) ?? 0) - card.duration;
+          if (sv > 0) subj.set(sk, sv);
+          else subj.delete(sk);
+        }
+        mirrorSlots.get(mirrorKey({ abbr: card.abbr, klasse: card.klasse, fach: card.fach }))?.delete(`${d}|${start}|${w}`);
+        // Anwesenheitstag nur freigeben, wenn die Lehrkraft an dem Tag nichts mehr hat.
+        const busyThatDay =
+          (teachDayPeriods.get(thK(card.abbr, d, 'u'))?.size ?? 0) > 0 ||
+          (teachDayPeriods.get(thK(card.abbr, d, 'g'))?.size ?? 0) > 0;
+        if (!busyThatDay) teachDaysUsed.get(ad)?.delete(d);
+        // Aus assigns per WERT entfernen (Objekt kann nach Restore ein anderes sein).
+        const i = assigns.findIndex((x) => x.card.id === card.id && x.c === c && x.d === d && x.w === w && x.start === start);
+        if (i >= 0) assigns.splice(i, 1);
+      };
+
+      /** Reparatur-Schritt: offene EINFACHE Karten per Tausch-Kette (Ejection-Chain)
+       *  einfügen – S verdrängt eine Karte, die wiederum eine verdrängen darf usw., bis
+       *  jemand einen freien Platz findet. Löst randvolle Klassen, die sich einen Raum
+       *  teilen (kein einzelner freier Platz, aber ein gültiger Ringtausch existiert). */
+      const repair = (): void => {
+        const stillOpen = (): Card[] => {
+          const placed = new Set(assigns.map((a) => a.card.id));
+          return cards.filter((c) => isSimple(c) && !placed.has(c.id));
+        };
+        if (!stillOpen().length) return;
+        const MAX_DEPTH = 3; // höchstens 3 Verschiebungen je Kette
+        let budget = 6000; // Obergrenze an Versuchen je Planungslauf (gegen Explosion)
+
+        // Genau EINE einfache, noch nicht in der Kette benutzte Karte, die (c,d,w,start)
+        // für s blockiert (Klassen-Zelle, Raum oder Lehrkraft)? Sonst null.
+        const singleBlocker = (s: Card, c: number, d: number, w: Week, start: number, used: Set<string>): Assign | null => {
+          const cellK = new Set<string>();
+          const roomK = new Set<string>();
+          const teachK = new Set<string>();
+          for (const p of blockedPeriods(false, start, s.duration)) {
+            cellK.add(cK(d, w, c, p));
+            roomK.add(rK(d, w, p, s.room));
+            teachK.add(tK(s.abbr, d, w, p));
+          }
+          let found: Assign | null = null;
+          for (const a of assigns) {
+            if (!isSimple(a.card) || used.has(a.card.id)) continue;
+            let hit = false;
+            for (const p of blockedPeriods(false, a.start, a.card.duration)) {
+              if (cellK.has(cK(a.d, a.w, a.c, p)) || roomK.has(rK(a.d, a.w, p, a.card.room)) || teachK.has(tK(a.card.abbr, a.d, a.w, p))) {
+                hit = true;
+                break;
+              }
+            }
+            if (hit) {
+              if (found) return null; // mehr als ein Blocker → Kette hier nicht verfolgen
+              found = a;
+            }
+          }
+          return found;
+        };
+
+        // Versucht s zu platzieren: erst auf einen freien Platz, sonst per Verdrängung
+        // einer EINZELNEN Blocker-Karte, die ihrerseits (rekursiv) untergebracht wird.
+        const placeChain = (s: Card, depth: number, used: Set<string>): boolean => {
+          for (const { c, d, w } of contexts(s)) {
+            for (const start of baseStarts(s)) {
+              if (check(s, c, d, w, start) === null) {
+                apply(s, c, d, w, start);
+                return true;
+              }
+              if (depth <= 0 || budget <= 0) continue;
+              const b = singleBlocker(s, c, d, w, start, used);
+              if (!b) continue;
+              budget--;
+              const bSlot = { card: b.card, c: b.c, d: b.d, w: b.w, start: b.start };
+              unapplySimple(b);
+              if (check(s, c, d, w, start) !== null) {
+                apply(b.card, bSlot.c, bSlot.d, bSlot.w, bSlot.start); // s passt nicht → zurück
+                continue;
+              }
+              apply(s, c, d, w, start);
+              used.add(s.id);
+              used.add(b.card.id);
+              if (placeChain(b.card, depth - 1, used)) return true;
+              used.delete(b.card.id);
+              used.delete(s.id);
+              unapplySimple({ card: s, c, d, w, start }); // Kette gescheitert → zurück
+              apply(b.card, bSlot.c, bSlot.d, bSlot.w, bSlot.start);
+            }
+          }
+          return false;
+        };
+
+        for (const s of stillOpen()) {
+          if (budget <= 0) break;
+          if (placeChain(s, MAX_DEPTH, new Set([s.id]))) {
+            const lbl = `${s.abbr} (${s.klasse})`; // Skip-Eintrag entfernen
+            const si = skipped.findIndex((x) => x.card === lbl);
+            if (si >= 0) skipped.splice(si, 1);
+          }
+        }
       };
 
       /** Spalte, deren Klassenname an (Tag, Woche) zur Karte passt (für Kopplung). */
@@ -1932,6 +2074,8 @@ export class AppState {
       for (const members of focusFirstGroups(teamGroupsList)) placeGroup(members, 'team');
       // 9. Rest (ohne die bereits als Anker verplanten Betrieb-/Block-Karten).
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c)), placeNormal);
+      // 10. Reparatur: letzte offene Einzelkarten per Tausch-Kette lösen (nur aussichtsreiche Läufe).
+      if (assigns.length >= bestPlaced) repair();
 
       let openMandatory = 0;
       for (let c = 0; c < this.classes.count; c++) {
@@ -2001,6 +2145,7 @@ export class AppState {
     const total = this.pool.all.length;
     const start = Date.now();
     let best = runOnce(false, rng); // 1. Durchlauf: Heuristik
+    bestPlaced = best.assigns.length;
     let attempts = 1;
     let stop: 'continue' | 'accept' | 'cancel' = 'continue';
 
@@ -2039,6 +2184,7 @@ export class AppState {
         attempts++;
         if (better(cand, best)) {
           best = cand;
+          bestPlaced = Math.max(bestPlaced, best.assigns.length);
           lastImprove = Date.now();
         }
       }

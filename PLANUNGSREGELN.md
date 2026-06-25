@@ -170,8 +170,18 @@ Quelle: Vorgaben des Anwenders.
     Wechsel reduzieren; sind einer Klasse am selben Tag fest zwei Räume zugeordnet, bleibt der Wechsel.
 24. **Suchzeit:** Der Planer sucht per Zufalls-Neustarts das beste Ergebnis. Ist bereits
     eine **vollständige** Lösung gefunden, stoppt er nach kurzer Zeit ohne Verbesserung
-    (~5 s). Sind **noch Karten offen**, sucht er **deutlich länger** weiter (bis ~90 s ohne
+    (~5 s). Sind **noch Karten offen**, sucht er **deutlich länger** weiter (bis ~120 s ohne
     Verbesserung bzw. bis zum Zeit-Budget von 10 Min) – „Stopp" bricht jederzeit ab.
+25. **Gezielte Neustarts:** Zuletzt **nicht** verplante Karten werden im nächsten Versuch
+    **zuerst** platziert (jeder 2. Versuch), damit sie die knappen Slots gewinnen.
+26. **Reparatur-Schritt (Tausch-Kette):** Am Ende jedes (aussichtsreichen) Laufs werden offene
+    **Einzelkarten** (eigene Lehrkraft+Raum, KEINE Kopplung/Team/Werkstatt/Labor/Betrieb)
+    eingegliedert, indem eine blockierende Einzelkarte verschoben wird – die wiederum eine
+    verschieben darf (Kette, max. 3 tief). Das löst **randvolle Klassen, die sich einen Raum
+    teilen** (kein einzelner freier Platz, aber ein gültiger Ringtausch existiert). Nutzt
+    dieselbe Prüfung wie der Planer (keine neuen Regelverstöße). **Grenze:** Karten, die nur
+    durch **gekoppelte** Stunden blockiert sind (z. B. gemeinsame Fächer pinned auf einen Tag),
+    können so nicht frei werden – dafür braucht es etwas Luft (z. B. einen 2. Raum).
 
 ## Entscheidungen zur Umsetzung
 
