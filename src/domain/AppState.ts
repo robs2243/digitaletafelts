@@ -1100,7 +1100,10 @@ export class AppState {
     // Betrieb (Klasse im Betrieb): Fach enthält „Betrieb". Je Klasse ein fester
     // Betriebstag (Tag-Index 0=Mo …). Erweiterbar: hier weitere Klassen ergänzen.
     const isBetrieb = (c: { fach: string }): boolean => /betrieb/i.test(c.fach);
-    const BETRIEB_DAY = new Map<string, number>([['1bfb', 0]]); // 1BFB → Montag
+    const BETRIEB_DAY = new Map<string, number>([
+      ['1bfb', 0], // 1BFB → Montag
+      ['1bfk', 2], // 1BFK → Mittwoch
+    ]); // Betriebstag je Klasse (Tag-Index 0=Mo … 4=Fr)
     // Schlüssel für u/g-Parallelität: gleiche Lehrkraft + Klasse + Fach.
     const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
       `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
