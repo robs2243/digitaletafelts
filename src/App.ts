@@ -79,6 +79,8 @@ export class App {
   private klasseTerm = '';
   /** Steuerflag für den laufenden Planungslauf (Abbrechen / vorzeitig übernehmen). */
   private planStop: 'continue' | 'accept' | 'cancel' = 'continue';
+  /** Ergebnis des letzten Planungslaufs (für „Warum nicht verplant?"). */
+  private lastPlan: PlanRunResult | null = null;
   /** Stundenplan-Ansicht: Modus und aktuelle Auswahl (Kürzel bzw. Klassenname). */
   private schedMode: 'teacher' | 'class' = 'teacher';
   private schedSel = '';
@@ -396,6 +398,12 @@ export class App {
     byId('plan-unplace-unlocked').addEventListener('click', () => this.handleUnplaceUnlocked());
     byId('plan-reset-classes').addEventListener('click', () => this.handleResetClasses());
     byId('plan-export').addEventListener('click', () => this.downloadCardsExport());
+    byId('plan-why').addEventListener('click', () => this.openWhy());
+    const whyOverlay = byId('why-modal');
+    byId('why-close').addEventListener('click', () => whyOverlay.classList.remove('open'));
+    whyOverlay.addEventListener('click', (e) => {
+      if (e.target === whyOverlay) whyOverlay.classList.remove('open');
+    });
     byId('plan-cardcount').addEventListener('click', () => this.openCardCount());
     const cardcountOverlay = byId('cardcount-modal');
     byId('cc-close').addEventListener('click', () => cardcountOverlay.classList.remove('open'));
@@ -846,6 +854,40 @@ export class App {
     else if (kind === 'all') for (const i of this.state.validatePlan()) this.dismissedValidations.add(i.text);
     else if (kind === 'restore') this.dismissedValidations.clear();
     this.openValidate(); // neu aufbauen
+  }
+
+  /** Zeigt die Gründe des letzten Planungslaufs (warum Karte xy nicht verplant wurde). */
+  private openWhy(): void {
+    const res = this.lastPlan;
+    const list = byId('why-list');
+    if (!res) {
+      byId('why-sub').textContent = 'Noch keine Planung in dieser Sitzung gelaufen.';
+      list.innerHTML = '<div class="tm-empty">Bitte zuerst „✨ Automatisch verplanen" ausführen.</div>';
+      byId('why-modal').classList.add('open');
+      return;
+    }
+    const total = res.placed + res.skipped.length;
+    byId('why-sub').textContent =
+      `${res.placed} von ${total} Karten verplant` +
+      (res.skipped.length ? ` · ${res.skipped.length} nicht platzierbar` : '') +
+      (res.openMandatory ? ` · ${res.openMandatory} Pflichtstunden offen` : '') +
+      ` · ${res.attempts.toLocaleString('de-DE')} Versuche`;
+    if (!res.skipped.length) {
+      list.innerHTML = '<div class="tm-empty">✅ Alle Karten konnten verplant werden.</div>';
+      byId('why-modal').classList.add('open');
+      return;
+    }
+    // Nach Grund gruppieren (häufigste zuerst), je Grund die betroffenen Karten.
+    const byReason = new Map<string, string[]>();
+    for (const s of res.skipped) (byReason.get(s.reason) ?? byReason.set(s.reason, []).get(s.reason)!).push(s.card);
+    list.innerHTML = [...byReason.entries()]
+      .sort((a, b) => b[1].length - a[1].length)
+      .map(
+        ([reason, cards]) =>
+          `<div class="va-item va-warn"><span class="va-ico">⚠️</span><span class="va-txt"><b>${esc(reason)}</b> (${cards.length})<br><span style="opacity:.8">${cards.map((c) => esc(c)).join(', ')}</span></span></div>`,
+      )
+      .join('');
+    byId('why-modal').classList.add('open');
   }
 
   // ── Planungsregeln (Bedingungs-Editor) ──────────────────────────────────
@@ -2084,6 +2126,8 @@ export class App {
       this.toast.show('Planung abgebrochen.', 'inf');
       return;
     }
+
+    this.lastPlan = res; // für „Warum nicht verplant?"
 
     const total = res.placed + res.skipped.length;
     const parts = [`✓ ${res.placed} von ${total} verplant`];

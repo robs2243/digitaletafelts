@@ -307,6 +307,7 @@
             „Erneut planen" entplant alle nicht fixierten Karten und verteilt neu.
             <a href="#" id="plan-rules" style="color: var(--accent)">📄 Regeln herunterladen</a>
           </div>
+          <button class="btn btn-ok" id="plan-why" style="width: 100%; margin-top: 8px">ℹ️ Warum nicht verplant? (Gründe)</button>
         </div>
         <div class="fg" style="border-top: 1px solid #e0e0e0; padding-top: 12px">
           <label>Kürzel-Farben – Kartenfarbe je Lehrkraft festlegen (bleibt bei Importen erhalten)</label>
@@ -611,6 +612,18 @@
           <button class="btn btn-sec" id="va-restore" title="Ausgeblendete Meldungen wieder anzeigen" style="margin-right: auto; display: none">↩ Ausgeblendete zeigen</button>
           <button class="btn btn-del" id="va-clear" title="Alle angezeigten Meldungen ausblenden">🗑 Alle löschen</button>
           <button class="btn btn-ok" id="va-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ „WARUM NICHT VERPLANT?"-MODAL ═══ -->
+    <div class="overlay" id="why-modal">
+      <div class="modal" style="width: 680px">
+        <h2 style="color: #1a237e">ℹ️ Nicht verplante Karten – Gründe</h2>
+        <div id="why-sub" class="tm-sub"></div>
+        <div id="why-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="why-close">Schließen</button>
         </div>
       </div>
     </div>
