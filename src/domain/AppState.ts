@@ -1097,6 +1097,10 @@ export class AppState {
     const isSk = (c: { fach: string }): boolean => /^([abcd][_-])?sk\d*$/i.test(c.fach.trim());
     // Spanisch (SB1/SB2/SB3): nur Randstunden 1.+2. ODER 8.+9. (nicht alle Schüler).
     const isSpan = (c: { fach: string }): boolean => /^([abcd][_-])?sb\d+$/i.test(c.fach.trim());
+    // Betrieb (Klasse im Betrieb): Fach enthält „Betrieb". Je Klasse ein fester
+    // Betriebstag (Tag-Index 0=Mo …). Erweiterbar: hier weitere Klassen ergänzen.
+    const isBetrieb = (c: { fach: string }): boolean => /betrieb/i.test(c.fach);
+    const BETRIEB_DAY = new Map<string, number>([['1bfb', 0]]); // 1BFB → Montag
     // Schlüssel für u/g-Parallelität: gleiche Lehrkraft + Klasse + Fach.
     const mirrorKey = (c: { abbr: string; klasse: string; fach: string }): string =>
       `${c.abbr.toLowerCase()}|${c.klasse.trim().toLowerCase()}|${c.fach.trim().toLowerCase()}`;
@@ -1141,10 +1145,11 @@ export class AppState {
     };
 
     type Place = { abbr: string; room: string; duration: number; isWerkstatt: boolean; isLabor: boolean; labGroup: string; fach: string };
-    // Stapelbar: Labor-/Werkstatt-Karte mit Gruppe a/b/c/d (bis zu 4 parallel).
+    // Stapelbar: Labor-/Werkstatt-/Betrieb-Karte mit Gruppe a/b/c/d (bis zu 4 parallel).
+    // Betrieb: am Betriebstag ist die ganze Klasse (Gruppe a + b) gleichzeitig im Betrieb.
     const GROUPS = ['a', 'b', 'c', 'd'];
-    const stackable = (p: { isLabor: boolean; isWerkstatt: boolean; labGroup: string }): boolean =>
-      (p.isLabor || p.isWerkstatt) && GROUPS.includes(p.labGroup);
+    const stackable = (p: { isLabor: boolean; isWerkstatt: boolean; labGroup: string; fach: string }): boolean =>
+      (p.isLabor || p.isWerkstatt || isBetrieb(p)) && GROUPS.includes(p.labGroup);
     type Assign = { card: Card; c: number; d: number; w: Week; start: number };
     interface Outcome {
       assigns: Assign[];
@@ -1306,6 +1311,11 @@ export class AppState {
         // Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2): FEST auf Montag, Block im Fenster 7.–9.
         // (eigentlich 8.–10., aber das Raster endet bei der 9.). Fixe Bedingung.
         if (isSk(card) && (d !== 0 || start < 7 || start + card.duration - 1 > 9)) return 'Sk nur Mo 7.–9.';
+        // Betrieb am festgelegten Betriebstag der Klasse (z. B. 1BFB = Montag).
+        if (isBetrieb(card)) {
+          const bd = BETRIEB_DAY.get(card.klasse.trim().toLowerCase());
+          if (bd !== undefined && d !== bd) return `Betrieb nur ${DAYS[bd]}`;
+        }
         const teach = teaching(card.isWerkstatt, start, card.duration);
         if (teach.length < card.duration) return 'über Stunde 9';
         const blk = blockedPeriods(card.isWerkstatt, start, card.duration);

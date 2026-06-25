@@ -109,15 +109,19 @@ export function parseCardRows(rows: unknown[][]): CardProps[] {
     const isLabor = truthy(cell(row, 'isLabor'));
     // Werkstatt = Flag gesetzt ODER „W-…"-Raum (ein W-Raum kennzeichnet immer Werkstatt).
     const isWerkstatt = truthy(cell(row, 'isWerkstatt')) || /^w-/i.test(room);
+    const fach = String(cell(row, 'fach') ?? '').trim();
     // Gruppe a/b aus der jeweils passenden Spalte; sonst generische Gruppen-Spalte.
+    // Betrieb-Karten (A_Betrieb/B_Betrieb …) erhalten ihre Gruppe aus dem Fach-Präfix,
+    // damit A_ und B_ am Betriebstag parallel (gestapelt) liegen können.
     const labGroup =
       (isWerkstatt ? group(raw(row, 'werkstattab')) : '') ||
       (isLabor ? group(raw(row, 'laborab')) : '') ||
-      group(cell(row, 'labGroup'));
+      group(cell(row, 'labGroup')) ||
+      (/betrieb/i.test(fach) ? (/^([abcd])[_-]/i.exec(fach)?.[1] ?? '').toLowerCase() : '');
     out.push({
       klasse,
       abbr,
-      fach: String(cell(row, 'fach') ?? '').trim(),
+      fach,
       name: '',
       room,
       duration: Number.isFinite(dur) && dur >= 1 && dur <= 9 ? dur : 2,

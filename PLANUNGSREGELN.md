@@ -149,6 +149,11 @@ Quelle: Vorgaben des Anwenders.
     und oft starre 4-Stunden-Blöcke. Sie werden **früh** verplant, damit nicht später
     1.–4. voll ist und sie keinen Platz mehr finden. Berufsschulklassen sind oft zu 100 %
     ausgelastet (24 Std auf 2 Wochen, asymmetrisch 16/8) – da ist die Reihenfolge entscheidend.
+23b. **Betriebstag je Klasse.** Manche Klassen haben einen festen Betriebstag, z. B. **1BFB =
+    Montag** (`BETRIEB_DAY`-Tabelle im Planer, erweiterbar). Betrieb-Karten der Klasse dürfen
+    dann nur an diesem Tag liegen. Am Betriebstag ist die **ganze Klasse** im Betrieb –
+    deshalb liegen **A_Betrieb und B_Betrieb parallel (gestapelt)**: Betrieb-Karten bekommen
+    ihre Gruppe (a/b/c/d) aus dem Fach-Präfix und sind wie Labor/Werkstatt stapelbar.
 24. **Suchzeit:** Der Planer sucht per Zufalls-Neustarts das beste Ergebnis. Ist bereits
     eine **vollständige** Lösung gefunden, stoppt er nach kurzer Zeit ohne Verbesserung
     (~5 s). Sind **noch Karten offen**, sucht er **deutlich länger** weiter (bis ~90 s ohne
