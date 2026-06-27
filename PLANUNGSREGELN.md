@@ -99,7 +99,8 @@ Quelle: Vorgaben des Anwenders.
 16c. **Werkstatt-Schiene an EINEM zusammenhängenden Tag (klassenspezifisch).** Manche
     Klassen-Paare haben ihre (klassenübergreifend gekoppelte) Werkstatt fest an **einem Tag**:
     **2BFE2 + 2BFM2** und **AV3 + AV4** als **voller Tag 1.–4. + 6.–9.** (8 Std, Pause in 5.);
-    **AV1 + AV2** als **3.–6.** (4 Std, Slots 3.–4. + 6.–7.). Je Paar am **gleichen Tag**, u/g
+    **AV1 + AV2** als **durchgehend 3.–6.** (4 Std = 3,4,5,6 – bei nur 4 Std Werkstatt darf die
+    Pause in der 5. Stunde **übergangen** werden, `noPause`). Je Paar am **gleichen Tag**, u/g
     **gespiegelt** (u und g identisch). Die Paare sind **unabhängig** – jedes darf an einem
     **anderen** Tag liegen. Da die Werkstatt-Räume klassenübergreifend geteilt sind, werden
     diese Schienen-Werkstätten **ganz zuerst** verplant (`placeWerkSchiene`, `WERK_SCHIENE`).
@@ -155,6 +156,8 @@ Quelle: Vorgaben des Anwenders.
     Klasse) → echte Schiene. Jede Position = ein Randstunden-Slot (1.+2. oder 8.+9.), die
     Lehrkraft liegt dort in **u UND g gespiegelt**. In `better()` hat **wenige distinkte
     OLZ-Slots Vorrang** (OLZ ist zwingend). Ergebnis: alle 4 Klassen exakt gleichzeitig.
+    **Über die Woche verteilt:** die Schienen werden auf möglichst **viele verschiedene Tage**
+    gelegt (höchstens eine OLZ-Schiene je Tag, dann erst ein zweiter Slot am selben Tag).
 
 ## Schienen & Planungs-Reihenfolge
 

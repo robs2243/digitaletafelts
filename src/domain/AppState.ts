@@ -1128,8 +1128,10 @@ export class AppState {
       `${kl.trim().toLowerCase()}|${d}|${w}|${fach.trim().toLowerCase()}`;
 
     /** Tatsächlich unterrichtete Stunden (ohne Werkstatt-Pause in der 5.). */
-    const teaching = (isWerk: boolean, start: number, dur: number): number[] => {
-      if (!isWerk) {
+    // noPause=true: Werkstatt OHNE die 5.-Stunden-Pause (durchgehend) – für kurze 4h-Blöcke
+    // (z. B. AV1/AV2 auf 3.–6. = 3,4,5,6), wo die Pause-Regel übergangen werden darf.
+    const teaching = (isWerk: boolean, start: number, dur: number, noPause = false): number[] => {
+      if (!isWerk || noPause) {
         const a: number[] = [];
         for (let i = 0; i < dur; i++) a.push(start + i);
         return a;
@@ -1144,9 +1146,9 @@ export class AppState {
     };
 
     /** Belegte Stunden inkl. Werkstatt-Pause (5.), wenn sie im Block liegt. */
-    const blockedPeriods = (isWerk: boolean, start: number, dur: number): number[] => {
-      const t = teaching(isWerk, start, dur);
-      if (isWerk && t.length && start <= 5 && t[t.length - 1] >= 5) return [...t, 5].sort((a, b) => a - b);
+    const blockedPeriods = (isWerk: boolean, start: number, dur: number, noPause = false): number[] => {
+      const t = teaching(isWerk, start, dur, noPause);
+      if (isWerk && !noPause && t.length && start <= 5 && t[t.length - 1] >= 5) return [...t, 5].sort((a, b) => a - b);
       return t;
     };
 
@@ -1233,7 +1235,7 @@ export class AppState {
       const skipped: { card: string; reason: string }[] = [];
 
       // countTeacher=false bei gekoppelten Folge-Karten: gleiche Lehrerstunde nur einmal zählen.
-      const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number, countTeacher = true): void => {
+      const occupy = (card: Place, kl: string, c: number, d: number, w: Week, start: number, countTeacher = true, noPause = false): void => {
         // Lehrerlose Karten (kein Kürzel, z. B. „Betrieb") belegen nur den Klassen-Slot/
         // Raum – sie erzeugen KEINE Lehrer-Konflikte/-Stunden (sonst würden mehrere
         // lehrerlose Karten klassenübergreifend fälschlich kollidieren).
@@ -1247,7 +1249,7 @@ export class AppState {
           }
         }
         const canStack = stackable(card);
-        for (const p of blockedPeriods(card.isWerkstatt, start, card.duration)) {
+        for (const p of blockedPeriods(card.isWerkstatt, start, card.duration, noPause)) {
           const key = cK(d, w, c, p);
           cell.add(key);
           const e = cellOcc.get(key) ?? { total: 0, stack: 0, groups: new Set<string>() };
@@ -1264,7 +1266,7 @@ export class AppState {
           }
         }
         if (hasAbbr) {
-          for (const p of teaching(card.isWerkstatt, start, card.duration)) teachClass.add(tcK(card.abbr, c, d, w, p));
+          for (const p of teaching(card.isWerkstatt, start, card.duration, noPause)) teachClass.add(tcK(card.abbr, c, d, w, p));
           const ad = card.abbr.toLowerCase();
           (teachDaysUsed.get(ad) ?? teachDaysUsed.set(ad, new Set()).get(ad)!).add(d);
           // Tag mit Werkstatt/Labor → an dem Tag darf die Lehrkraft 8 statt 6 Std haben.
@@ -1349,7 +1351,7 @@ export class AppState {
         return run;
       };
 
-      const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false): string | null => {
+      const check = (card: Card, c: number, d: number, w: Week, start: number, stackOnB = false, noPause = false): string | null => {
         // Seminarkurs (A_SK1/B_SK1/A_SK2/B_SK2): FEST auf Montag, Block im Fenster 7.–9.
         // (eigentlich 8.–10., aber das Raster endet bei der 9.). Fixe Bedingung.
         if (isSk(card) && (d !== 0 || start < 7 || start + card.duration - 1 > 9)) return 'Sk nur Mo 7.–9.';
@@ -1358,9 +1360,9 @@ export class AppState {
           const bd = BETRIEB_DAY.get(card.klasse.trim().toLowerCase());
           if (bd !== undefined && d !== bd) return `Betrieb nur ${DAYS[bd]}`;
         }
-        const teach = teaching(card.isWerkstatt, start, card.duration);
+        const teach = teaching(card.isWerkstatt, start, card.duration, noPause);
         if (teach.length < card.duration) return 'über Stunde 9';
-        const blk = blockedPeriods(card.isWerkstatt, start, card.duration);
+        const blk = blockedPeriods(card.isWerkstatt, start, card.duration, noPause);
         if (Math.max(...blk) > PERIODS) return 'über Stunde 9';
         // 7. Stunde ist Mittagspause (außer Werkstatt) – Seminarkurs darf 7.–9. belegen,
         // Betrieb (Ganztags-Block) ebenfalls. Labor liegt in 1.–6./8.–9., NICHT in der 7.
@@ -1436,8 +1438,8 @@ export class AppState {
         return out;
       };
 
-      const apply = (card: Card, c: number, d: number, w: Week, start: number, countTeacher = true): void => {
-        occupy(card, card.klasse, c, d, w, start, countTeacher);
+      const apply = (card: Card, c: number, d: number, w: Week, start: number, countTeacher = true, noPause = false): void => {
+        occupy(card, card.klasse, c, d, w, start, countTeacher, noPause);
         if (card.labGroup === 'b') {
           groupB.push({ c, d, w, start, duration: card.duration, isWerk: card.isWerkstatt, klasse: card.klasse });
         }
@@ -2063,7 +2065,11 @@ export class AppState {
       const restCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && !isWerkCoup(ms) && !isEarlyCoup(ms));
       const placeWerkSchiene = (coups: Card[][]): boolean => {
         const classes = [...new Set(coups.flatMap((ms) => ms.map((m) => m.klasse.trim().toLowerCase())))];
-        const window = classes.some((c) => c === 'av1' || c === 'av2') ? [3, 6] : [1, 3, 6, 8];
+        // AV1/AV2: 4h durchgehend 3.–6. (Starts 3+5 = 3,4,5,6) – Pause in 5. wird übergangen.
+        // Sonst voller Tag 1.–4.+6.–9. (Starts 1,3,6,8 – mit Pause in der 5.).
+        const av12 = classes.some((c) => c === 'av1' || c === 'av2');
+        const window = av12 ? [3, 5] : [1, 3, 6, 8];
+        const noPause = av12;
         const perWeek = window.length;
         if (coups.length > 2 * perWeek) return false; // passt nicht an EINEN Tag (u + g)
         const days = [...Array(DAYS.length).keys()];
@@ -2078,7 +2084,7 @@ export class AppState {
             const start = window[w === 'u' ? ui++ : gi++];
             for (const m of coup) {
               const c = columnFor(m, d, w);
-              if (c === null || check(m, c, d, w, start) !== null) {
+              if (c === null || check(m, c, d, w, start, false, noPause) !== null) {
                 ok = false;
                 break;
               }
@@ -2093,7 +2099,7 @@ export class AppState {
                 const a = m.abbr.trim().toLowerCase();
                 const countT = !a || !seen.has(a);
                 if (a) seen.add(a);
-                apply(m, columnFor(m, d, w) as number, d, w, start, countT);
+                apply(m, columnFor(m, d, w) as number, d, w, start, countT, noPause);
               }
             }
             return true;
@@ -2194,7 +2200,15 @@ export class AppState {
         const posSlots: { d: number; s: number }[] = [];
         const days = [...Array(DAYS.length).keys()];
         if (shuffleOrder) shuffle(days, rng);
-        for (const d of days) for (const s of [1, 8]) if (posSlots.length < K && slotFree(d, s)) posSlots.push({ d, s });
+        // OLZ-Schienen über die WOCHE VERTEILEN: 1. Durchgang höchstens EINE Schiene je Tag
+        // (auf möglichst viele verschiedene Tage), 2. Durchgang füllt bei Bedarf den 2. Slot.
+        for (const d of days)
+          for (const s of [1, 8])
+            if (posSlots.length < K && !posSlots.some((p) => p.d === d) && slotFree(d, s)) {
+              posSlots.push({ d, s });
+              break;
+            }
+        for (const d of days) for (const s of [1, 8]) if (posSlots.length < K && !posSlots.some((p) => p.d === d && p.s === s) && slotFree(d, s)) posSlots.push({ d, s });
 
         if (assign(0) && posSlots.length >= K) {
           // Platzieren: jede (Klasse,Lehrkraft) an ihre Position; deren 2 Karten in u und g.
