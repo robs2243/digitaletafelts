@@ -2363,15 +2363,22 @@ export class AppState {
     const teachWerkLaborDay = new Set<string>(); // kürzel|tag|woche mit Werkstatt/Labor → 8 statt 6 Std erlaubt
     const teachLongDay = new Set<string>(); // kürzel|tag|woche mit 8-Std-Klasse/Betrieb → 8 statt 6 Std erlaubt
     for (const p of pls) {
+      // Lehrerlose Karten (kein Kürzel, z. B. Betrieb) erzeugen KEINE Lehrer-Konflikte –
+      // sonst würden mehrere lehrerlose Karten (leeres Kürzel) klassenübergreifend
+      // fälschlich als „Lehrkraft zeitgleich in mehreren Klassen" gemeldet.
+      const hasAbbr = !!p.abbr.trim();
       for (const w of p.weeks) {
         for (const per of p.occupiedPeriods()) {
           if (p.room.trim()) {
             const k = `${slotKey(p.day, w, per)}|${p.room.trim().toLowerCase()}`;
             (roomAt.get(k) ?? roomAt.set(k, []).get(k)!).push(p);
           }
-          const tk = `${slotKey(p.day, w, per)}|${p.abbr.toLowerCase()}`;
-          (teachAt.get(tk) ?? teachAt.set(tk, []).get(tk)!).push(p);
+          if (hasAbbr) {
+            const tk = `${slotKey(p.day, w, per)}|${p.abbr.toLowerCase()}`;
+            (teachAt.get(tk) ?? teachAt.set(tk, []).get(tk)!).push(p);
+          }
         }
+        if (!hasAbbr) continue;
         const dk = `${p.abbr.toLowerCase()}|${p.day}|${w}`;
         const set = teachDay.get(dk) ?? new Set<number>();
         for (const per of teachingPeriods(p.isWerkstatt, p.startPeriod, p.duration)) set.add(per);
