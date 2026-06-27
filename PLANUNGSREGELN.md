@@ -139,12 +139,15 @@ Quelle: Vorgaben des Anwenders.
     schon 1.+2., wird die andere 8.+9. bevorzugt (und umgekehrt) – pro Klasse, woche­n­übergreifend.
     Damit Spanisch eine 1+2-Stunde sichern kann, werden Spanisch-/Seminarkurs-Kopplungen
     **vor** den Hauptfächern verplant (sonst füllen diese den Morgen).
-22a. **OLZ (in AV1–AV4): Randstunden 1.+2. ODER 8.+9. und in allen 4 Klassen ZEITGLEICH**
-    (`baseStarts` = [1, 8], Fach enthält „OLZ"). **Ohne Kopplung** (jede Klasse hat 4
-    verschiedene OLZ-Lehrer, die Kombinationen sollen NICHT fest vorgegeben werden): Der Planer
-    **synchronisiert** OLZ über eine weiche Bewertung – OLZ-Karten bevorzugen denselben
-    Randstunden-Slot (Tag+Stunde) wie bereits gelegte OLZ (`olzSlots`, Score-Term `olzPush`).
-    So liegt OLZ in allen AV-Klassen gleichzeitig, die Lehrer-Zuordnung bleibt aber frei.
+22a. **OLZ (in AV1–AV4): Randstunden 1.+2. ODER 8.+9., in allen 4 Klassen als SCHIENE
+    zeitgleich** (Fach enthält „OLZ"). **Ohne Kopplung** (jede Klasse hat mehrere
+    verschiedene OLZ-Lehrer, die Kombinationen sollen NICHT fest vorgegeben werden). Eigener
+    **Schienen-Schritt** (`placeOlzSchiene`, früh nach den großen Schienen): eine GLOBALE
+    Zuteilung (Latin-Square-artig, Backtracking) ordnet jede Klasse+Lehrkraft einer von K
+    Positionen zu, sodass an jeder Position **K verschiedene Lehrkräfte** sitzen (eine je
+    Klasse) → echte Schiene. Jede Position = ein Randstunden-Slot (1.+2. oder 8.+9.), die
+    Lehrkraft liegt dort in **u UND g gespiegelt**. In `better()` hat **wenige distinkte
+    OLZ-Slots Vorrang** (OLZ ist zwingend). Ergebnis: alle 4 Klassen exakt gleichzeitig.
 
 ## Schienen & Planungs-Reihenfolge
 

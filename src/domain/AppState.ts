@@ -2074,14 +2074,94 @@ export class AppState {
       // Betrieb-/Block-Karten (noCount, nicht Werkstatt/Labor) sind FESTE Belegungen
       // (Klasse im Betrieb / gesperrt) und oft starre 4h-Blöcke → als ANKER zuerst
       // verplanen, sonst ist später 1.–4. voll und sie fallen raus.
+      // OLZ als SCHIENE über alle OLZ-Klassen: je Randstunden-Slot (1+2 ODER 8+9) wird in
+      // JEDER Klasse eine OLZ-Karte gesetzt – mit VERSCHIEDENEN Lehrkräften (zeitgleich, ohne
+      // Kopplung, Lehrer-Kombi bleibt frei). 1+2 und 8+9 dürfen am selben Tag liegen.
+      const placeOlzSchiene = (): void => {
+        const olz = cards.filter((c) => isOlz(c) && !c.isWerkstatt && !c.isLabor);
+        if (!olz.length) return;
+        const olzClasses = [...new Set(olz.map((c) => c.klasse.trim().toLowerCase()))];
+        // Karten je Klasse+Lehrkraft (eine Lehrkraft hat i. d. R. 2 OLZ = u + g).
+        const byCT = new Map<string, Map<string, Card[]>>();
+        for (const c of olz) {
+          const kl = c.klasse.trim().toLowerCase();
+          const t = c.abbr.trim().toLowerCase();
+          const m = byCT.get(kl) ?? byCT.set(kl, new Map()).get(kl)!;
+          (m.get(t) ?? m.set(t, []).get(t)!).push(c);
+        }
+        const remaining = new Set(olz.map((c) => c.id));
+        // K = max. Anzahl OLZ-Lehrkräfte je Klasse = Anzahl benötigter Schienen-Positionen.
+        const K = Math.max(...olzClasses.map((kl) => byCT.get(kl)!.size));
+
+        // GLOBALE Zuteilung (Latin-Square-artig): jede (Klasse,Lehrkraft) bekommt eine Position
+        // 0..K-1, sodass je Klasse jede Position nur 1× und je Position jede Lehrkraft nur 1×
+        // (an einer Position sitzen also K verschiedene Lehrkräfte – eine je Klasse → Schiene).
+        const pairs: { kl: string; t: string }[] = [];
+        for (const kl of olzClasses) for (const t of byCT.get(kl)!.keys()) pairs.push({ kl, t });
+        if (shuffleOrder) shuffle(pairs, rng);
+        const colTeacher = Array.from({ length: K }, () => new Set<string>()); // Position → benutzte Lehrkräfte
+        const classCols = new Map<string, Set<number>>(); // Klasse → benutzte Positionen
+        const posOf = new Map<string, number>(); // „klasse|kürzel" → Position
+        const assign = (i: number): boolean => {
+          if (i === pairs.length) return true;
+          const { kl, t } = pairs[i];
+          const used = classCols.get(kl) ?? classCols.set(kl, new Set()).get(kl)!;
+          for (let p = 0; p < K; p++) {
+            if (used.has(p) || colTeacher[p].has(t)) continue;
+            used.add(p);
+            colTeacher[p].add(t);
+            posOf.set(`${kl}|${t}`, p);
+            if (assign(i + 1)) return true;
+            used.delete(p);
+            colTeacher[p].delete(t);
+            posOf.delete(`${kl}|${t}`);
+          }
+          return false;
+        };
+
+        // K Randstunden-Slots (Tag, Startstunde 1 oder 8) wählen, die in ALLEN Klassen in u UND g
+        // frei sind – je Position einer. 1+2 und 8+9 dürfen am selben Tag liegen.
+        const slotFree = (d: number, s: number): boolean =>
+          olzClasses.every((kl) => {
+            const card = olz.find((c) => c.klasse.trim().toLowerCase() === kl)!;
+            return WEEKS.every((w) => {
+              const col = columnFor(card, d, w);
+              return col !== null && check(card, col, d, w, s) === null;
+            });
+          });
+        const posSlots: { d: number; s: number }[] = [];
+        const days = [...Array(DAYS.length).keys()];
+        if (shuffleOrder) shuffle(days, rng);
+        for (const d of days) for (const s of [1, 8]) if (posSlots.length < K && slotFree(d, s)) posSlots.push({ d, s });
+
+        if (assign(0) && posSlots.length >= K) {
+          // Platzieren: jede (Klasse,Lehrkraft) an ihre Position; deren 2 Karten in u und g.
+          for (const kl of olzClasses)
+            for (const [t, cs] of byCT.get(kl)!) {
+              const { d, s } = posSlots[posOf.get(`${kl}|${t}`)!];
+              for (const w of WEEKS) {
+                const card = cs.find((c) => remaining.has(c.id));
+                if (!card) break;
+                const col = columnFor(card, d, w);
+                if (col !== null && check(card, col, d, w, s) === null) {
+                  apply(card, col, d, w, s);
+                  remaining.delete(card.id);
+                }
+              }
+            }
+        }
+        // Übrige OLZ (z. B. ungerade Anzahl, oder keine globale Lösung) normal in 1+2/8+9.
+        for (const c of olz) if (remaining.has(c.id)) placeNormal(c);
+      };
+
       const fixedBlocks = (c: Card) => c.noCount && !c.isWerkstatt && !c.isLabor && !c.coupling.trim() && !c.teamTeaching.trim();
       step(cards.filter(fixedBlocks), placeNormal); // 1. BETRIEBSTAGE/Block-Karten zuerst (starrster Ganztags-Anker)
       placeCoupList(schieneCoup); // 2. große SCHIENEN über ≥3 Klassen (Anker)
+      placeOlzSchiene(); // 2b. OLZ als Schiene über alle 4 AV-Klassen (Randstunden, zeitgleich)
       for (const setCards of werkSetList) placeWerkSet(setCards); // 3. nicht gekoppelte Werkstatt-Blöcke
       placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
       if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
       for (const members of focusFirstGroups(earlyCoup)) placeGroup(members, 'coupling');
-      step(cards.filter((c) => isOlz(c) && !c.isWerkstatt && !c.isLabor), placeNormal); // 5b. OLZ früh (zeitgleich-Slots sichern, vor den vollen AV-Klassen)
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal); // 6. Hauptfächer
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 7. Labor
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
@@ -2144,6 +2224,9 @@ export class AppState {
     // Auswahlkriterium (Priorität): meiste platzierte Karten → u/g-Stunden-Balance
     // → meiste u/g-Parallelität → wenigste Hohlstunden → wenigste offene Pflichtstunden.
     const better = (a: Outcome, b: Outcome): boolean => {
+      // OLZ-Schienen sind ZWINGEND zeitgleich über alle 4 AV-Klassen → wenige distinkte
+      // OLZ-Slots haben Vorrang (8 = perfekt). Erst danach zählt die Gesamtzahl.
+      if (a.olzSlotsCount !== b.olzSlotsCount) return a.olzSlotsCount < b.olzSlotsCount;
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
       // u/g-Differenz wird PRO LEHRKRAFT bewertet: zuerst möglichst WENIGE Lehrkräfte
       // über dem Limit, dann möglichst kleine Überschreitung. Die Gesamtsumme allein
@@ -2151,8 +2234,6 @@ export class AppState {
       if (a.imbalTeachers !== b.imbalTeachers) return a.imbalTeachers < b.imbalTeachers;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
       if (a.mirrorMismatch !== b.mirrorMismatch) return a.mirrorMismatch < b.mirrorMismatch;
-      // OLZ in allen AV-Klassen zeitgleich: möglichst WENIGE distinkte OLZ-Slots.
-      if (a.olzSlotsCount !== b.olzSlotsCount) return a.olzSlotsCount < b.olzSlotsCount;
       if (a.gaps !== b.gaps) return a.gaps < b.gaps;
       return a.openMandatory < b.openMandatory;
     };
