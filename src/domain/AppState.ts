@@ -1180,6 +1180,9 @@ export class AppState {
       /** Nicht-parallele Stunden: gleiche Lehrkraft+Klasse+Fach, die nur in einer
        *  Woche liegen (kleiner = mehr u/g parallel). */
       mirrorMismatch: number;
+      /** Anzahl distinkter OLZ-Slots (Tag|Stunde|Woche): klein = OLZ in allen AV-Klassen
+       *  zeitgleich auf denselben Schienen. */
+      olzSlotsCount: number;
     }
 
     // Werkstatt: 4-stündig auch nachmittags (6.–9.) möglich – die Bewertung
@@ -1283,7 +1286,7 @@ export class AppState {
         const mk = mirrorKey({ abbr: card.abbr, klasse: kl, fach: card.fach });
         (mirrorSlots.get(mk) ?? mirrorSlots.set(mk, new Set()).get(mk)!).add(`${d}|${start}|${w}`);
         if (isOlz(card)) {
-          const ok = `${d}|${start}`; // OLZ-Slot (klassenübergreifend), zeitgleich bevorzugt
+          const ok = `${d}|${start}|${w}`; // OLZ-Slot (Tag+Stunde+Woche), klassenübergreifend zeitgleich
           olzSlots.set(ok, (olzSlots.get(ok) ?? 0) + 1);
         }
         if (isSpan(card)) {
@@ -1754,7 +1757,7 @@ export class AppState {
             const span = isSpan(card) ? spanScore(card.klasse, d, w, start) : { adj: 0, same: 0 };
             // OLZ zeitgleich (ohne Kopplung): denselben Randstunden-Slot wie andere OLZ
             // bevorzugen → 0, sonst 1. So liegt OLZ in allen AV-Klassen gleichzeitig.
-            const olzPush = isOlz(card) && olzSlots.size > 0 && !olzSlots.has(`${d}|${start}`) ? 1 : 0;
+            const olzPush = isOlz(card) && olzSlots.size > 0 && !olzSlots.has(`${d}|${start}|${w}`) ? 1 : 0;
             const score = [
               imbalancePush, // u/g-Differenz ≤ Limit hat Vorrang
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
@@ -2078,6 +2081,7 @@ export class AppState {
       placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
       if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
       for (const members of focusFirstGroups(earlyCoup)) placeGroup(members, 'coupling');
+      step(cards.filter((c) => isOlz(c) && !c.isWerkstatt && !c.isLabor), placeNormal); // 5b. OLZ früh (zeitgleich-Slots sichern, vor den vollen AV-Klassen)
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal); // 6. Hauptfächer
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 7. Labor
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
@@ -2085,8 +2089,8 @@ export class AppState {
       const teamGroupsList = [...teamMap.values()];
       if (shuffleOrder) shuffle(teamGroupsList, rng);
       for (const members of focusFirstGroups(teamGroupsList)) placeGroup(members, 'team');
-      // 9. Rest (ohne die bereits als Anker verplanten Betrieb-/Block-Karten).
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c)), placeNormal);
+      // 9. Rest (ohne Betrieb-Anker und ohne die bereits früh gelegten OLZ).
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c) && !isOlz(c)), placeNormal);
       // 10. Reparatur: letzte offene Einzelkarten per Tausch-Kette lösen (nur aussichtsreiche Läufe).
       if (assigns.length >= bestPlaced) repair();
 
@@ -2134,7 +2138,7 @@ export class AppState {
         for (const x of gSet) if (!uSet.has(x)) mirrorMismatch++;
       }
 
-      return { assigns, skipped, openMandatory, imbalance, imbalTeachers, gaps, mirrorMismatch };
+      return { assigns, skipped, openMandatory, imbalance, imbalTeachers, gaps, mirrorMismatch, olzSlotsCount: olzSlots.size };
     };
 
     // Auswahlkriterium (Priorität): meiste platzierte Karten → u/g-Stunden-Balance
@@ -2147,6 +2151,8 @@ export class AppState {
       if (a.imbalTeachers !== b.imbalTeachers) return a.imbalTeachers < b.imbalTeachers;
       if (a.imbalance !== b.imbalance) return a.imbalance < b.imbalance;
       if (a.mirrorMismatch !== b.mirrorMismatch) return a.mirrorMismatch < b.mirrorMismatch;
+      // OLZ in allen AV-Klassen zeitgleich: möglichst WENIGE distinkte OLZ-Slots.
+      if (a.olzSlotsCount !== b.olzSlotsCount) return a.olzSlotsCount < b.olzSlotsCount;
       if (a.gaps !== b.gaps) return a.gaps < b.gaps;
       return a.openMandatory < b.openMandatory;
     };
