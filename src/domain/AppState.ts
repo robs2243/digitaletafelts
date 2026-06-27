@@ -1096,6 +1096,9 @@ export class AppState {
     const isSk = (c: { fach: string }): boolean => /^([abcd][_-])?sk\d*$/i.test(c.fach.trim());
     // Spanisch (SB1/SB2/SB3): nur Randstunden 1.+2. ODER 8.+9. (nicht alle Schüler).
     const isSpan = (c: { fach: string }): boolean => /^([abcd][_-])?sb\d+$/i.test(c.fach.trim());
+    // OLZ (in AV1–AV4): möglichst Randstunden 1.+2. ODER 8.+9.; soll in allen 4 Klassen
+    // GLEICHZEITIG liegen → in der Excel als Schiene/Kopplung über die AV-Klassen anlegen.
+    const isOlz = (c: { fach: string }): boolean => /(^|[^a-z])olz([^a-z]|$)/i.test(c.fach.trim());
     // Betrieb (Klasse im Betrieb): Fach enthält „Betrieb". Je Klasse ein fester
     // Betriebstag (Tag-Index 0=Mo …). Erweiterbar: hier weitere Klassen ergänzen.
     const isBetrieb = (c: { fach: string }): boolean => /betrieb/i.test(c.fach);
@@ -1184,8 +1187,8 @@ export class AppState {
     const baseStarts = (card: Card): number[] =>
       isSk(card)
         ? [7, 8, 9].filter((s) => s + card.duration - 1 <= 9).reverse() // Seminarkurs: Block im Fenster 7.–9. (Montag erzwingt check())
-        : isSpan(card)
-          ? [1, 8] // Spanisch: nur Randstunden 1.+2. oder 8.+9.
+        : isSpan(card) || isOlz(card)
+          ? [1, 8].filter((s) => s + card.duration - 1 <= 9) // Spanisch/OLZ: nur Randstunden 1.+2. oder 8.+9.
           : card.isWerkstatt
             ? card.duration <= 4
               ? [1, 6]
@@ -2035,7 +2038,7 @@ export class AppState {
       const isWerkCoup = (ms: Card[]) => ms.some((m) => m.isWerkstatt);
       const classCount = (ms: Card[]) => new Set(ms.map((m) => m.klasse.trim().toLowerCase())).size;
       const isSchieneCoup = (ms: Card[]) => ms.some((m) => m.schiene) || classCount(ms) >= 3;
-      const isEarlyCoup = (ms: Card[]) => ms.some((m) => isSpan(m) || isSk(m));
+      const isEarlyCoup = (ms: Card[]) => ms.some((m) => isSpan(m) || isSk(m) || isOlz(m));
       const schieneCoup = allCoup.filter((ms) => isSchieneCoup(ms));
       const werkCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && isWerkCoup(ms));
       const earlyCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && !isWerkCoup(ms) && isEarlyCoup(ms));
