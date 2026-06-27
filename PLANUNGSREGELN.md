@@ -96,6 +96,13 @@ Quelle: Vorgaben des Anwenders.
     Klasse+Fach zu **einem zusammenhängenden 4-Stunden-Block** in **derselben Woche**
     (z. B. K220 auf 6.+7., K221 auf 8.+9. – Gruppen je Slot gestapelt). Sie werden NICHT
     u/g-gespiegelt (das ergäbe nur 2h je Woche). Üblich: **eine Kopplung je Stunden-Slot**.
+16c. **Werkstatt-Schiene an EINEM zusammenhängenden Tag (klassenspezifisch).** Manche
+    Klassen-Paare haben ihre (klassenübergreifend gekoppelte) Werkstatt fest an **einem Tag**:
+    **2BFE2 + 2BFM2** und **AV3 + AV4** als **voller Tag 1.–4. + 6.–9.** (8 Std, Pause in 5.);
+    **AV1 + AV2** als **3.–6.** (4 Std, Slots 3.–4. + 6.–7.). Je Paar am **gleichen Tag**, u/g
+    **gespiegelt** (u und g identisch). Die Paare sind **unabhängig** – jedes darf an einem
+    **anderen** Tag liegen. Da die Werkstatt-Räume klassenübergreifend geteilt sind, werden
+    diese Schienen-Werkstätten **ganz zuerst** verplant (`placeWerkSchiene`, `WERK_SCHIENE`).
 
 ## Gruppen a/b/c/d (Labor & Werkstatt)
 

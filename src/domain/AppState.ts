@@ -2051,10 +2051,69 @@ export class AppState {
       const classCount = (ms: Card[]) => new Set(ms.map((m) => m.klasse.trim().toLowerCase())).size;
       const isSchieneCoup = (ms: Card[]) => ms.some((m) => m.schiene) || classCount(ms) >= 3;
       const isEarlyCoup = (ms: Card[]) => ms.some((m) => isSpan(m) || isSk(m) || isOlz(m));
+      // Klassen mit fester Werkstatt-Lage an EINEM zusammenhängenden Tag (u/g gespiegelt):
+      // AV1/AV2 → Fenster 3.–6. ([3,6]); alle anderen → voller Tag 1.–4.+6.–9. ([1,3,6,8]).
+      // Deren Werkstatt-Räume sind klassenübergreifend geteilt → ZUERST platzieren.
+      const WERK_SCHIENE = new Set(['2bfe2', '2bfm2', 'av1', 'av2', 'av3', 'av4']);
+      const isWerkSchieneCoup = (ms: Card[]) => isWerkCoup(ms) && ms.every((m) => WERK_SCHIENE.has(m.klasse.trim().toLowerCase()));
       const schieneCoup = allCoup.filter((ms) => isSchieneCoup(ms));
-      const werkCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && isWerkCoup(ms));
+      const werkSchieneCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && isWerkSchieneCoup(ms));
+      const werkCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && isWerkCoup(ms) && !isWerkSchieneCoup(ms));
       const earlyCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && !isWerkCoup(ms) && isEarlyCoup(ms));
       const restCoup = allCoup.filter((ms) => !isSchieneCoup(ms) && !isWerkCoup(ms) && !isEarlyCoup(ms));
+      const placeWerkSchiene = (coups: Card[][]): boolean => {
+        const classes = [...new Set(coups.flatMap((ms) => ms.map((m) => m.klasse.trim().toLowerCase())))];
+        const window = classes.some((c) => c === 'av1' || c === 'av2') ? [3, 6] : [1, 3, 6, 8];
+        const perWeek = window.length;
+        if (coups.length > 2 * perWeek) return false; // passt nicht an EINEN Tag (u + g)
+        const days = [...Array(DAYS.length).keys()];
+        if (shuffleOrder) shuffle(days, rng);
+        for (const d of days) {
+          const plan: { coup: Card[]; w: Week; start: number }[] = [];
+          let ui = 0;
+          let gi = 0;
+          let ok = true;
+          for (const coup of coups) {
+            const w: Week = ui < perWeek ? 'u' : 'g';
+            const start = window[w === 'u' ? ui++ : gi++];
+            for (const m of coup) {
+              const c = columnFor(m, d, w);
+              if (c === null || check(m, c, d, w, start) !== null) {
+                ok = false;
+                break;
+              }
+            }
+            if (!ok) break;
+            plan.push({ coup, w, start });
+          }
+          if (ok && plan.length === coups.length) {
+            for (const { coup, w, start } of plan) {
+              const seen = new Set<string>();
+              for (const m of coup) {
+                const a = m.abbr.trim().toLowerCase();
+                const countT = !a || !seen.has(a);
+                if (a) seen.add(a);
+                apply(m, columnFor(m, d, w) as number, d, w, start, countT);
+              }
+            }
+            return true;
+          }
+        }
+        return false;
+      };
+      // Gruppiert die Schienen-Werkstätten je Klassen+Fach und legt jede als zusammenhängenden
+      // Tag (placeWerkSchiene); klappt es nicht, normaler Werkstatt-Kopplungs-Block als Ausweg.
+      const placeWerkSchieneGroups = (coups: Card[][]): void => {
+        const grp = new Map<string, Card[][]>();
+        for (const ms of coups) {
+          const classes = [...new Set(ms.map((m) => m.klasse.trim().toLowerCase()))].sort().join(',');
+          const bf = [...new Set(ms.map((m) => baseFach(m.fach)))].sort().join(',');
+          const k = `${classes}|${bf}`;
+          (grp.get(k) ?? grp.set(k, []).get(k)!).push(ms);
+        }
+        for (const g of grp.values()) if (!placeWerkSchiene(g)) placeWerkCouplingSet(g);
+      };
+
       // Platziert eine Liste Kopplungen: Werkstatt-Kopplungen je Klasse+Fach als 4h-Block,
       // alles andere über placeGroup (gemeinsamer Slot, wo ALLE Klassen Spalten haben).
       const placeCoupList = (coups: Card[][]): void => {
@@ -2065,7 +2124,10 @@ export class AppState {
           const k = `${classes}|${bf}`;
           (grp.get(k) ?? grp.set(k, []).get(k)!).push(ms);
         }
-        for (const g of grp.values()) placeWerkCouplingSet(g);
+        for (const g of grp.values()) {
+          const special = g.every((ms) => ms.every((m) => WERK_SCHIENE.has(m.klasse.trim().toLowerCase())));
+          if (!special || !placeWerkSchiene(g)) placeWerkCouplingSet(g);
+        }
         const rest = coups.filter((ms) => !isWerkCoup(ms));
         if (shuffleOrder) shuffle(rest, rng);
         for (const ms of focusFirstGroups(rest)) placeGroup(ms, 'coupling');
@@ -2156,8 +2218,9 @@ export class AppState {
 
       const fixedBlocks = (c: Card) => c.noCount && !c.isWerkstatt && !c.isLabor && !c.coupling.trim() && !c.teamTeaching.trim();
       step(cards.filter(fixedBlocks), placeNormal); // 1. BETRIEBSTAGE/Block-Karten zuerst (starrster Ganztags-Anker)
+      placeWerkSchieneGroups(werkSchieneCoup); // 1b. Schienen-Werkstätten GANZ ZUERST (geteilte Räume, ganzer Tag, je Paar eigener Tag)
       placeCoupList(schieneCoup); // 2. große SCHIENEN über ≥3 Klassen (Anker)
-      placeOlzSchiene(); // 2b. OLZ als Schiene über alle 4 AV-Klassen (Randstunden, zeitgleich)
+      placeOlzSchiene(); // 2b. OLZ als Schiene über alle 4 AV-Klassen (Randstunden, weicht den Werkstatt-Tagen aus)
       for (const setCards of werkSetList) placeWerkSet(setCards); // 3. nicht gekoppelte Werkstatt-Blöcke
       placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
       if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
