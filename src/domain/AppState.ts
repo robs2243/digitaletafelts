@@ -1217,6 +1217,7 @@ export class AppState {
       const teachDaysUsed = new Map<string, Set<number>>(); // kürzel → genutzte Wochentage (für max. Anwesenheitstage)
       const subj = new Map<string, number>(); // klasse|d|w|fach → Stunden (alle Fächer)
       const mirrorSlots = new Map<string, Set<string>>(); // kürzel|klasse|fach → belegte „tag|start|woche" (für u/g-Parallelität)
+      const olzSlots = new Map<string, number>(); // „tag|start" → Anzahl OLZ-Karten (für zeitgleiche OLZ über die AV-Klassen, ohne Kopplung)
       const spanDays = new Map<string, Set<number>>(); // klasse|w → Spanisch-Tage (für Tag-Pause)
       const spanStarts = new Map<string, Set<number>>(); // klasse|w → genutzte Randstunden 1/8 (für 1+2/8+9-Alternation)
       // Belegung je Zelle (für a-auf-b-Stapeln): total = alle Karten, stack = stapelbare
@@ -1281,6 +1282,10 @@ export class AppState {
         if (f) subj.set(sK(kl, d, w, f), (subj.get(sK(kl, d, w, f)) ?? 0) + card.duration);
         const mk = mirrorKey({ abbr: card.abbr, klasse: kl, fach: card.fach });
         (mirrorSlots.get(mk) ?? mirrorSlots.set(mk, new Set()).get(mk)!).add(`${d}|${start}|${w}`);
+        if (isOlz(card)) {
+          const ok = `${d}|${start}`; // OLZ-Slot (klassenübergreifend), zeitgleich bevorzugt
+          olzSlots.set(ok, (olzSlots.get(ok) ?? 0) + 1);
+        }
         if (isSpan(card)) {
           const rk = kl.trim().toLowerCase(); // pro Klasse (wochenübergreifend)
           (spanDays.get(rk) ?? spanDays.set(rk, new Set()).get(rk)!).add(d);
@@ -1747,9 +1752,13 @@ export class AppState {
             const mirrorPush = hasMirror(card, d, w, start) ? 0 : 1;
             // Spanisch: Tag-Pause + Randstunden 1↔8 alternieren (sonst 0).
             const span = isSpan(card) ? spanScore(card.klasse, d, w, start) : { adj: 0, same: 0 };
+            // OLZ zeitgleich (ohne Kopplung): denselben Randstunden-Slot wie andere OLZ
+            // bevorzugen → 0, sonst 1. So liegt OLZ in allen AV-Klassen gleichzeitig.
+            const olzPush = isOlz(card) && olzSlots.size > 0 && !olzSlots.has(`${d}|${start}`) ? 1 : 0;
             const score = [
               imbalancePush, // u/g-Differenz ≤ Limit hat Vorrang
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
+              olzPush, // OLZ in allen AV-Klassen zeitgleich (gleicher Randstunden-Slot)
               span.adj, // Spanisch: mind. ein Tag Pause zwischen den Stunden
               span.same, // Spanisch: 1.+2. und 8.+9. abwechseln (nicht beide gleich)
               main && start > 6 ? 1 : 0, // Hauptfach möglichst in den Stunden 1–6

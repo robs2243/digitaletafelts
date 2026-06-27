@@ -139,11 +139,12 @@ Quelle: Vorgaben des Anwenders.
     schon 1.+2., wird die andere 8.+9. bevorzugt (und umgekehrt) – pro Klasse, woche­n­übergreifend.
     Damit Spanisch eine 1+2-Stunde sichern kann, werden Spanisch-/Seminarkurs-Kopplungen
     **vor** den Hauptfächern verplant (sonst füllen diese den Morgen).
-22a. **OLZ (in AV1–AV4): möglichst Randstunden 1.+2. ODER 8.+9.** (`baseStarts` = [1, 8],
-    Fach enthält „OLZ"). OLZ soll in **allen vier AV-Klassen GLEICHZEITIG** liegen → in der
-    Excel als **Schiene** (bzw. Kopplung über AV1–AV4) anlegen; dann platziert der Planer es
-    als Anker auf **einem gemeinsamen Randstunden-Slot** für alle vier Klassen. OLZ-Kopplungen
-    werden (wie Spanisch/Seminar) **früh** verplant.
+22a. **OLZ (in AV1–AV4): Randstunden 1.+2. ODER 8.+9. und in allen 4 Klassen ZEITGLEICH**
+    (`baseStarts` = [1, 8], Fach enthält „OLZ"). **Ohne Kopplung** (jede Klasse hat 4
+    verschiedene OLZ-Lehrer, die Kombinationen sollen NICHT fest vorgegeben werden): Der Planer
+    **synchronisiert** OLZ über eine weiche Bewertung – OLZ-Karten bevorzugen denselben
+    Randstunden-Slot (Tag+Stunde) wie bereits gelegte OLZ (`olzSlots`, Score-Term `olzPush`).
+    So liegt OLZ in allen AV-Klassen gleichzeitig, die Lehrer-Zuordnung bleibt aber frei.
 
 ## Schienen & Planungs-Reihenfolge
 
