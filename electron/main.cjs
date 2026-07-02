@@ -2,7 +2,7 @@
 // In der Produktion werden die Dateien aus dist/ über ein eigenes, sicheres
 // app://-Protokoll ausgeliefert (korrekte MIME-Typen für ES-Module, stabiler
 // Origin für localStorage und die File-System-Access-API).
-const { app, BrowserWindow, protocol, net, Menu } = require('electron');
+const { app, BrowserWindow, protocol, net, Menu, ipcMain } = require('electron');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
@@ -36,7 +36,11 @@ function createWindow() {
     show: false,
     backgroundColor: '#ffffff',
     autoHideMenuBar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      preload: path.join(__dirname, 'preload.cjs'),
+    },
   });
   Menu.setApplicationMenu(null);
   win.maximize();
@@ -66,6 +70,17 @@ function createWindow() {
   if (DEV_URL) win.loadURL(DEV_URL);
   else win.loadURL('app://bundle/index.html');
 }
+
+// Electron-Fokus-Bug nach nativen Dialogen (confirm/alert): Eingabefelder nehmen
+// keinen Fokus mehr an, bis das Fenster den Fokus verliert und wiederbekommt.
+// Der Renderer ruft das nach jedem Dialog auf (siehe src/main.ts).
+ipcMain.on('refocus-window', (e) => {
+  const win = BrowserWindow.fromWebContents(e.sender);
+  if (!win) return;
+  win.blur();
+  win.focus();
+  win.webContents.focus();
+});
 
 app.whenReady().then(() => {
   protocol.handle('app', async (request) => {
