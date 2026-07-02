@@ -96,6 +96,10 @@ Quelle: Vorgaben des Anwenders.
     Klasse+Fach zu **einem zusammenhängenden 4-Stunden-Block** in **derselben Woche**
     (z. B. K220 auf 6.+7., K221 auf 8.+9. – Gruppen je Slot gestapelt). Sie werden NICHT
     u/g-gespiegelt (das ergäbe nur 2h je Woche). Üblich: **eine Kopplung je Stunden-Slot**.
+    Bei **mehr als 4 Kopplungen** (mehr als ein Tag) teilt der Planer in **4h-/6h-Blöcke**
+    (nie 2h); Kopplungen mit **gleichem Basis-Fach und überlappenden Klassen** werden dabei
+    zusammen gruppiert. Findet ein Block in randvollen Klassen keinen zusammenhängenden
+    Platz, platziert der Notausweg einzeln (lieber 2h als gar nicht).
 16c. **Werkstatt-Schiene an EINEM zusammenhängenden Tag (klassenspezifisch).** Manche
     Klassen-Paare haben ihre (klassenübergreifend gekoppelte) Werkstatt fest an **einem Tag**:
     **2BFE2 + 2BFM2** und **AV3 + AV4** als **voller Tag 1.–4. + 6.–9.** (8 Std, Pause in 5.);
@@ -179,7 +183,8 @@ Quelle: Vorgaben des Anwenders.
     deshalb liegen **A_Betrieb und B_Betrieb parallel (gestapelt)**: Betrieb-Karten bekommen
     ihre Gruppe (a/b/c/d) aus dem Fach-Präfix und sind wie Labor/Werkstatt stapelbar.
 23c. **Betrieb als Ganztags-Block.** Ist die ganze Klasse einen Tag im Betrieb, wird das als
-    EIN Block über den ganzen Tag abgebildet (z. B. 1BFK = Mittwoch 1.–8., je 1× u + 1× g).
+    EIN Block über den ganzen Tag abgebildet (z. B. 1BFK = Mittwoch 1.–8., je 1× u + 1× g)
+    ODER als **zwei 4h-Blöcke** (Starts 1. und 5., z. B. 1BFB = 2×4h je Gruppe und Woche).
     Betrieb darf daher die **7. Stunde belegen** und unterliegt **keinem 4-Std-Block-Limit**.
 23d. **8-Stunden-Lehrer-Tag (am Stück) je Klasse.** In randvollen Berufsschulklassen mit wenigen
     Anwesenheitstagen ist ein durchgehender 8-Std-Tag der Lehrkraft normal (`LONG_DAY_CLASSES`,

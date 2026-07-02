@@ -5,9 +5,12 @@ import { PERIODS } from './constants';
  * start…start+dur-1. Werkstatt: die Pause in der 5. Stunde wird übersprungen
  * (der Block reicht dadurch eine Stunde weiter). Bricht bei Stunde 9 ab –
  * passt der Block nicht mehr, ist das Ergebnis kürzer als `duration`.
+ * AUSNAHME: Beginnt eine Werkstatt IN der 5. Stunde (Start = 5), gibt es keine
+ * Pause davor – der Block läuft durch (pausenlose 4h-Werkstatt, z. B. AV1/AV2
+ * auf 3.–6. = Karten mit Start 3 und Start 5).
  */
 export function teachingPeriods(isWerkstatt: boolean, start: number, duration: number): number[] {
-  if (!isWerkstatt) {
+  if (!isWerkstatt || start === 5) {
     const a: number[] = [];
     for (let i = 0; i < duration; i++) a.push(start + i);
     return a;
@@ -29,6 +32,7 @@ export function teachingPeriods(isWerkstatt: boolean, start: number, duration: n
  */
 export function blockedPeriods(isWerkstatt: boolean, start: number, duration: number): number[] {
   const t = teachingPeriods(isWerkstatt, start, duration);
-  if (isWerkstatt && t.length && start <= 5 && t[t.length - 1] >= 5) return [...t, 5].sort((a, b) => a - b);
+  // Start = 5 (pausenlos): Stunde 5 ist bereits unterrichtet, keine Pause zu belegen.
+  if (isWerkstatt && t.length && start < 5 && t[t.length - 1] >= 5) return [...t, 5].sort((a, b) => a - b);
   return t;
 }

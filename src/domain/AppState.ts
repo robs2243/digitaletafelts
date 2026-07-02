@@ -1130,8 +1130,10 @@ export class AppState {
     /** Tatsächlich unterrichtete Stunden (ohne Werkstatt-Pause in der 5.). */
     // noPause=true: Werkstatt OHNE die 5.-Stunden-Pause (durchgehend) – für kurze 4h-Blöcke
     // (z. B. AV1/AV2 auf 3.–6. = 3,4,5,6), wo die Pause-Regel übergangen werden darf.
+    // Start = 5 gilt IMMER als pausenlos (keine Pause vor Blockbeginn) – identisch zu
+    // periods.ts, damit Planer- und App-Sicht (occupiedPeriods) übereinstimmen.
     const teaching = (isWerk: boolean, start: number, dur: number, noPause = false): number[] => {
-      if (!isWerk || noPause) {
+      if (!isWerk || noPause || start === 5) {
         const a: number[] = [];
         for (let i = 0; i < dur; i++) a.push(start + i);
         return a;
@@ -1148,7 +1150,7 @@ export class AppState {
     /** Belegte Stunden inkl. Werkstatt-Pause (5.), wenn sie im Block liegt. */
     const blockedPeriods = (isWerk: boolean, start: number, dur: number, noPause = false): number[] => {
       const t = teaching(isWerk, start, dur, noPause);
-      if (isWerk && !noPause && t.length && start <= 5 && t[t.length - 1] >= 5) return [...t, 5].sort((a, b) => a - b);
+      if (isWerk && !noPause && t.length && start < 5 && t[t.length - 1] >= 5) return [...t, 5].sort((a, b) => a - b);
       return t;
     };
 
@@ -1190,11 +1192,13 @@ export class AppState {
     // Werkstatt: 4-stündig auch nachmittags (6.–9.) möglich – die Bewertung
     // bevorzugt den Nachmittag, damit der Morgen für Theorie frei bleibt.
     const baseStarts = (card: Card): number[] =>
-      isSk(card)
-        ? [7, 8, 9].filter((s) => s + card.duration - 1 <= 9).reverse() // Seminarkurs: Block im Fenster 7.–9. (Montag erzwingt check())
-        : isSpan(card) || isOlz(card)
-          ? [1, 8].filter((s) => s + card.duration - 1 <= 9) // Spanisch/OLZ: nur Randstunden 1.+2. oder 8.+9.
-          : card.isWerkstatt
+      isBetrieb(card)
+        ? [1, 5].filter((s) => s + card.duration - 1 <= 9) // Betrieb: Blöcke 1.–4. und 5.–8. (ganzer Tag = 2×4h je Gruppe)
+        : isSk(card)
+          ? [7, 8, 9].filter((s) => s + card.duration - 1 <= 9).reverse() // Seminarkurs: Block im Fenster 7.–9. (Montag erzwingt check())
+          : isSpan(card) || isOlz(card)
+            ? [1, 8].filter((s) => s + card.duration - 1 <= 9) // Spanisch/OLZ: nur Randstunden 1.+2. oder 8.+9.
+            : card.isWerkstatt
             ? card.duration <= 4
               ? [1, 6]
               : [1]
@@ -1385,6 +1389,9 @@ export class AppState {
               canStack && e.total === e.stack && e.stack < 4 && !e.groups.has(card.labGroup);
             if (!compatible) return 'Platz belegt';
           }
+          // Auch beim gezielten Stapeln auf den Partner (stackOnB) darf DIESELBE Gruppe
+          // nicht schon in der Zelle liegen (sonst z. B. zwei b-Karten übereinander).
+          if (stackOnB && e && e.groups.has(card.labGroup)) return 'Platz belegt';
           if (card.room && roomSet.has(rK(d, w, p, card.room))) return 'Raum belegt';
           if (teachSet.has(tK(card.abbr, d, w, p))) return 'Lehrer belegt';
         }
@@ -1914,14 +1921,27 @@ export class AppState {
         for (let i = 0; i < rest.length; i += 2) chunks.push(rest.slice(i, i + 2));
         return chunks;
       };
-      // Platziert einen Block (k konsekutive Werkstatt-Slots, k = Kartenzahl). force =
-      // exakt dieser Slot (für die u/g-Spiegelung). Gibt den belegten Slot zurück.
+      // Platziert einen Block konsekutiver Werkstatt-Slots. DAUER-BEWUSST: eine 4h-Karte
+      // belegt ZWEI konsekutive Slots (z. B. Start 3 → Paare 3-4 und 6-7), eine 2h-Karte
+      // einen. force = exakt dieser Slot (für die u/g-Spiegelung).
+      const slotsOf = (m: Card): number => Math.max(1, Math.ceil(m.duration / 2));
       const placeWerkChunk = (
         members: Card[],
         force?: { d: number; w: Week; starts: number[] },
       ): { d: number; w: Week; starts: number[] } | null => {
         const lead = members[0];
         const total = members.reduce((s, m) => s + m.duration, 0);
+        const slotsNeeded = members.reduce((s, m) => s + slotsOf(m), 0);
+        // Startstunde je Karte aus dem Slot-Fenster (mehrslottige Karten rücken den Index weiter).
+        const startsFor = (win: number[]): number[] => {
+          const starts: number[] = [];
+          let j = 0;
+          for (const m of members) {
+            starts.push(win[j]);
+            j += slotsOf(m);
+          }
+          return starts;
+        };
         const fitsAt = (c: number, d: number, w: Week, starts: number[]): boolean => {
           for (let i = 0; i < members.length; i++) if (check(members[i], c, d, w, starts[i]) !== null) return false;
           return (teachH.get(thK(lead.abbr, d, w)) ?? 0) + total <= 8; // Werkstatt-Tag: bis 8 Std
@@ -1935,21 +1955,22 @@ export class AppState {
             return force;
           }
         }
-        let best: { c: number; d: number; w: Week; win: number[]; score: number[] } | null = null;
+        let best: { c: number; d: number; w: Week; starts: number[]; score: number[] } | null = null;
         for (const { c, d, w } of contexts(lead)) {
-          for (const win of werkWindows(members.length)) {
-            if (!fitsAt(c, d, w, win)) continue;
+          for (const win of werkWindows(slotsNeeded)) {
+            const starts = startsFor(win);
+            if (!fitsAt(c, d, w, starts)) continue;
             const afternoon = win[0] >= 6 ? 0 : win[0] >= 3 ? 1 : 2; // Nachmittag bevorzugt
             const score = [afternoon, teacherWeekLoad(lead.abbr, w), d, win[0]];
-            if (!best || lexLtA(score, best.score)) best = { c, d, w, win, score };
+            if (!best || lexLtA(score, best.score)) best = { c, d, w, starts, score };
           }
         }
         if (!best) {
           for (const m of members) placeLoneWerk(m);
           return null;
         }
-        applyAt(best.c, best.d, best.w, best.win);
-        return { d: best.d, w: best.w, starts: best.win };
+        applyAt(best.c, best.d, best.w, best.starts);
+        return { d: best.d, w: best.w, starts: best.starts };
       };
       // Eine KLASSE, je Basis-Fach (A_WP/B_WP = WP): die Gruppen a/b/c/d als 4h-Blöcke.
       // Erste vorhandene Gruppe ankert (Nachmittag); jede WEITERE Gruppe wird auf DENSELBEN
@@ -1991,15 +2012,33 @@ export class AppState {
       // 4h-Block – konsekutive Nachmittags-Slots in DERSELBEN Woche (statt u/g-gespiegelt,
       // was nur 2h je Woche ergäbe). Jede Kopplung belegt einen Slot (Gruppen gestapelt).
       const placeWerkCouplingSet = (coups: Card[][]): void => {
+        // Mehr Kopplungen als Tages-Slots (>4): in ≥4h-Blöcke teilen (2er = 4h, bei
+        // ungerader Zahl ein 3er = 6h) – NIE ein einzelner 2h-Block. Jeder Block
+        // findet unabhängig seinen Tag/Slot (rekursiv).
+        if (coups.length > WERK_SLOTS.length) {
+          let rest = coups;
+          if (rest.length % 2 === 1) {
+            placeWerkCouplingSet(rest.slice(0, 3));
+            rest = rest.slice(3);
+          }
+          for (let i = 0; i < rest.length; i += 2) placeWerkCouplingSet(rest.slice(i, i + 2));
+          return;
+        }
         const n = coups.length;
         const blockLoadOk = (d: number, w: Week): boolean => {
+          // Je Kopplung zählt jede Lehrkraft nur EINMAL (parallel in mehreren Klassen
+          // = eine Unterrichtsstunde). Werkstatt-Tag: bis 8 Std erlaubt.
           const add = new Map<string, number>();
-          for (const coup of coups)
+          for (const coup of coups) {
+            const seen = new Set<string>();
             for (const m of coup) {
               const a = m.abbr.trim().toLowerCase();
-              if (a) add.set(a, (add.get(a) ?? 0) + m.duration);
+              if (!a || seen.has(a)) continue;
+              seen.add(a);
+              add.set(a, (add.get(a) ?? 0) + m.duration);
             }
-          for (const [a, dur] of add) if ((teachH.get(thK(a, d, w)) ?? 0) + dur > 6) return false;
+          }
+          for (const [a, dur] of add) if ((teachH.get(thK(a, d, w)) ?? 0) + dur > 8) return false;
           return true;
         };
         for (const win of werkWindows(Math.min(n, WERK_SLOTS.length))) {
@@ -2123,14 +2162,22 @@ export class AppState {
       // Platziert eine Liste Kopplungen: Werkstatt-Kopplungen je Klasse+Fach als 4h-Block,
       // alles andere über placeGroup (gemeinsamer Slot, wo ALLE Klassen Spalten haben).
       const placeCoupList = (coups: Card[][]): void => {
-        const grp = new Map<string, Card[][]>();
+        // Werkstatt-Kopplungen gruppieren: gleiches Basis-Fach + ÜBERLAPPENDE Klassen
+        // gehören zusammen (z. B. K819 {1BFR2,R1PW} + K820 {1BFR2} → EIN 4h/6h-Block),
+        // sonst bliebe eine einzelne Kopplung als 2h-Block übrig.
+        const grp = new Map<string, { classes: Set<string>; list: Card[][] }[]>();
         for (const ms of coups.filter(isWerkCoup)) {
-          const classes = [...new Set(ms.map((m) => m.klasse.trim().toLowerCase()))].sort().join(',');
+          const classes = new Set(ms.map((m) => m.klasse.trim().toLowerCase()));
           const bf = [...new Set(ms.map((m) => baseFach(m.fach)))].sort().join(',');
-          const k = `${classes}|${bf}`;
-          (grp.get(k) ?? grp.set(k, []).get(k)!).push(ms);
+          const buckets = grp.get(bf) ?? grp.set(bf, []).get(bf)!;
+          const hit = buckets.find((b) => [...classes].some((c) => b.classes.has(c)));
+          if (hit) {
+            hit.list.push(ms);
+            for (const c of classes) hit.classes.add(c);
+          } else buckets.push({ classes, list: [ms] });
         }
-        for (const g of grp.values()) {
+        for (const bucket of [...grp.values()].flat()) {
+          const g = bucket.list;
           const special = g.every((ms) => ms.every((m) => WERK_SCHIENE.has(m.klasse.trim().toLowerCase())));
           if (!special || !placeWerkSchiene(g)) placeWerkCouplingSet(g);
         }
@@ -2508,6 +2555,29 @@ export class AppState {
       if (seenData.has(sig)) continue;
       seenData.add(sig);
       out.push({ severity: 'error', text: `Daten: ${c.klasse || '?'} „${c.fach}" – ${probs.join(', ')}. Bitte Markierung in der Excel prüfen.` });
+    }
+
+    // Kopplungen ohne Parallelität: alle Karten derselben Kopplung haben dieselbe
+    // Klasse+Lehrkraft(+Gruppe) → sie würden übereinander auf denselben Slot gelegt
+    // (vermutlich sollte je Karte eine eigene Kopplungs-Nummer vergeben werden).
+    const coupCards = new Map<string, { klasse: string; abbr: string; fach: string; labGroup: string }[]>();
+    for (const c of [...this.pool.all, ...this.schedule.all]) {
+      const cid = c.coupling.trim();
+      if (cid) (coupCards.get(cid) ?? coupCards.set(cid, []).get(cid)!).push(c);
+    }
+    for (const [cid, cs] of coupCards) {
+      if (cs.length < 2) continue;
+      const allSame = cs.every(
+        (c) =>
+          c.klasse.trim().toLowerCase() === cs[0].klasse.trim().toLowerCase() &&
+          c.abbr.trim().toLowerCase() === cs[0].abbr.trim().toLowerCase() &&
+          c.labGroup === cs[0].labGroup,
+      );
+      if (allSame)
+        out.push({
+          severity: 'warn',
+          text: `Daten: Kopplung „${cid}" (${cs[0].klasse} ${cs[0].abbr} ${cs[0].fach}) enthält ${cs.length} identische Karten – sie liegen übereinander. Gewollt? Sonst je Karte eigene Kopplungs-Nr. vergeben.`,
+        });
     }
 
     const pls = this.schedule.all;
