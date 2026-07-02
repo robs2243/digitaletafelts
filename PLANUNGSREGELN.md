@@ -98,8 +98,9 @@ Quelle: Vorgaben des Anwenders.
     u/g-gespiegelt (das ergäbe nur 2h je Woche). Üblich: **eine Kopplung je Stunden-Slot**.
     Bei **mehr als 4 Kopplungen** (mehr als ein Tag) teilt der Planer in **4h-/6h-Blöcke**
     (nie 2h); Kopplungen mit **gleichem Basis-Fach und überlappenden Klassen** werden dabei
-    zusammen gruppiert. Findet ein Block in randvollen Klassen keinen zusammenhängenden
-    Platz, platziert der Notausweg einzeln (lieber 2h als gar nicht).
+    zusammen gruppiert. **≥4h ist HART:** Findet ein Block keinen zusammenhängenden Platz
+    (oder hat eine Werkstatt unter 4 Std keinen Blockpartner), bleiben die Karten **offen**
+    und erscheinen unter „Warum nicht verplant?" – es entstehen NIE 2h-Werkstatt-Häppchen.
 16c. **Werkstatt-Schiene an EINEM zusammenhängenden Tag (klassenspezifisch).** Manche
     Klassen-Paare haben ihre (klassenübergreifend gekoppelte) Werkstatt fest an **einem Tag**:
     **2BFE2 + 2BFM2** und **AV3 + AV4** als **voller Tag 1.–4. + 6.–9.** (8 Std, Pause in 5.);

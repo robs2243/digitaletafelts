@@ -1893,9 +1893,12 @@ export class AppState {
       // entstünden 2h-Stapel.
       const { pairs: abPairs, rest: abRest } = pairAB(cards.filter((c) => c.isLabor && !c.isWerkstatt && isAB(c)));
 
-      // Werkstatt ist IMMER mind. 4 Stunden (nie nur 2h) und liegt nachmittags.
-      // Einzelne 2h-Karte ohne Blockpartner: notfalls Nachmittag (Datenanomalie).
-      const placeLoneWerk = (card: Card): void => placeNormal(card, card.duration <= 4 ? [6] : undefined);
+      // Werkstatt ist IMMER mind. 4 Stunden (HARTE Regel, nie nur 2h). Findet ein Block
+      // keinen Platz, bleiben die Karten OFFEN („Warum nicht verplant?") statt sie als
+      // 2h-Häppchen zu verteilen.
+      const skipWerk = (members: Card[], reason: string): void => {
+        for (const m of members) skipped.push({ card: `${m.abbr} (${m.klasse})`, reason });
+      };
       const lexLtA = (a: number[], b: number[]): boolean => {
         for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i];
         return false;
@@ -1931,6 +1934,11 @@ export class AppState {
       ): { d: number; w: Week; starts: number[] } | null => {
         const lead = members[0];
         const total = members.reduce((s, m) => s + m.duration, 0);
+        // HARTE Regel: Werkstatt nie unter 4 Std – ein Block ohne Partner bleibt offen.
+        if (total < 4) {
+          skipWerk(members, 'Werkstatt unter 4 Std – kein Blockpartner (Daten prüfen)');
+          return null;
+        }
         const slotsNeeded = members.reduce((s, m) => s + slotsOf(m), 0);
         // Startstunde je Karte aus dem Slot-Fenster (mehrslottige Karten rücken den Index weiter).
         const startsFor = (win: number[]): number[] => {
@@ -1966,7 +1974,7 @@ export class AppState {
           }
         }
         if (!best) {
-          for (const m of members) placeLoneWerk(m);
+          skipWerk(members, 'Werkstatt: kein zusammenhängender ≥4h-Block frei');
           return null;
         }
         applyAt(best.c, best.d, best.w, best.starts);
@@ -2024,6 +2032,12 @@ export class AppState {
           for (let i = 0; i < rest.length; i += 2) placeWerkCouplingSet(rest.slice(i, i + 2));
           return;
         }
+        // HARTE Regel: unter 4 Std je Klasse (z. B. EINE einzelne 2h-Kopplung) → offen lassen.
+        const hoursPerClass = coups.reduce((s, coup) => s + Math.max(...coup.map((m) => m.duration)), 0);
+        if (hoursPerClass < 4) {
+          for (const coup of coups) skipWerk(coup, 'Werkstatt-Kopplung unter 4 Std – kein Blockpartner (Daten prüfen)');
+          return;
+        }
         const n = coups.length;
         const blockLoadOk = (d: number, w: Week): boolean => {
           // Je Kopplung zählt jede Lehrkraft nur EINMAL (parallel in mehreren Klassen
@@ -2069,7 +2083,9 @@ export class AppState {
             }
           }
         }
-        for (const coup of coups) placeGroup(coup, 'coupling'); // Ausweg: einzeln
+        // HARTE Regel ≥4h: kein zusammenhängendes Fenster gefunden → OFFEN lassen
+        // (erscheint unter „Warum nicht verplant?"), NICHT als 2h-Häppchen verteilen.
+        for (const coup of coups) skipWerk(coup, 'Werkstatt-Kopplung: kein zusammenhängender ≥4h-Block frei');
       };
 
       // Reihenfolge: Werkstatt-Blöcke (Anker, immer ≥4h) → HAUPTFÄCHER (sichern den
@@ -2297,6 +2313,26 @@ export class AppState {
       step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c) && !isOlz(c)), placeNormal);
       // 10. Reparatur: letzte offene Einzelkarten per Tausch-Kette lösen (nur aussichtsreiche Läufe).
       if (assigns.length >= bestPlaced) repair();
+
+      // 11. HARTE Regel „Werkstatt ≥4 Std": finaler Sweep – egal über welchen Pfad eine
+      // Werkstatt gelandet ist, Reste unter 4 Std je Klasse+Gruppe+Tag+Woche werden
+      // wieder ENTFERNT und als offen gemeldet (nie 2h-Werkstatt-Häppchen im Plan).
+      {
+        const wk = new Map<string, Assign[]>();
+        for (const a of assigns) {
+          if (!a.card.isWerkstatt) continue;
+          const k = `${a.card.klasse.trim().toLowerCase()}|${a.card.labGroup}|${a.d}|${a.w}`;
+          (wk.get(k) ?? wk.set(k, []).get(k)!).push(a);
+        }
+        for (const arr of wk.values()) {
+          if (arr.reduce((s, x) => s + x.card.duration, 0) >= 4) continue;
+          for (const x of arr) {
+            const i = assigns.indexOf(x);
+            if (i >= 0) assigns.splice(i, 1);
+            skipped.push({ card: `${x.card.abbr} (${x.card.klasse})`, reason: 'Werkstatt: kein zusammenhängender ≥4h-Block frei' });
+          }
+        }
+      }
 
       let openMandatory = 0;
       for (let c = 0; c < this.classes.count; c++) {
@@ -2555,6 +2591,27 @@ export class AppState {
       if (seenData.has(sig)) continue;
       seenData.add(sig);
       out.push({ severity: 'error', text: `Daten: ${c.klasse || '?'} „${c.fach}" – ${probs.join(', ')}. Bitte Markierung in der Excel prüfen.` });
+    }
+
+    // Werkstatt unter 4 Std: hat eine Klasse+Gruppe (je Basis-Fach) insgesamt weniger
+    // als 4 Werkstatt-Stunden, kann NIE ein ≥4h-Block entstehen – die Karten bleiben
+    // beim Auto-Verplanen offen. Datenthema: Karten ergänzen oder Block anders planen.
+    {
+      const wkSum = new Map<string, { h: number; sample: { klasse: string; fach: string; abbr: string } }>();
+      const bf = (f: string): string => f.trim().toLowerCase().replace(/^[abcd][_-]/, '');
+      for (const c of [...this.pool.all, ...this.schedule.all]) {
+        if (!c.isWerkstatt) continue;
+        const k = `${c.klasse.trim().toLowerCase()}|${c.labGroup}|${bf(c.fach)}`;
+        const e = wkSum.get(k) ?? wkSum.set(k, { h: 0, sample: c }).get(k)!;
+        e.h += c.duration;
+      }
+      for (const { h, sample } of wkSum.values()) {
+        if (h >= 4) continue;
+        out.push({
+          severity: 'warn',
+          text: `Daten: ${sample.klasse} „${sample.fach}" (${sample.abbr || 'ohne Kürzel'}) hat insgesamt nur ${h} Werkstatt-Std – ein ≥4h-Block ist unmöglich, die Karte bleibt beim Auto-Verplanen offen.`,
+        });
+      }
     }
 
     // Kopplungen ohne Parallelität: alle Karten derselben Kopplung haben dieselbe
