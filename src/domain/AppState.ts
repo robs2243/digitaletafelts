@@ -1187,6 +1187,9 @@ export class AppState {
       /** Anzahl distinkter OLZ-Slots (Tag|Stunde|Woche): klein = OLZ in allen AV-Klassen
        *  zeitgleich auf denselben Schienen. */
       olzSlotsCount: number;
+      /** Hohlstunden über alle KLASSEN-Tage (harte Schüler-Regel: 0 = durchweg
+       *  Unterricht; Pause 7. bzw. 5. an Werkstatt-Tagen ausgenommen). */
+      classGapsTotal: number;
     }
 
     // Werkstatt: 4-stündig auch nachmittags (6.–9.) möglich – die Bewertung
@@ -1234,6 +1237,7 @@ export class AppState {
       // getrennte Kopplungen (z. B. A_SK1 auf B_SK1), höchstens 2 je Stapel.
       const cellOcc = new Map<string, { total: number; stack: number; groups: Set<string> }>();
       const classDayRooms = new Map<string, Set<string>>(); // c|d|w → bereits genutzte (nicht-flexible) Räume der Klasse
+      const werkClassDay = new Set<string>(); // c|d|w mit Werkstatt → Klassen-Pause in der 5. statt 7. Stunde
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
@@ -1282,6 +1286,7 @@ export class AppState {
             teachWeek.set(ad, tw);
           }
         }
+        if (card.isWerkstatt) werkClassDay.add(`${c}|${d}|${w}`);
         // Raumtreue: genutzten Raum der Klasse je Tag merken (außer Labor/Werkstatt/CH/PH).
         if (card.room.trim() && !roomFlexible(card)) {
           const rkk = `${c}|${d}|${w}`;
@@ -1413,19 +1418,22 @@ export class AppState {
       };
 
       /** Lücken in der Klassenspalte (zwischen erster und letzter Stunde) nach dem
-       *  hypothetischen Belegen von newPeriods – die Mittagspause (7.) zählt nicht. */
-      const classGaps = (c: number, d: number, w: Week, newPeriods: Set<number>): number => {
+       *  hypothetischen Belegen von newPeriods. Pausen zählen nicht als Lücke:
+       *  die 7. Stunde (Mittagspause) sowie die 5. an Werkstatt-Tagen der Klasse. */
+      const classGaps = (c: number, d: number, w: Week, newPeriods: Set<number>, isWerkCard = false): number => {
         const filled = (p: number): boolean => cell.has(cK(d, w, c, p)) || newPeriods.has(p);
+        const allow5 = isWerkCard || werkClassDay.has(`${c}|${d}|${w}`);
+        const isPause = (p: number): boolean => p === 7 || (allow5 && p === 5);
         let min = 0;
         let max = 0;
         for (let p = 1; p <= PERIODS; p++) {
-          if (p === 7 || !filled(p)) continue;
+          if (isPause(p) || !filled(p)) continue;
           if (!min) min = p;
           max = p;
         }
         if (!min) return 0;
         let holes = 0;
-        for (let p = min; p <= max; p++) if (p !== 7 && !filled(p)) holes++;
+        for (let p = min; p <= max; p++) if (!isPause(p) && !filled(p)) holes++;
         return holes;
       };
 
@@ -1663,13 +1671,11 @@ export class AppState {
             })
               ? 1
               : 0;
-            // Klassen ohne Hohlstunden (nur wenn aktiviert): über alle Mitglieder.
+            // Klassen ohne Hohlstunden (HARTE Schüler-Regel, immer aktiv): über alle Mitglieder.
             let classGapPush = 0;
-            if (cfg.classNoGaps) {
-              members.forEach((m, i) => {
-                classGapPush += classGaps(cols[i], d, w, new Set(blockedPeriods(m.isWerkstatt, start, m.duration)));
-              });
-            }
+            members.forEach((m, i) => {
+              classGapPush += classGaps(cols[i], d, w, new Set(blockedPeriods(m.isWerkstatt, start, m.duration)), m.isWerkstatt);
+            });
             // u/g-Parallelität: liegt (irgend)ein Mitglied in der anderen Woche schon
             // am selben Slot → 0 (parallel bevorzugt), sonst 1.
             const mirrorPush = members.some((m) => hasMirror(m, d, w, start)) ? 0 : 1;
@@ -1751,10 +1757,8 @@ export class AppState {
               0,
               Math.abs(teacherWeekLoad(card.abbr, w) + card.duration - teacherWeekLoad(card.abbr, w === 'u' ? 'g' : 'u')) - IMBAL,
             );
-            // Klassen ohne Hohlstunden (nur wenn aktiviert): Lücken in der Spalte vermeiden.
-            const classGapPush = cfg.classNoGaps
-              ? classGaps(c, d, w, new Set(blockedPeriods(card.isWerkstatt, start, card.duration)))
-              : 0;
+            // Klassen ohne Hohlstunden (HARTE Schüler-Regel, immer aktiv): Lücken vermeiden.
+            const classGapPush = classGaps(c, d, w, new Set(blockedPeriods(card.isWerkstatt, start, card.duration)), card.isWerkstatt);
             // Teilzeit-Bündelung (nur limitierte Lehrkräfte): bereits genutzte Tage bevorzugen.
             const bundlePush =
               maxDaysOf(card.abbr) > 0 && !(teachDaysUsed.get(card.abbr.toLowerCase())?.has(d) ?? false) ? 1 : 0;
@@ -2334,6 +2338,66 @@ export class AppState {
         }
       }
 
+      // 12. HOHLSTUNDEN-REPARATUR (harte Schüler-Regel): Klassen-Lücken schließen, indem
+      // eine RANDSTÄNDIGE Einzelkarte eines anderen Tags exakt in das Loch umzieht
+      // (am Quelltag entsteht dabei keine neue Lücke, weil die Karte am Rand lag).
+      {
+        for (let round = 0; round < 3; round++) {
+          let moved = false;
+          for (let c = 0; c < this.classes.count; c++) {
+            for (let d = 0; d < DAYS.length; d++) {
+              for (const w of WEEKS) {
+                const allow5 = werkClassDay.has(`${c}|${d}|${w}`);
+                const isPause = (p: number): boolean => p === 7 || (allow5 && p === 5);
+                const occAt = (p: number): boolean => cell.has(cK(d, w, c, p));
+                const core: number[] = [];
+                for (let p = 1; p <= PERIODS; p++) if (!isPause(p) && occAt(p)) core.push(p);
+                if (core.length < 2) continue;
+                // Zusammenhängende Loch-Fenster zwischen erster und letzter Stunde suchen.
+                for (let p = core[0]; p <= core[core.length - 1]; p++) {
+                  if (isPause(p) || occAt(p)) continue;
+                  let end = p;
+                  while (end + 1 <= core[core.length - 1] && !isPause(end + 1) && !occAt(end + 1)) end++;
+                  const len = end - p + 1;
+                  // Kandidat: einfache Karte derselben Spalte an ANDEREM Tag/Woche, exakt
+                  // loch-groß und dort am Rand (Entfernen reißt keine neue Lücke).
+                  const cand = assigns.find((a) => {
+                    if (!isSimple(a.card) || a.c !== c || (a.d === d && a.w === w) || a.card.duration > len) return false;
+                    // Karten mit fester Lage (Randstunden/Spiegel/Betriebstag) NIE umziehen –
+                    // deren Regeln stecken in baseStarts, nicht in check().
+                    if (isOlz(a.card) || isSpan(a.card) || isSk(a.card) || isBetrieb(a.card)) return false;
+                    if (!baseStarts(a.card).includes(p)) return false;
+                    const sAllow5 = werkClassDay.has(`${a.c}|${a.d}|${a.w}`);
+                    const sCore: number[] = [];
+                    for (let q = 1; q <= PERIODS; q++)
+                      if (!(q === 7 || (sAllow5 && q === 5)) && cell.has(cK(a.d, a.w, a.c, q))) sCore.push(q);
+                    // Nur vom TAGES-ENDE nehmen (oder der Tag wird komplett frei) – Karten
+                    // vom Morgenrand zu klauen ließe den Quelltag erst mittags beginnen.
+                    const wholeDay = sCore.length === a.card.duration;
+                    const atEnd = a.start + a.card.duration - 1 === sCore[sCore.length - 1] && a.start > sCore[0];
+                    return wholeDay || atEnd;
+                  });
+                  if (!cand) { p = end; continue; }
+                  const old = { c: cand.c, d: cand.d, w: cand.w, start: cand.start };
+                  unapplySimple(cand);
+                  if (check(cand.card, c, d, w, p) === null) {
+                    apply(cand.card, c, d, w, p);
+                    moved = true;
+                    // Nur hinter die eingezogene Karte rücken – der Rest des Lochs
+                    // bekommt in der nächsten Schleifenrunde einen weiteren Kandidaten.
+                    p = p + cand.card.duration - 1;
+                  } else {
+                    apply(cand.card, old.c, old.d, old.w, old.start); // passt nicht → zurück
+                    p = end;
+                  }
+                }
+              }
+            }
+          }
+          if (!moved) break;
+        }
+      }
+
       let openMandatory = 0;
       for (let c = 0; c < this.classes.count; c++) {
         for (let d = 0; d < DAYS.length; d++) {
@@ -2378,7 +2442,15 @@ export class AppState {
         for (const x of gSet) if (!uSet.has(x)) mirrorMismatch++;
       }
 
-      return { assigns, skipped, openMandatory, imbalance, imbalTeachers, gaps, mirrorMismatch, olzSlotsCount: olzSlots.size };
+      // Hohlstunden je KLASSE (harte Schüler-Regel): Lücken zwischen erster und
+      // letzter Stunde jedes Klassentags; Pausen (7. bzw. 5. am Werkstatt-Tag) frei.
+      let classGapsTotal = 0;
+      const NO_NEW = new Set<number>();
+      for (let c = 0; c < this.classes.count; c++)
+        for (let d = 0; d < DAYS.length; d++)
+          for (const w of WEEKS) classGapsTotal += classGaps(c, d, w, NO_NEW);
+
+      return { assigns, skipped, openMandatory, imbalance, imbalTeachers, gaps, mirrorMismatch, olzSlotsCount: olzSlots.size, classGapsTotal };
     };
 
     // Auswahlkriterium (Priorität): meiste platzierte Karten → u/g-Stunden-Balance
@@ -2388,6 +2460,9 @@ export class AppState {
       // OLZ-Slots haben Vorrang (8 = perfekt). Erst danach zählt die Gesamtzahl.
       if (a.olzSlotsCount !== b.olzSlotsCount) return a.olzSlotsCount < b.olzSlotsCount;
       if (a.assigns.length !== b.assigns.length) return a.assigns.length > b.assigns.length;
+      // Schüler dürfen KEINE Hohlstunden haben (harte Regel): Lücken in Klassentagen
+      // wiegen schwerer als alle weichen Lehrer-Kriterien.
+      if (a.classGapsTotal !== b.classGapsTotal) return a.classGapsTotal < b.classGapsTotal;
       // u/g-Differenz wird PRO LEHRKRAFT bewertet: zuerst möglichst WENIGE Lehrkräfte
       // über dem Limit, dann möglichst kleine Überschreitung. Die Gesamtsumme allein
       // ist nicht das Ziel.
@@ -2399,7 +2474,8 @@ export class AppState {
     };
     // „Perfekt": alle Karten verplant, u/g-Differenz überall ≤ 2 UND keine Lehrkraft
     // mit mehr als 6 Hohlstunden pro Woche.
-    const perfect = (o: Outcome): boolean => o.skipped.length === 0 && o.imbalance === 0 && o.gaps === 0;
+    const perfect = (o: Outcome): boolean =>
+      o.skipped.length === 0 && o.imbalance === 0 && o.gaps === 0 && o.classGapsTotal === 0;
 
     const rng = Math.random;
     const total = this.pool.all.length;

@@ -76,7 +76,9 @@ export const DEFAULT_PLAN_SETTINGS: PlanSettings = {
   mainNoLate: false,
   imbalanceLimit: 2,
   gapLimit: 6,
-  classNoGaps: false,
+  // Schüler dürfen KEINE Hohlstunden haben (harte Anwender-Regel): Klassen haben
+  // durchweg Unterricht; Pausen nur 7. Stunde bzw. 5. am Werkstatt-Tag.
+  classNoGaps: true,
 };
 
 /** Position einer Platzierung im Stundenplan. */

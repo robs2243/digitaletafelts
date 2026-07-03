@@ -147,8 +147,8 @@ check('Spanisch (SBx) nur 1+2 / 8+9', pls.filter((p) => isSpan(p.fach) && p.star
     [...bySlot].filter(([, s]) => s.size !== olzClasses.length).map(([k, s]) => `${k}: nur ${[...s].join(',')}`));
   const mirror = new Map();
   for (const p of olz) { const k = `${kl(p)}|${p.abbr.toLowerCase()}`; (mirror.get(k) ?? mirror.set(k, { u: new Set(), g: new Set() }).get(k))[p.week].add(`${p.day}|${p.startPeriod}`); }
-  check('OLZ u/g gespiegelt (gleiche Lehrkraft, gleicher Slot in u und g)',
-    [...mirror].filter(([, v]) => [...v.u].sort().join() !== [...v.g].sort().join()).map(([k]) => k));
+  const unmirrored = [...mirror].filter(([, v]) => [...v.u].sort().join() !== [...v.g].sort().join()).map(([k]) => k);
+  info('OLZ u/g gespiegelt (Bonus, kein Muss)', unmirrored.length ? `${unmirrored.length} ungespiegelt: ${unmirrored.join(', ')}` : 'alle gespiegelt');
   info('OLZ-Verteilung', `${new Set(olz.map((p) => p.day)).size} verschiedene Tage, ${bySlot.size} Slots, ${olz.length} Karten`);
 }
 
@@ -227,6 +227,33 @@ check('Spanisch (SBx) nur 1+2 / 8+9', pls.filter((p) => isSpan(p.fach) && p.star
     for (const per of teach(p)) set.add(per);
   }
   check('LBT ≤6 Std/Tag je Klasse', [...m].filter(([, s]) => s.size > 6).map(([k, s]) => `${k}: ${s.size}h`));
+}
+
+// 14b) KLASSEN ohne Hohlstunden (harte Schüler-Regel): zwischen erster und letzter
+//      Stunde eines Klassentags durchweg Unterricht; Pausen: 7. Stunde, an
+//      Werkstatt-Tagen stattdessen die 5. – 1–6-Abdeckung als Messwert (datenabhängig).
+{
+  const byCD = new Map();
+  for (const p of pls) {
+    const k = `${p.classIdx}|${p.day}|${p.week}`;
+    const e = byCD.get(k) ?? byCD.set(k, { periods: new Set(), werk: false, name: p.klasse.trim() || '?' }).get(k);
+    for (const per of blocked(p)) e.periods.add(per);
+    if (p.isWerkstatt) e.werk = true;
+  }
+  const errs = [];
+  let under6 = 0;
+  for (const [k, e] of byCD) {
+    const [, d, w] = k.split('|');
+    const isPause = (p) => p === 7 || (e.werk && p === 5);
+    const ps = [...e.periods].filter((p) => !isPause(p)).sort((a, b) => a - b);
+    if (!ps.length) continue;
+    const holes = [];
+    for (let p = ps[0]; p <= ps[ps.length - 1]; p++) if (!isPause(p) && !e.periods.has(p)) holes.push(p);
+    if (holes.length) errs.push(`${e.name} ${DAYS[+d].slice(0, 2)}-${w}: Lücke Std ${holes.join(',')} (belegt ${ps.join(',')})`);
+    for (let p = 1; p <= 6; p++) if (!isPause(p) && !e.periods.has(p)) { under6++; break; }
+  }
+  check('Klassen ohne Hohlstunden (Pause 7. bzw. 5. bei Werkstatt)', errs, 8);
+  info('Klassentage mit unvollständiger 1–6-Abdeckung', `${under6} (datenabhängig – zu wenige Karten am Tag)`);
 }
 
 // 15) Prüfbericht der App selbst

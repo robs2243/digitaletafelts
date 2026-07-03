@@ -164,6 +164,16 @@ Quelle: Vorgaben des Anwenders.
     **Über die Woche verteilt:** die Schienen werden auf möglichst **viele verschiedene Tage**
     gelegt (höchstens eine OLZ-Schiene je Tag, dann erst ein zweiter Slot am selben Tag).
 
+22b. **SCHÜLER OHNE HOHLSTUNDEN (harte Regel).** In einer Klasse muss an jedem
+    Anwesenheitstag **durchweg Unterricht** stattfinden – keine Lücke zwischen erster und
+    letzter Stunde. **Pausen:** normale Tage die **7. Stunde**; an **Werkstatt-Tagen** der
+    Klasse stattdessen die **5. Stunde** (die 7. darf dann belegt sein). Zudem soll eine
+    Klasse **mindestens die Stunden 1–6** Unterricht haben (soweit die Karten reichen).
+    Umsetzung: Hohlstunden-Strafe beim Platzieren (immer aktiv), Klassen-Hohlstunden als
+    hartes Auswahlkriterium des besten Ergebnisses und eine **Hohlstunden-Reparatur**, die
+    randständige Einzelkarten anderer Tage in Löcher umzieht (nur vom Tages-Ende, nie
+    OLZ/Spanisch/Seminarkurs/Betrieb, nur regelkonforme Startstunden).
+
 ## Schienen & Planungs-Reihenfolge
 
 23. **Reihenfolge: Betriebstage → große Schienen → Rest.** Zuerst die **Betriebstage/Block-
