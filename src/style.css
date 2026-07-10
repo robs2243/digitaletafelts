@@ -920,7 +920,7 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .cw-lock { position: absolute; right: 30px; bottom: 4px; font-size: 12px; }
 
 /* Karten-Dialog IMMER über anderen Fenstern (z. B. über dem Klassen-Fenster) */
-#add-modal { z-index: 1100; }
+#add-modal, #info-modal { z-index: 1100; }
 
 /* Karten im Klassen-Fenster deutlich größer + Buttons immer sichtbar */
 .cw-cards { grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 10px; }

@@ -465,6 +465,17 @@ export class App {
       }
       if (target.closest('.tc-editbtn')) this.openEditCard(id);
     });
+    // Doppelklick auf eine Karte im Klassen-Fenster: Pool-Karte → bearbeiten,
+    // verplante Karte → Karten-Info (wie auf der Titelseite).
+    byId('cw-list').addEventListener('dblclick', (e) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button')) return;
+      const el = target.closest<HTMLElement>('.tc');
+      if (!el?.dataset.id) return;
+      const id = el.dataset.id;
+      if (this.state.pool.findById(id)) this.openEditCard(id);
+      else if (this.state.schedule.findById(id)) this.openPlacementInfo(id);
+    });
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
 
