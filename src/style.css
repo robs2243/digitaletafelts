@@ -890,3 +890,31 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 ::-webkit-scrollbar { width: 8px; height: 14px; }
 ::-webkit-scrollbar-thumb { background: #b0b6c2; border-radius: 7px; border: 2px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-thumb:hover { background: #868d9b; background-clip: padding-box; }
+
+/* ═══ Klassen-Fenster (Unterricht je Klasse) ═══ */
+#classes-modal .modal { display: flex; flex-direction: column; max-height: 88vh; }
+.cw-top { display: flex; gap: 12px; align-items: flex-end; margin-bottom: 10px; }
+.cw-lbl { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; color: var(--muted); }
+.cw-lbl select { min-width: 170px; padding: 7px 10px; border: 1.5px solid #cfd4dd; border-radius: 8px; font-size: 14px; font-weight: 700; background: #fff; }
+#cw-add { margin-left: auto; }
+.cw-sum { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; background: #f4f6fa; border: 1px solid #e3e7ee; border-radius: 10px; padding: 8px 12px; }
+.cw-sum-item { font-size: 13px; color: #444; }
+.cw-sum-item b { font-size: 17px; color: #1a237e; }
+.cw-sum-item.cw-ok b { color: #2e7d32; }
+.cw-sum-item.cw-warn b { color: #c62828; }
+.cw-bar { flex: 1; min-width: 120px; height: 10px; background: #ffcdd2; border-radius: 5px; overflow: hidden; }
+.cw-bar-fill { display: block; height: 100%; background: #66bb6a; border-radius: 5px; transition: width .25s; }
+.cw-pct { font-size: 12px; font-weight: 800; color: #2e7d32; }
+.cw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 10px; }
+.cw-chip { border: 1.5px solid #cfd4dd; background: #fff; border-radius: 999px; padding: 3px 11px; font-size: 12px; font-weight: 600; cursor: pointer; color: #333; }
+.cw-chip b { font-weight: 800; color: #1a237e; }
+.cw-chip:hover { border-color: var(--accent); }
+.cw-chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cw-chip.on b { color: #fff; }
+.cw-list { flex: 1; min-height: 0; overflow-y: auto; }
+.cw-sec { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; margin: 10px 0 6px; }
+.cw-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.cw-card { cursor: default; }
+.cw-card:active { transform: none; }
+.cw-none { font-size: 13px; color: var(--muted); }
+.cw-lock { position: absolute; right: 30px; bottom: 4px; font-size: 12px; }

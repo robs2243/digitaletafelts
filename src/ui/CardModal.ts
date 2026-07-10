@@ -104,13 +104,14 @@ export class CardModal {
     return this.overlay.classList.contains('open');
   }
 
-  openForCreate(suggestedColor: string): void {
+  /** presetKlasse: Klasse vorbefüllen (z. B. aus dem Klassen-Fenster). */
+  openForCreate(suggestedColor: string, presetKlasse = ''): void {
     this.editingId = null;
     this.existingComment = '';
     this.existingName = '';
     this.title.textContent = 'Karte erstellen';
     this.deleteBtn.style.display = 'none';
-    this.klasseInput.value = '';
+    this.klasseInput.value = presetKlasse;
     this.abbrInput.value = '';
     this.fachInput.value = '';
     this.roomInput.value = '';

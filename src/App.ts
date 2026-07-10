@@ -152,6 +152,8 @@ export class App {
     this.timetableView.render();
     this.statsView.render();
     this.applySearch();
+    // Klassen-Fenster live aktualisieren (z. B. nach Karte erstellen/ändern/löschen).
+    if (byId('classes-modal').classList.contains('open')) this.renderClassWindow();
   }
 
   /**
@@ -414,6 +416,48 @@ export class App {
       const btn = (e.target as HTMLElement).closest('button[data-act]') as HTMLButtonElement | null;
       if (!btn || btn.disabled) return;
       this.handleClassAction(btn.dataset.act ?? '', btn.dataset.class ?? '');
+    });
+    // Klassen-Fenster: Unterricht je Klasse ansehen, bearbeiten, ergänzen.
+    byId('plan-classes').addEventListener('click', () => this.openClassWindow());
+    const classesOverlay = byId('classes-modal');
+    byId('cw-close').addEventListener('click', () => classesOverlay.classList.remove('open'));
+    classesOverlay.addEventListener('click', (e) => {
+      if (e.target === classesOverlay) classesOverlay.classList.remove('open');
+    });
+    byId<HTMLSelectElement>('cw-class').addEventListener('change', () => {
+      byId<HTMLSelectElement>('cw-fach').value = '';
+      this.renderClassWindow();
+    });
+    byId<HTMLSelectElement>('cw-fach').addEventListener('change', () => this.renderClassWindow());
+    byId('cw-add').addEventListener('click', () => {
+      this.fillTeamDatalist('am-team-list');
+      this.cardModal.openForCreate(this.state.suggestFreeColor(), byId<HTMLSelectElement>('cw-class').value);
+    });
+    byId('cw-stats').addEventListener('click', (e) => {
+      const chip = (e.target as HTMLElement).closest<HTMLElement>('.cw-chip');
+      if (!chip) return;
+      const sel = byId<HTMLSelectElement>('cw-fach');
+      sel.value = chip.classList.contains('on') ? '' : (chip.dataset.fach ?? '');
+      this.renderClassWindow();
+    });
+    byId('cw-list').addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const el = target.closest<HTMLElement>('.tc');
+      if (!el?.dataset.id) return;
+      const id = el.dataset.id;
+      if (target.closest('.cw-unplace')) {
+        if (this.state.schedule.findById(id)?.locked) {
+          this.toast.show('🔒 Karte ist fixiert – erst die Fixierung aufheben.', 'inf');
+          return;
+        }
+        this.handleRemovePlacement(id);
+        return;
+      }
+      if (target.closest('.tc-delbtn')) {
+        this.handleDeleteCard(id);
+        return;
+      }
+      if (target.closest('.tc-editbtn')) this.openEditCard(id);
     });
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
@@ -923,6 +967,104 @@ export class App {
     });
     byId('settings-modal').classList.remove('open');
     this.toast.show('⚙️ Planungsregeln gespeichert', 'ok');
+  }
+
+  // ── Klassen-Fenster: Unterricht je Klasse ansehen/bearbeiten/ergänzen ────
+
+  private openClassWindow(): void {
+    const classes = [...new Set([...this.state.pool.all, ...this.state.schedule.all].map((c) => c.klasse.trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'de'));
+    if (!classes.length) {
+      this.toast.show('Keine Karten mit Klasse vorhanden.', 'inf');
+      return;
+    }
+    const sel = byId<HTMLSelectElement>('cw-class');
+    const prev = sel.value;
+    sel.innerHTML = classes.map((k) => `<option value="${esc(k)}">${esc(k)}</option>`).join('');
+    sel.value = classes.includes(prev) ? prev : classes[0];
+    byId<HTMLSelectElement>('cw-fach').value = '';
+    this.renderClassWindow();
+    byId('classes-modal').classList.add('open');
+  }
+
+  private renderClassWindow(): void {
+    const klasse = byId<HTMLSelectElement>('cw-class').value;
+    const key = klasse.trim().toLowerCase();
+    const pool = this.state.pool.all.filter((c) => c.klasse.trim().toLowerCase() === key);
+    const placed = this.state.schedule.all.filter((p) => p.klasse.trim().toLowerCase() === key);
+
+    // Fach-Filter: nur die Fächer, die diese Klasse tatsächlich hat.
+    const fachSel = byId<HTMLSelectElement>('cw-fach');
+    const faecher = [...new Set([...pool, ...placed].map((c) => c.fach.trim()).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, 'de'),
+    );
+    const prevFach = fachSel.value;
+    fachSel.innerHTML =
+      `<option value="">Alle Fächer (${faecher.length})</option>` +
+      faecher.map((f) => `<option value="${esc(f)}">${esc(f)}</option>`).join('');
+    fachSel.value = faecher.includes(prevFach) ? prevFach : '';
+    const fach = fachSel.value;
+
+    const fPool = fach ? pool.filter((c) => c.fach.trim() === fach) : pool;
+    const fPlaced = fach ? placed.filter((p) => p.fach.trim() === fach) : placed;
+
+    // Stunden zählen (gefiltert) + je Fach (ungefiltert, für die Chips).
+    const hours = (list: { duration: number }[]): number => list.reduce((s, c) => s + c.duration, 0);
+    const hPool = hours(fPool);
+    const hPlaced = hours(fPlaced);
+    const hTotal = hPool + hPlaced;
+    const pct = hTotal ? Math.round((hPlaced / hTotal) * 100) : 0;
+    const perFach = new Map<string, number>();
+    for (const c of [...pool, ...placed]) {
+      const f = c.fach.trim() || '(ohne Fach)';
+      perFach.set(f, (perFach.get(f) ?? 0) + c.duration);
+    }
+    byId('cw-stats').innerHTML =
+      `<div class="cw-sum">
+        <span class="cw-sum-item"><b>${hTotal}</b> Std${fach ? ` „${esc(fach)}"` : ' gesamt'}</span>
+        <span class="cw-sum-item cw-ok"><b>${hPlaced}</b> verplant</span>
+        <span class="cw-sum-item cw-warn"><b>${hPool}</b> offen</span>
+        <span class="cw-sum-item">${fPool.length + fPlaced.length} Karten</span>
+        <span class="cw-bar" title="${pct}% verplant"><span class="cw-bar-fill" style="width:${pct}%"></span></span>
+        <span class="cw-pct">${pct}%</span>
+      </div>
+      <div class="cw-chips">${[...perFach]
+        .sort((a, b) => b[1] - a[1])
+        .map(
+          ([f, h]) =>
+            `<button class="cw-chip${fach && f === fach ? ' on' : ''}" data-fach="${esc(f === '(ohne Fach)' ? '' : f)}" title="Nach ${esc(f)} filtern">${esc(f)} <b>${h}h</b></button>`,
+        )
+        .join('')}</div>`;
+
+    // Kartenliste: Pool-Karten bearbeitbar/löschbar (wie auf der Titelseite),
+    // verplante Karten mit Position und „↩ Entplanen".
+    const cardHtml = (c: { id: string; color: string; klasse: string; abbr: string; fach: string; room: string; duration: number; coupling: string; teamTeaching: string; isLabor: boolean; labGroup: string; isWerkstatt: boolean; schiene: boolean; comment: string }, pl: Placement | null): string => {
+      const fg = ink(c.color);
+      const badge = c.isLabor ? `⚗${c.labGroup}` : c.isWerkstatt ? '🔧' : '';
+      const meta: string[] = [];
+      if (c.fach) meta.push(esc(c.fach));
+      if (c.room) meta.push(esc(c.room));
+      if (c.coupling) meta.push(`⛓ ${esc(c.coupling)}`);
+      if (c.teamTeaching) meta.push(`👥 ${esc(c.teamTeaching)}`);
+      if (pl) meta.push(`📍 ${DAYS[pl.day].slice(0, 2)} ${pl.week} ${pl.startPeriod}.–${pl.startPeriod + pl.duration - 1}.`);
+      const btns = pl
+        ? `${pl.locked ? '<span class="cw-lock" title="fixiert">🔒</span>' : ''}<button class="tc-delbtn cw-unplace" title="Entplanen – zurück in den Pool">↩</button>`
+        : `<button class="tc-editbtn" title="Bearbeiten">✎</button><button class="tc-delbtn" title="Karte löschen">✕</button>`;
+      return `<div class="tc cw-card" data-id="${c.id}" style="background:${c.color};color:${fg}">
+          <span class="tc-dur">${c.duration}h</span>
+          ${badge ? `<span class="labor-badge">${badge}</span>` : ''}
+          ${c.schiene ? '<span class="schiene-badge" title="Schiene">S</span>' : ''}
+          <div class="tc-main"><span class="tc-abbr">${esc(c.abbr) || '–'}</span></div>
+          ${meta.length ? `<div class="tc-meta">${meta.join(' · ')}</div>` : ''}
+          ${c.comment ? `<span class="tc-comment" title="${esc(c.comment)}">💬</span>` : ''}
+          ${btns}
+        </div>`;
+    };
+    byId('cw-list').innerHTML =
+      `<div class="cw-sec">📥 Nicht verplant (Pool) – ${fPool.length} Karten, ${hPool} Std</div>
+      <div class="cw-cards">${fPool.map((c) => cardHtml(c, null)).join('') || '<span class="cw-none">keine</span>'}</div>
+      <div class="cw-sec">📅 Verplant – ${fPlaced.length} Karten, ${hPlaced} Std</div>
+      <div class="cw-cards">${fPlaced.map((p) => cardHtml(p, p)).join('') || '<span class="cw-none">keine</span>'}</div>`;
   }
 
   // ── Karten je Klasse (Soll/Ist-Abgleich mit Untis) ──────────────────────

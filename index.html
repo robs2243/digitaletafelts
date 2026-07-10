@@ -337,6 +337,10 @@
           <button class="btn btn-ok" id="plan-cardcount" style="width: 100%">🔢 Karten je Klasse zählen</button>
         </div>
         <div class="fg">
+          <label>Klassen – Unterricht je Klasse ansehen, bearbeiten und ergänzen</label>
+          <button class="btn btn-ok" id="plan-classes" style="width: 100%">🎓 Klassen – Unterricht verwalten</button>
+        </div>
+        <div class="fg">
           <label>Excel-Export – alle Karten (sortiert nach Klasse und Lehrer)</label>
           <button class="btn btn-ok" id="plan-export" style="width: 100%">📤 Alle Karten als Excel exportieren</button>
         </div>
@@ -551,6 +555,27 @@
         <div id="cc-list" class="tm-list"></div>
         <div class="mbtns">
           <button class="btn btn-ok" id="cc-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KLASSEN-FENSTER: Unterricht je Klasse ansehen/bearbeiten/ergänzen ═══ -->
+    <div class="overlay" id="classes-modal">
+      <div class="modal" style="width: 900px">
+        <h2 style="color: #1a237e">🎓 Klassen – Unterricht verwalten</h2>
+        <div class="cw-top">
+          <label class="cw-lbl">Klasse
+            <select id="cw-class"></select>
+          </label>
+          <label class="cw-lbl">Fach
+            <select id="cw-fach"><option value="">Alle Fächer</option></select>
+          </label>
+          <button class="btn btn-pri" id="cw-add" title="Neue Karte für diese Klasse erstellen">＋ Karte erstellen</button>
+        </div>
+        <div id="cw-stats"></div>
+        <div id="cw-list" class="cw-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="cw-close">Schließen</button>
         </div>
       </div>
     </div>
