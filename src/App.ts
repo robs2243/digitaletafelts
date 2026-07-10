@@ -1,4 +1,5 @@
 import { AppState } from './domain/AppState';
+import type { Card } from './domain/Card';
 import { DAYS, PALETTE, PERIODS, WEEKS } from './domain/constants';
 import type { Placement } from './domain/Placement';
 import { ink } from './utils/color';
@@ -465,16 +466,13 @@ export class App {
       }
       if (target.closest('.tc-editbtn')) this.openEditCard(id);
     });
-    // Doppelklick auf eine Karte im Klassen-Fenster: Pool-Karte → bearbeiten,
-    // verplante Karte → Karten-Info (wie auf der Titelseite).
+    // Doppelklick auf eine Karte im Klassen-Fenster: kompletten Karten-Editor öffnen
+    // (auch für verplante Karten – deren Position bleibt beim Speichern erhalten).
     byId('cw-list').addEventListener('dblclick', (e) => {
       const target = e.target as HTMLElement;
       if (target.closest('button')) return;
       const el = target.closest<HTMLElement>('.tc');
-      if (!el?.dataset.id) return;
-      const id = el.dataset.id;
-      if (this.state.pool.findById(id)) this.openEditCard(id);
-      else if (this.state.schedule.findById(id)) this.openPlacementInfo(id);
+      if (el?.dataset.id) this.openEditCard(el.dataset.id);
     });
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
@@ -1079,7 +1077,7 @@ export class App {
       if (c.teamTeaching) meta.push(`👥 ${esc(c.teamTeaching)}`);
       if (pl) meta.push(`📍 ${DAYS[pl.day].slice(0, 2)} ${pl.week} ${pl.startPeriod}.–${pl.startPeriod + pl.duration - 1}.`);
       const btns = pl
-        ? `${pl.locked ? '<span class="cw-lock" title="fixiert">🔒</span>' : ''}<button class="tc-editbtn cw-unplace" title="Entplanen – zurück in den Pool">↩</button><button class="tc-delbtn cw-delplaced" title="Stunde endgültig löschen">✕</button>`
+        ? `${pl.locked ? '<span class="cw-lock" title="fixiert">🔒</span>' : ''}<button class="tc-editbtn cw-editplaced" title="Bearbeiten (Position bleibt)">✎</button><button class="tc-editbtn cw-unplace" title="Entplanen – zurück in den Pool">↩</button><button class="tc-delbtn cw-delplaced" title="Stunde endgültig löschen">✕</button>`
         : `<button class="tc-editbtn" title="Bearbeiten">✎</button><button class="tc-delbtn" title="Karte löschen">✕</button>`;
       return `<div class="tc cw-card" data-id="${c.id}" style="background:${c.color};color:${fg}">
           <span class="tc-dur">${c.duration}h</span>
@@ -2096,6 +2094,13 @@ export class App {
     if (card) {
       this.fillTeamDatalist('am-team-list');
       this.cardModal.openForEdit(card);
+      return;
+    }
+    // Auch VERPLANTE Karten sind voll bearbeitbar (Position bleibt beim Speichern erhalten).
+    const pl = this.state.schedule.findById(id);
+    if (pl) {
+      this.fillTeamDatalist('am-team-list');
+      this.cardModal.openForEdit({ id: pl.id, ...pl.cardSnapshot() } as unknown as Card);
     }
   }
 
@@ -2104,7 +2109,14 @@ export class App {
       this.toast.show('Bitte ein Kürzel eingeben.', 'inf');
       return false;
     }
-    if (editingId) this.state.updateCard(editingId, props);
+    if (editingId && this.state.schedule.findById(editingId)) {
+      // Verplante Karte: Eigenschaften ändern, Position/Fixierung bleiben.
+      const res = this.state.updatePlacedCard(editingId, props);
+      if (res === 'toPool') {
+        this.toast.show('⚠️ Karte passt nicht mehr an ihren Platz – sie liegt jetzt im Pool.', 'inf');
+        return true;
+      }
+    } else if (editingId) this.state.updateCard(editingId, props);
     else this.state.createCard(props);
     const tag = props.isLabor ? ' ⚗' : props.isWerkstatt ? ' 🔧' : '';
     const fach = props.fach ? ` – ${props.fach}` : '';
@@ -2383,7 +2395,14 @@ export class App {
 
   private handleDeleteCard(id: string): void {
     const card = this.state.pool.findById(id);
-    if (!card) return;
+    if (!card) {
+      // Aus dem Karten-Editor heraus kann auch eine VERPLANTE Karte gelöscht werden.
+      if (this.state.schedule.findById(id)) {
+        this.handleDeletePlacedCard(id);
+        this.cardModal.close();
+      }
+      return;
+    }
     const label = card.fach ? `${card.abbr} – ${card.fach}` : card.abbr;
     if (!confirm(`Karte „${label}" löschen?`)) return;
     this.state.deleteCard(id);

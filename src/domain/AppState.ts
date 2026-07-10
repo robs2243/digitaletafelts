@@ -901,6 +901,38 @@ export class AppState {
   }
 
   /** Platzierung entfernen und als Karte zurück in den Pool legen (Partner mit). */
+  /**
+   * Aktualisiert die Karten-Eigenschaften einer VERPLANTEN Karte – Position und
+   * Fixierung bleiben erhalten. Passt die Karte nicht mehr an ihren Platz (längere
+   * Dauer über Stunde 9 hinaus oder Überlappung mit einer anderen Karte der
+   * Spalte), wandert sie mit den neuen Eigenschaften in den Pool ('toPool').
+   */
+  updatePlacedCard(placementId: string, props: CardProps): 'updated' | 'toPool' | null {
+    const pl = this.schedule.findById(placementId);
+    if (!pl) return null;
+    const pos: PlacementPosition = { day: pl.day, startPeriod: pl.startPeriod, classIdx: pl.classIdx, week: pl.week };
+    const locked = pl.locked;
+    this.schedule.remove(placementId);
+    const candidate = new Placement(this.nextId(), props, pos, locked);
+    const fitsRaster = pos.startPeriod + props.duration - 1 <= PERIODS;
+    const periods = new Set(candidate.occupiedPeriods());
+    const overlaps = this.schedule.all.some(
+      (p) =>
+        p.classIdx === pos.classIdx &&
+        p.day === pos.day &&
+        p.occupiesWeek(pos.week) &&
+        p.occupiedPeriods().some((q) => periods.has(q)),
+    );
+    if (!fitsRaster || (overlaps && props.duration > pl.duration)) {
+      this.pool.add(new Card(this.nextId(), props));
+      this.emit();
+      return 'toPool';
+    }
+    this.schedule.add(candidate);
+    this.emit();
+    return 'updated';
+  }
+
   /** Löscht eine VERPLANTE Stunde endgültig (ohne Rückkehr in den Pool; Strg+Z möglich).
    *  Gekoppelte/Team-Partner bleiben liegen – es wird nur diese eine Karte entfernt. */
   deletePlacement(placementId: string): Placement | null {
