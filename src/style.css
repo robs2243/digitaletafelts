@@ -918,3 +918,20 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .cw-card:active { transform: none; }
 .cw-none { font-size: 13px; color: var(--muted); }
 .cw-lock { position: absolute; right: 30px; bottom: 4px; font-size: 12px; }
+
+/* Karten-Dialog IMMER über anderen Fenstern (z. B. über dem Klassen-Fenster) */
+#add-modal { z-index: 1100; }
+
+/* Karten im Klassen-Fenster deutlich größer + Buttons immer sichtbar */
+.cw-cards { grid-template-columns: repeat(auto-fill, minmax(310px, 1fr)); gap: 10px; }
+#cw-list .tc { min-height: 80px; padding: 12px 14px; gap: 5px; cursor: default; }
+#cw-list .tc-abbr { font-size: 21px; }
+#cw-list .tc-meta { font-size: 14px; opacity: .95; line-height: 1.45; padding-right: 70px; }
+#cw-list .tc-main { padding-right: 60px; }
+#cw-list .tc-dur { font-size: 14px; padding: 2px 9px; top: 8px; right: 8px; border-radius: 10px; }
+#cw-list .labor-badge, #cw-list .schiene-badge { font-size: 13px; }
+#cw-list .tc-editbtn, #cw-list .tc-delbtn { display: flex; width: 28px; height: 28px; font-size: 15px; bottom: 8px; border-radius: 6px; }
+#cw-list .tc-editbtn { right: 44px; }
+#cw-list .tc-delbtn { right: 8px; }
+#cw-list .cw-lock { right: 46px; bottom: 13px; font-size: 16px; }
+#cw-list .tc-comment { font-size: 14px; }
