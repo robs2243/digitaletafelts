@@ -47,7 +47,8 @@ header {
   box-shadow: 0 2px 14px rgba(17,24,39,.22), inset 0 1px 0 rgba(255,255,255,.07);
   flex-shrink: 0; z-index: 200;
 }
-header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; }
+header h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; display: flex; align-items: center; gap: 8px; }
+.brand-logo { height: 28px; width: 28px; border-radius: 7px; box-shadow: 0 1px 3px rgba(0,0,0,.4); }
 .hdr-btn {
   background: rgba(255,255,255,.15);
   border: 1px solid rgba(255,255,255,.3);
