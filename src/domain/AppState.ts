@@ -901,6 +901,15 @@ export class AppState {
   }
 
   /** Platzierung entfernen und als Karte zurück in den Pool legen (Partner mit). */
+  /** Löscht eine VERPLANTE Stunde endgültig (ohne Rückkehr in den Pool; Strg+Z möglich).
+   *  Gekoppelte/Team-Partner bleiben liegen – es wird nur diese eine Karte entfernt. */
+  deletePlacement(placementId: string): Placement | null {
+    const placement = this.schedule.remove(placementId);
+    if (!placement) return null;
+    this.emit();
+    return placement;
+  }
+
   returnToPool(placementId: string): Placement | null {
     const placement = this.schedule.remove(placementId);
     if (!placement) return null;

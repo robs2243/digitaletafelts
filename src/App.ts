@@ -426,9 +426,11 @@ export class App {
     });
     byId<HTMLSelectElement>('cw-class').addEventListener('change', () => {
       byId<HTMLSelectElement>('cw-fach').value = '';
+      byId<HTMLSelectElement>('cw-abbr').value = '';
       this.renderClassWindow();
     });
     byId<HTMLSelectElement>('cw-fach').addEventListener('change', () => this.renderClassWindow());
+    byId<HTMLSelectElement>('cw-abbr').addEventListener('change', () => this.renderClassWindow());
     byId('cw-add').addEventListener('click', () => {
       this.fillTeamDatalist('am-team-list');
       this.cardModal.openForCreate(this.state.suggestFreeColor(), byId<HTMLSelectElement>('cw-class').value);
@@ -451,6 +453,10 @@ export class App {
           return;
         }
         this.handleRemovePlacement(id);
+        return;
+      }
+      if (target.closest('.cw-delplaced')) {
+        this.handleDeletePlacedCard(id);
         return;
       }
       if (target.closest('.tc-delbtn')) {
@@ -1005,8 +1011,22 @@ export class App {
     fachSel.value = faecher.includes(prevFach) ? prevFach : '';
     const fach = fachSel.value;
 
-    const fPool = fach ? pool.filter((c) => c.fach.trim() === fach) : pool;
-    const fPlaced = fach ? placed.filter((p) => p.fach.trim() === fach) : placed;
+    // Lehrer-Filter: nur die Lehrkräfte, die in dieser Klasse unterrichten.
+    const abbrSel = byId<HTMLSelectElement>('cw-abbr');
+    const lehrer = [...new Set([...pool, ...placed].map((c) => c.abbr.trim()).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, 'de'),
+    );
+    const prevAbbr = abbrSel.value;
+    abbrSel.innerHTML =
+      `<option value="">Alle Lehrkräfte (${lehrer.length})</option>` +
+      lehrer.map((a) => `<option value="${esc(a)}">${esc(a)}</option>`).join('');
+    abbrSel.value = lehrer.includes(prevAbbr) ? prevAbbr : '';
+    const abbr = abbrSel.value;
+
+    const matches = (c: { fach: string; abbr: string }): boolean =>
+      (!fach || c.fach.trim() === fach) && (!abbr || c.abbr.trim() === abbr);
+    const fPool = pool.filter(matches);
+    const fPlaced = placed.filter(matches);
 
     // Stunden zählen (gefiltert) + je Fach (ungefiltert, für die Chips).
     const hours = (list: { duration: number }[]): number => list.reduce((s, c) => s + c.duration, 0);
@@ -1048,7 +1068,7 @@ export class App {
       if (c.teamTeaching) meta.push(`👥 ${esc(c.teamTeaching)}`);
       if (pl) meta.push(`📍 ${DAYS[pl.day].slice(0, 2)} ${pl.week} ${pl.startPeriod}.–${pl.startPeriod + pl.duration - 1}.`);
       const btns = pl
-        ? `${pl.locked ? '<span class="cw-lock" title="fixiert">🔒</span>' : ''}<button class="tc-delbtn cw-unplace" title="Entplanen – zurück in den Pool">↩</button>`
+        ? `${pl.locked ? '<span class="cw-lock" title="fixiert">🔒</span>' : ''}<button class="tc-editbtn cw-unplace" title="Entplanen – zurück in den Pool">↩</button><button class="tc-delbtn cw-delplaced" title="Stunde endgültig löschen">✕</button>`
         : `<button class="tc-editbtn" title="Bearbeiten">✎</button><button class="tc-delbtn" title="Karte löschen">✕</button>`;
       return `<div class="tc cw-card" data-id="${c.id}" style="background:${c.color};color:${fg}">
           <span class="tc-dur">${c.duration}h</span>
@@ -2358,5 +2378,20 @@ export class App {
     this.state.deleteCard(id);
     this.cardModal.close();
     this.toast.show(`${card.abbr} gelöscht`, 'inf');
+  }
+
+  /** Löscht eine VERPLANTE Stunde endgültig (aus dem Klassen-Fenster). */
+  private handleDeletePlacedCard(id: string): void {
+    const pl = this.state.schedule.findById(id);
+    if (!pl) return;
+    if (pl.locked) {
+      this.toast.show('🔒 Karte ist fixiert – erst die Fixierung aufheben.', 'inf');
+      return;
+    }
+    const label = pl.fach ? `${pl.abbr} – ${pl.fach}` : pl.abbr;
+    const pos = `${DAYS[pl.day]}, ${pl.startPeriod}.–${pl.startPeriod + pl.duration - 1}. Std (${pl.week})`;
+    if (!confirm(`Verplante Stunde „${label}" (${pos}) endgültig löschen?\n(Rückgängig mit Strg+Z möglich.)`)) return;
+    this.state.deletePlacement(id);
+    this.toast.show(`🗑 ${pl.abbr} gelöscht`, 'inf');
   }
 }

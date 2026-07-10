@@ -933,5 +933,5 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 #cw-list .tc-editbtn, #cw-list .tc-delbtn { display: flex; width: 28px; height: 28px; font-size: 15px; bottom: 8px; border-radius: 6px; }
 #cw-list .tc-editbtn { right: 44px; }
 #cw-list .tc-delbtn { right: 8px; }
-#cw-list .cw-lock { right: 46px; bottom: 13px; font-size: 16px; }
+#cw-list .cw-lock { right: 82px; bottom: 13px; font-size: 16px; }
 #cw-list .tc-comment { font-size: 14px; }
