@@ -1,11 +1,52 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#111827"/>
-  <rect x="216" y="216" width="80" height="80" rx="8" fill="#6366f1"/>
-  <g stroke="#ffffff" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.95">
-    <rect x="136" y="136" width="240" height="240" rx="22"/>
-    <line x1="216" y1="136" x2="216" y2="376"/>
-    <line x1="296" y1="136" x2="296" y2="376"/>
-    <line x1="136" y1="216" x2="376" y2="216"/>
-    <line x1="136" y1="296" x2="376" y2="296"/>
+  <!-- Zeitwerk: Zahnrad (12 Zähne = 12 Stunden) mit Ziffernblatt, Zeiger auf 7:45
+       (Unterrichtsbeginn), Tanne als 6-Uhr-Marke (Schwarzwald). -->
+  <rect width="512" height="512" fill="#0f172a"/>
+  <!-- Zahnrad: 12 Zähne -->
+  <g fill="#6366f1">
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(0 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(30 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(60 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(90 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(120 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(150 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(180 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(210 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(240 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(270 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(300 256 256)"/>
+    <rect x="232" y="42" width="48" height="52" rx="12" transform="rotate(330 256 256)"/>
+    <circle cx="256" cy="256" r="178"/>
   </g>
+  <!-- Ziffernblatt -->
+  <circle cx="256" cy="256" r="138" fill="#0f172a"/>
+  <circle cx="256" cy="256" r="124" fill="#1e293b"/>
+  <!-- Stunden-Marken 12 / 3 / 9 -->
+  <g fill="#ffffff">
+    <rect x="250" y="148" width="12" height="30" rx="6"/>
+    <rect x="334" y="250" width="30" height="12" rx="6"/>
+    <rect x="148" y="250" width="30" height="12" rx="6"/>
+  </g>
+  <!-- Neben-Marken -->
+  <g fill="#ffffff" opacity="0.45">
+    <circle cx="310" cy="162.4" r="6"/>
+    <circle cx="349.6" cy="202" r="6"/>
+    <circle cx="349.6" cy="310" r="6"/>
+    <circle cx="310" cy="349.6" r="6"/>
+    <circle cx="202" cy="349.6" r="6"/>
+    <circle cx="162.4" cy="310" r="6"/>
+    <circle cx="162.4" cy="202" r="6"/>
+    <circle cx="202" cy="162.4" r="6"/>
+  </g>
+  <!-- Tanne als 6-Uhr-Marke (Schwarzwald) -->
+  <g fill="#2dd4bf">
+    <path d="M256 330 L242 352 L250 352 L238 370 L248 370 L236 388 L252 388 L252 396 L260 396 L260 388 L276 388 L264 370 L274 370 L262 352 L270 352 Z"/>
+  </g>
+  <!-- Zeiger: 7:45 (Unterrichtsbeginn) -->
+  <line x1="256" y1="256" x2="256" y2="180" stroke="#ffffff" stroke-width="20" stroke-linecap="round" transform="rotate(232.5 256 256)"/>
+  <line x1="256" y1="256" x2="256" y2="152" stroke="#ffffff" stroke-width="13" stroke-linecap="round" transform="rotate(270 256 256)"/>
+  <line x1="256" y1="256" x2="256" y2="146" stroke="#2dd4bf" stroke-width="6" stroke-linecap="round" transform="rotate(48 256 256)"/>
+  <!-- Zentrum -->
+  <circle cx="256" cy="256" r="16" fill="#2dd4bf"/>
+  <circle cx="256" cy="256" r="7" fill="#0f172a"/>
 </svg>

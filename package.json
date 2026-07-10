@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.8.3",
   "type": "module",
-  "description": "Digitale Tafel – Stundenplan-Software",
+  "description": "Zeitwerk – Stundenplan-Software",
   "author": "Heinrich-Schickhardt-Schule",
   "main": "electron/main.cjs",
   "scripts": {
@@ -25,7 +25,7 @@
   "trustedDependencies": ["electron", "electron-builder"],
   "build": {
     "appId": "de.hsschickhardt.digitaletafel",
-    "productName": "Digitale Tafel",
+    "productName": "Zeitwerk",
     "directories": {
       "output": "release"
     },
@@ -38,7 +38,7 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Digitale Tafel"
+      "shortcutName": "Zeitwerk"
     }
   },
   "dependencies": {

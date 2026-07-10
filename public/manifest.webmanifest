@@ -1,16 +1,20 @@
 {
-  "name": "Digitale Tafel",
-  "short_name": "Digitale Tafel",
-  "description": "Stundenplan-Software für Schulen",
+  "name": "Zeitwerk",
+  "short_name": "Zeitwerk",
+  "description": "Zeitwerk – Stundenplan-Software aus dem Schwarzwald",
   "lang": "de",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#ffffff",
+  "background_color": "#000000",
   "theme_color": "#111827",
   "icons": [
-    { "src": "./icon-app.png", "type": "image/png", "sizes": "1024x1024", "purpose": "any maskable" },
-    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    {
+      "src": "./icon-app.png",
+      "type": "image/png",
+      "sizes": "1024x1024",
+      "purpose": "any maskable"
+    }
   ]
 }

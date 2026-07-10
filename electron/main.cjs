@@ -9,6 +9,11 @@ const { pathToFileURL } = require('node:url');
 const DIST = path.join(__dirname, '..', 'dist');
 const DEV_URL = process.env.VITE_DEV_SERVER_URL;
 
+// WICHTIG: Die App hieß früher „Digitale Tafel". Der Datenordner (localStorage mit
+// dem gespeicherten Plan!) hängt am Produktnamen – deshalb bleibt er fest auf dem
+// alten Ordner, damit beim Umbenennen auf „Zeitwerk" KEINE Daten verloren gehen.
+app.setPath('userData', path.join(app.getPath('appData'), 'Digitale Tafel'));
+
 const MIME = {
   '.html': 'text/html',
   '.js': 'text/javascript',
