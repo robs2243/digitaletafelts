@@ -11,6 +11,12 @@ Quelle: Vorgaben des Anwenders.
    (in dieser Woche) voll ist** – auch ein „später Beginn" (1+2 leer, Start um 3)
    ist verboten, nicht nur Löcher zwischen Stunden. Ausgenommen sind Karten mit
    fester Randlage (OLZ, Spanisch, Seminarkurs, Betrieb) und Werkstatt-Fenster.
+   **Pflicht-Splitting (letzter Ausweg):** Bleibt eine EINZELNE Pflichtstunde
+   offen, die keine ganze Karte mehr füllen kann, darf der Planer eine 2h-Karte
+   derselben Klasse in **2 × 1h teilen** (Deputat bleibt gleich): bevorzugt eine
+   noch offene Karte, sonst eine auf 8–9 liegende (die 8. bleibt, die 9. wandert
+   in die Lücke). Nie geteilt werden Werkstatt/Labor/¼/Kopplungen/Teams und
+   Karten mit fester Randlage.
 2. **Lehrer-Maximum:** Eine Lehrkraft hat **maximal 6 Stunden Unterricht pro Tag** –
    **AUSNAHME: bei Werkstatt oder Labor an dem Tag sind bis zu 8 Stunden erlaubt**
    (lange Block-Tage). Lässt sich das nicht einhalten → **den Anwender fragen** (nicht

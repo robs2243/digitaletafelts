@@ -254,6 +254,28 @@ check('Spanisch (SBx) nur 1+2 / 8+9', pls.filter((p) => isSpan(p.fach) && p.star
   }
   check('Klassen ohne Hohlstunden (Pause 7. bzw. 5. bei Werkstatt)', errs, 8);
   info('Klassentage mit unvollständiger 1–6-Abdeckung', `${under6} (datenabhängig – zu wenige Karten am Tag)`);
+
+  // 14c) PFLICHT 1–6 VOR RANDSTUNDEN: liegen an einem Klassentag(+Woche) frei
+  //      teilbare/verschiebbare Karten auf 8/9, obwohl 1–6 offen ist, hat die
+  //      Reparatur/das Splitting versagt. Feste Randlagen (OLZ/SBx/SK/Betrieb)
+  //      und Kopplungen/Teams (nicht einzeln beweglich) zählen NICHT als 8/9-Belegung.
+  const movable = (p) =>
+    !p.coupling.trim() && !p.teamTeaching.trim() && !p.isWerkstatt && !p.isLabor &&
+    !isOlz(p.fach) && !isSpan(p.fach) && !isSk(p.fach) && !isBetrieb(p.fach);
+  const lateErrs = [];
+  for (const [k, e] of byCD) {
+    const [, d, w] = k.split('|');
+    const isPause = (p) => p === 7 || (e.werk && p === 5);
+    const open16 = [];
+    for (let p = 1; p <= 6; p++) if (!isPause(p) && !e.periods.has(p)) open16.push(p);
+    if (!open16.length) continue;
+    const lateMovable = pls.filter(
+      (p) => `${p.classIdx}|${p.day}|${p.week}` === k && p.startPeriod >= 8 && movable(p),
+    );
+    if (lateMovable.length)
+      lateErrs.push(`${e.name} ${DAYS[+d].slice(0, 2)}-${w}: 1–6 offen (${open16.join(',')}), aber ${lateMovable.map((p) => `${p.abbr} ${p.fach}`).join('+')} auf 8/9`);
+  }
+  check('Pflicht 1–6 vor Randstunden (bewegliche 8/9-Karten bei offener 1–6-Lücke)', lateErrs, 8);
 }
 
 // 15) Prüfbericht der App selbst. Schüler-Hohlstunden/Werkstatt<4h sind dort
