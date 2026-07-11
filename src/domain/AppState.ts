@@ -2424,6 +2424,82 @@ export class AppState {
         }
       }
 
+      // u/g-SPIEGEL-PAARE: identische Einzelkarten (gleiche Klasse, Lehrkraft,
+      // Fach, Dauer, Halbjahr) VORAB bündeln – eine in die u-, eine in die
+      // g-Woche DESSELBEN Slots (im Raster EIN breites u+g-Schild, u/g-Stunden
+      // automatisch ausgeglichen). Findet ein Paar keinen gemeinsamen Slot,
+      // werden beide normal einzeln verplant (Vollständigkeit vor Spiegel).
+      const mirrorPaired = new Set<string>();
+      const mirrorPairs: Card[][] = [];
+      {
+        const byKey = new Map<string, Card[]>();
+        for (const c of cards) {
+          if (c.isWerkstatt || c.isLabor || c.isVierwoechig || fixedBlocks(c) || isOlz(c) || isSpan(c) || isSk(c) || isBetrieb(c))
+            continue;
+          if (!c.klasse.trim() || !c.abbr.trim()) continue;
+          const k = [
+            c.klasse.trim().toLowerCase(),
+            c.abbr.trim().toLowerCase(),
+            c.fach.trim().toLowerCase(),
+            c.duration,
+            c.firstHalf,
+            c.secondHalf,
+            c.noCount,
+            c.mainSubject,
+          ].join('|');
+          (byKey.get(k) ?? byKey.set(k, []).get(k)!).push(c);
+        }
+        for (const list of byKey.values()) {
+          for (let i = 0; i + 1 < list.length; i += 2) {
+            mirrorPairs.push([list[i], list[i + 1]]);
+            mirrorPaired.add(list[i].id);
+            mirrorPaired.add(list[i + 1].id);
+          }
+        }
+      }
+
+      /** Spiegel-Paar platzieren: Karte A in die u-, Karte B in die g-Woche
+       *  desselben Slots. Ohne gemeinsamen Slot: beide einzeln (placeNormal). */
+      const placeMirrorPair = (a: Card, b: Card): void => {
+        const starts = shuffleOrder ? shuffle([...baseStarts(a)], rng) : baseStarts(a);
+        const f = a.fach.trim().toLowerCase();
+        let best: { cU: number; cG: number; d: number; start: number; score: number[] } | null = null;
+        for (let d = 0; d < DAYS.length; d++) {
+          const cU = columnFor(a, d, 'u');
+          const cG = columnFor(b, d, 'g');
+          if (cU === null || cG === null) continue;
+          for (const start of starts) {
+            if (check(a, cU, d, 'u', start) !== null || check(b, cG, d, 'g', start) !== null) continue;
+            const gapPush =
+              classGaps(cU, d, 'u', new Set(blockedPeriods(false, start, a.duration))) +
+              classGaps(cG, d, 'g', new Set(blockedPeriods(false, start, b.duration)));
+            const mainAdj =
+              isMain(a) && ((subj.get(sK(a.klasse, d - 1, 'u', f)) ?? 0) > 0 || (subj.get(sK(a.klasse, d + 1, 'u', f)) ?? 0) > 0)
+                ? 1
+                : 0;
+            const score = [
+              gapPush, // Klassen-Hohlstunden vermeiden (beide Wochen)
+              isMain(a) && start > 6 ? 1 : 0, // Hauptfach möglichst 1–6
+              mainAdj, // Hauptfach: möglichst ein Tag Pause
+              roomChange(a, cU, d, 'u') + roomChange(b, cG, d, 'g'), // Raumtreue
+              start,
+            ];
+            if (!best || lexLtA(score, best.score)) best = { cU, cG, d, start, score };
+          }
+        }
+        if (best) {
+          apply(a, best.cU, best.d, 'u', best.start, true);
+          apply(b, best.cG, best.d, 'g', best.start, true);
+          return;
+        }
+        placeNormal(a);
+        placeNormal(b);
+      };
+      const stepMirror = (ps: Card[][]): void => {
+        const seq = shuffleOrder ? shuffle([...ps], rng) : ps;
+        for (const [a, b] of focusFirstGroups(seq)) placeMirrorPair(a, b);
+      };
+
       step(cards.filter(fixedBlocks), placeNormal); // 1. BETRIEBSTAGE/Block-Karten zuerst (starrster Ganztags-Anker)
       placeWerkSchieneGroups(werkSchieneCoup); // 1b. Schienen-Werkstätten GANZ ZUERST (geteilte Räume, ganzer Tag, je Paar eigener Tag)
       placeCoupList(schieneCoup); // 2. große SCHIENEN über ≥3 Klassen (Anker)
@@ -2432,7 +2508,12 @@ export class AppState {
       placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
       if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
       for (const members of focusFirstGroups(earlyCoup)) placeGroup(members, 'coupling');
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c) && !vierPaired.has(c.id)), placeNormal); // 6. Hauptfächer
+      // 6. Hauptfächer: u/g-Spiegel-Paare zuerst (am stärksten gebunden), dann Einzelkarten.
+      stepMirror(mirrorPairs.filter((p) => isMain(p[0])));
+      step(
+        cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c) && !vierPaired.has(c.id) && !mirrorPaired.has(c.id)),
+        placeNormal,
+      );
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 7. Labor
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
       placeCoupList(restCoup); // 8. restliche Kopplungen
@@ -2442,9 +2523,20 @@ export class AppState {
       // 8b. ¼-Paare: beide 4-wöchigen Karten GEMEINSAM auf denselben Slot.
       if (shuffleOrder) shuffle(vierPairs, rng);
       for (const members of focusFirstGroups(vierPairs)) placeGroup(members, 'vier');
-      // 9. Rest (ohne Betrieb-Anker und ohne die bereits früh gelegten OLZ).
+      // 9. Rest (ohne Betrieb-Anker und ohne die bereits früh gelegten OLZ):
+      // erst die u/g-Spiegel-Paare, dann die übrigen Einzelkarten.
+      stepMirror(mirrorPairs.filter((p) => !isMain(p[0])));
       step(
-        cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c) && !isOlz(c) && !vierPaired.has(c.id)),
+        cards.filter(
+          (c) =>
+            !c.isWerkstatt &&
+            !c.isLabor &&
+            !isMain(c) &&
+            !fixedBlocks(c) &&
+            !isOlz(c) &&
+            !vierPaired.has(c.id) &&
+            !mirrorPaired.has(c.id),
+        ),
         placeNormal,
       );
       // 10. Reparatur: letzte offene Einzelkarten per Tausch-Kette lösen (nur aussichtsreiche Läufe).

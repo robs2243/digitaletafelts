@@ -57,6 +57,20 @@ Quelle: Vorgaben des Anwenders.
     u- + ein g-Slot an derselben Stelle); eine **ungerade** Stunde bleibt einzeln in u
     oder g (wo es besser passt). Bei vollständiger Planung darf ein solcher Block
     aufgerissen werden, wenn sonst nicht alle Stunden unterzubringen sind.
+10d. **Spiegel-Paare werden VORAB gebildet und ZUERST platziert** (nicht nur als
+    weicher Bonus bewertet): identische Doppelkarten (gleiche Klasse, Lehrkraft,
+    Fach, Dauer, Halbjahr) werden vor dem Einzel-Verplanen zu festen u+g-Paaren
+    gebündelt und gemeinsam auf denselben Slot gelegt – ihre Nachbarn (andere
+    Fächer/Lehrkräfte) ordnen sich dadurch automatisch drumherum („mittauschen").
+    Erst wenn ein Paar NIRGENDS gemeinsam Platz findet, werden beide einzeln
+    verplant (Vollständigkeit geht vor Spiegelung). Ausgenommen: Werkstatt, Labor,
+    OLZ, Spanisch, Seminarkurs, Betrieb, ¼-Karten und Kopplungen/Teams (eigene Logik).
+    Im Raster erscheint ein Spiegel-Paar als EIN breites u+g-Schild.
+10e. **4-wöchige Karten (¼) liegen NIE allein:** je Klasse werden zwei ¼-Karten
+    (andere Lehrkraft, anderer/leerer Raum) gestapelt auf DENSELBEN Slot gelegt –
+    sie wechseln sich im 4-Wochen-Rhythmus ab, die Klasse hat immer Unterricht.
+    Eine allein liegende ¼-Karte ist ein FEHLER im Prüfbericht (jede 4. Woche
+    fiele der Unterricht aus). Gestapelte ¼-Karten sind kein Lehrer-/Raum-Konflikt.
 
 ## Wochen-Ausgleich (u/g)
 
