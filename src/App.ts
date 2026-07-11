@@ -588,6 +588,7 @@ export class App {
 
     byId('plan-sched-teacher').addEventListener('click', () => this.openSchedules('teacher'));
     byId('plan-sched-class').addEventListener('click', () => this.openSchedules('class'));
+    byId('plan-export-all').addEventListener('click', () => this.exportAllSchedules());
     const schedOverlay = byId('sched-modal');
     byId('sched-close').addEventListener('click', () => schedOverlay.classList.remove('open'));
     schedOverlay.addEventListener('click', (e) => {
@@ -2030,8 +2031,8 @@ export class App {
   }
 
   /** Listeneinträge links: Lehrkräfte (Kürzel + Name) bzw. Klassennamen. */
-  private schedEntries(): { key: string; label: string }[] {
-    if (this.schedMode === 'teacher') {
+  private schedEntries(mode: 'teacher' | 'class' = this.schedMode): { key: string; label: string }[] {
+    if (mode === 'teacher') {
       const map = new Map<string, string>();
       for (const c of this.state.pool.all) if (!map.has(c.abbr)) map.set(c.abbr, c.name);
       for (const p of this.state.schedule.all) if (!map.has(p.abbr)) map.set(p.abbr, p.name);
@@ -2168,6 +2169,51 @@ export class App {
     }
     win.document.write(
       `<!doctype html><html lang="de"><head><meta charset="utf-8" /><title>Stundenpläne</title><style>${SCHED_PDF_CSS}</style></head><body>${pages}</body></html>`,
+    );
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 350);
+  }
+
+  /** Gesamtexport: ALLE Lehrkraft- und Klassen-Stundenpläne als eine PDF-Mappe
+   *  mit Deckblatt (je Plan eine Seite, immer beide Wochen). */
+  private exportAllSchedules(): void {
+    const teachers = this.schedEntries('teacher');
+    const classes = this.schedEntries('class');
+    if (!teachers.length && !classes.length) {
+      this.toast.show('Keine Lehrkräfte oder Klassen vorhanden.', 'inf');
+      return;
+    }
+    const weeks: Week[] = ['u', 'g'];
+    const stand = new Date().toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const cover =
+      `<div class="page cover"><h1>Stundenplan-Mappe</h1>` +
+      `<div class="cover-sub">Stand: ${esc(stand)}</div>` +
+      `<div class="cover-sub">${teachers.length} Lehrkräfte · ${classes.length} Klassen · je Plan eine Seite (u + g)</div></div>`;
+    const teacherPages = teachers
+      .map((e) => {
+        const name = this.teacherName(e.key);
+        const stats = this.teacherStatsLine(e.key);
+        return (
+          `<div class="page"><h2>Stundenplan ${esc(e.key)}${name ? ` – ${esc(name)}` : ''}</h2>` +
+          `${stats ? `<div class="stats">${esc(stats)}</div>` : ''}${this.schedTableHtml(e.key, true, weeks, true)}</div>`
+        );
+      })
+      .join('');
+    const classPages = classes
+      .map((e) => `<div class="page"><h2>Stundenplan Klasse ${esc(e.key)}</h2>${this.schedTableHtml(e.key, false, weeks, true)}</div>`)
+      .join('');
+    const win = window.open('', '_blank');
+    if (!win) {
+      this.toast.show('Pop-up wurde blockiert – bitte erlauben.', 'inf');
+      return;
+    }
+    const coverCss =
+      '.cover { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 180mm; }' +
+      '.cover h1 { color: #1a237e; font-size: 34px; margin: 0 0 14px; }' +
+      '.cover-sub { font-size: 15px; color: #333; margin-top: 6px; }';
+    win.document.write(
+      `<!doctype html><html lang="de"><head><meta charset="utf-8" /><title>Stundenplan-Mappe</title><style>${SCHED_PDF_CSS}${coverCss}</style></head><body>${cover}${teacherPages}${classPages}</body></html>`,
     );
     win.document.close();
     win.focus();

@@ -21,6 +21,10 @@ Quelle: Vorgaben des Anwenders.
    Spalten: u+g-Feld bzw. getrennte u-/g-Felder).
 6. **Fixierte Karten:** Von Hand gezogene und **mit dem Schloss fixierte** Karten
    werden **nie verschoben** – der Planer arbeitet nur um sie herum.
+7. **Klassen-Sperrzeiten:** Vom Anwender je Klasse geblockte Bereiche (z. B.
+   „Betriebstag" Mo 1–9) sind **tabu** – der Planer legt dort nichts hin, Drag&Drop
+   warnt, der Prüfbericht meldet Verstöße. Gesperrte Stunden zählen **nicht** als
+   Schüler-Hohlstunden; die Beschriftung steht direkt im Plan über dem Bereich.
 
 ## Fächer-Verteilung
 
