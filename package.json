@@ -1,7 +1,7 @@
 {
   "name": "digitaletafelts",
   "private": true,
-  "version": "1.10.0",
+  "version": "1.10.1",
   "type": "module",
   "description": "Zeitwerk – Stundenplan-Software",
   "author": "Heinrich-Schickhardt-Schule",
