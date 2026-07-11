@@ -2618,17 +2618,20 @@ export class AppState {
                   // Zwischenloch) oder am Tagesrand im Pflichtbereich 1–6?
                   const inCore = core.length >= 2 && p >= core[0] && p <= core[core.length - 1];
                   // Kandidat: einfache Karte derselben Spalte, exakt loch-groß.
-                  // Vom SELBEN Tag nur Randstunden-Karten (8–9 räumen für Pflicht 1–6).
-                  // Löcher am TAGESRAND füllen NUR eigene Randstunden – Karten von
-                  // anderen Tagen heranzuziehen würde Tage leerschieben (und z. B.
-                  // u/g-Spiegel-Paare zerreißen), ohne die Pflicht wirklich zu bessern.
+                  // Randstunden-Karten (8–9) DERSELBEN WOCHE dürfen von JEDEM Tag in
+                  // die Pflichtlücke wandern – auch die Hälfte eines u+g-Blocks: der
+                  // Block wird dann AUFGESPLITTET (z. B. u bleibt auf 8+9, die
+                  // g-Karte wandert als GANZE Karte auf 1+2; nie in Einzelstunden
+                  // geteilt). Karten aus 1–6 anderer Tage nur für echte
+                  // Zwischenlöcher (sonst würden Tage leergeschoben).
                   const cand = assigns.find((a) => {
                     if (!movableSimple(a.card) || a.c !== c || a.card.duration > len) return false;
                     // Karten mit fester Lage (Randstunden/Spiegel/Betriebstag) NIE umziehen –
                     // deren Regeln stecken in baseStarts, nicht in check().
                     if (isOlz(a.card) || isSpan(a.card) || isSk(a.card) || isBetrieb(a.card)) return false;
                     if (!baseStarts(a.card).includes(p)) return false;
-                    if (a.d === d && a.w === w) return a.start >= 8;
+                    if (a.w === w && a.start >= 8) return true; // 8/9 räumen für Pflicht 1–6
+                    if (a.d === d && a.w === w) return false;
                     if (!inCore) return false;
                     const sAllow5 = werkClassDay.has(`${a.c}|${a.d}|${a.w}`);
                     const sCore: number[] = [];
@@ -2658,99 +2661,6 @@ export class AppState {
             }
           }
           if (!moved) break;
-        }
-      }
-
-      // 13. PFLICHT-SPLITTING (letzter Ausweg für „1–6 immer voll"): bleibt eine
-      // EINZELNE Pflichtstunde offen, die keine ganze Karte mehr füllen kann,
-      // wird eine 2h-Karte derselben Klasse in 2×1h GETEILT (Deputat unverändert):
-      // bevorzugt eine noch OFFENE Karte (1h ins Loch, 1h bestmöglich), sonst
-      // eine auf 8–9 liegende (die 8. bleibt, die 9. wandert ins Loch – am
-      // Spendertag reißt das keine Lücke, 9 ist Randstunde).
-      {
-        const splitCard = (card: Card): Card => new Card(card.id, { ...card.snapshot(), duration: 1 });
-        const splittable = (card: Card): boolean =>
-          card.duration === 2 &&
-          !!card.abbr.trim() &&
-          !card.coupling.trim() &&
-          !card.teamTeaching.trim() &&
-          !card.isWerkstatt &&
-          !card.isLabor &&
-          !card.labGroup.trim() &&
-          !card.isVierwoechig &&
-          !card.noCount &&
-          !card.collision &&
-          !isOlz(card) &&
-          !isSpan(card) &&
-          !isSk(card) &&
-          !isBetrieb(card);
-        for (let c = 0; c < this.classes.count; c++) {
-          for (let d = 0; d < DAYS.length; d++) {
-            for (const w of WEEKS) {
-              const name = this.classes.classNameAt(c, d, w).trim().toLowerCase();
-              if (!name) continue;
-              const allow5 = werkClassDay.has(`${c}|${d}|${w}`);
-              const isPause = (p: number): boolean =>
-                p === 7 || (allow5 && p === 5) || classBlockedCells.has(cK(d, w, c, p));
-              let has = false;
-              for (let p = 1; p <= PERIODS; p++) if (cell.has(cK(d, w, c, p))) has = true;
-              if (!has) continue; // Tag ohne Unterricht: nichts zu füllen
-              for (let p = 1; p <= 6; p++) {
-                // JEDE offene Pflichtstunde füllen (ganze Karten hat die Reparatur
-                // davor schon versucht) – auch mehrstündige Lücken Stunde für Stunde.
-                if (isPause(p) || cell.has(cK(d, w, c, p))) continue;
-                let done = false;
-                // (a) OFFENE 2h-Karte der Klasse teilen: 1h ins Loch, 1h bestmöglich.
-                const placedIds = new Set(assigns.map((x) => x.card.id));
-                const open = cards.find(
-                  (x) => !placedIds.has(x.id) && splittable(x) && x.klasse.trim().toLowerCase() === name,
-                );
-                if (open) {
-                  const h1 = splitCard(open);
-                  if (check(h1, c, d, w, p) === null) {
-                    apply(h1, c, d, w, p);
-                    const si = skipped.findIndex((s) => s.card === `${open.abbr} (${open.klasse})`);
-                    if (si >= 0) skipped.splice(si, 1);
-                    placeNormal(splitCard(open)); // zweite Hälfte bestmöglich (sonst offen gemeldet)
-                    done = true;
-                  }
-                }
-                // (b) 8–9-Karte derselben Klasse teilen – erst gleiche Woche,
-                //     dann andere (Pflicht 1–6 schlägt u/g-Balance).
-                if (!done) {
-                  for (const dw of [w, w === 'u' ? ('g' as Week) : ('u' as Week)]) {
-                    // splittable-Karten belegen ihre Zelle allein (kein Stapel) –
-                    // unapplySimple kann sie exakt rückabwickeln, auch ohne Raum.
-                    const donor = assigns.find(
-                      (a) =>
-                        a.start === 8 &&
-                        a.w === dw &&
-                        a.card.duration === 2 &&
-                        splittable(a.card) &&
-                        a.card.klasse.trim().toLowerCase() === name,
-                    );
-                    if (!donor) continue;
-                    const old = { c: donor.c, d: donor.d, w: donor.w, start: donor.start };
-                    const orig = donor.card;
-                    unapplySimple(donor);
-                    const h1 = splitCard(orig);
-                    const h2 = splitCard(orig);
-                    if (check(h1, old.c, old.d, old.w, 8) === null) {
-                      apply(h1, old.c, old.d, old.w, 8);
-                      if (check(h2, c, d, w, p) === null) {
-                        apply(h2, c, d, w, p);
-                        done = true;
-                      } else {
-                        unapplySimple({ card: h1, c: old.c, d: old.d, w: old.w, start: 8 });
-                      }
-                    }
-                    if (!done) apply(orig, old.c, old.d, old.w, old.start);
-                    else break;
-                  }
-                }
-              }
-            }
-          }
         }
       }
 
@@ -2936,9 +2846,8 @@ export class AppState {
     }
 
     // Bestes Ergebnis anwenden: Karten aus dem Pool in den Plan übernehmen.
-    // Geteilte Karten (Pflicht-Splitting) haben ZWEI Assigns mit derselben
-    // Karten-ID (je 1h) – die Pool-Karte wird einmal entnommen, die Platzierung
-    // übernimmt die Eigenschaften des Assigns (inkl. der ggf. geteilten Dauer).
+    // (Defensiv gegen doppelte Karten-IDs; die Platzierung übernimmt die
+    // Eigenschaften des Assigns.)
     const removedIds = new Set<string>();
     for (const a of best.assigns) {
       if (!removedIds.has(a.card.id)) {
