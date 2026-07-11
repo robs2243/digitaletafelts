@@ -67,7 +67,7 @@ export class TimetableView {
       if (lockBtn?.dataset.id) {
         e.stopPropagation();
         // u+g-verschmolzenes Schild: Fixieren wirkt auf beide Platzierungen.
-        this.handlers.onToggleLock(lockBtn.dataset.id, lockBtn.closest<HTMLElement>('.placed')?.dataset.pair);
+        this.handlers.onToggleLock(lockBtn.dataset.id, lockBtn.closest<HTMLElement>('.placed, .placed-mini')?.dataset.pair);
         return;
       }
       const rmBtn = target.closest<HTMLElement>('.p-rm');
@@ -78,7 +78,7 @@ export class TimetableView {
           return;
         }
         // u+g-verschmolzenes Schild: beide Platzierungen zurück in den Pool.
-        this.handlers.onRemovePlacement(rmBtn.dataset.id, rmBtn.closest<HTMLElement>('.placed')?.dataset.pair);
+        this.handlers.onRemovePlacement(rmBtn.dataset.id, rmBtn.closest<HTMLElement>('.placed, .placed-mini')?.dataset.pair);
         return;
       }
       const delBtn = target.closest<HTMLElement>('.cls-del');
@@ -141,7 +141,14 @@ export class TimetableView {
         this.handlers.onLockedBlocked();
         return;
       }
-      this.drag.start({ source: 'grid', id, card: placement.cardSnapshot(), pairId: plEl.dataset.pair });
+      const pair = plEl.dataset.pair ? this.state.schedule.findById(plEl.dataset.pair) : null;
+      this.drag.start({
+        source: 'grid',
+        id,
+        card: placement.cardSnapshot(),
+        pairId: pair?.id,
+        pairCard: pair?.cardSnapshot(),
+      });
       e.dataTransfer?.setData('text/plain', id);
       if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       setTimeout(() => plEl.classList.add('moving'), 0);
@@ -230,7 +237,7 @@ export class TimetableView {
     }
     return (
       this.state.schedule.checkSlot(dragData.card, { ...pos, week: 'u' }, dragData.id) ??
-      this.state.schedule.checkSlot(dragData.card, { ...pos, week: 'g' }, dragData.pairId)
+      this.state.schedule.checkSlot(dragData.pairCard ?? dragData.card, { ...pos, week: 'g' }, dragData.pairId)
     );
   }
 
@@ -414,24 +421,23 @@ export class TimetableView {
 
           const cluster = clusterAt.get(key);
 
-          // u+g-Verschmelzung: identischer Einzel-Unterricht in beiden Wochen →
-          // EIN breites Schild über beide Spalten (nur Anzeige – im Modell
-          // bleiben zwei Platzierungen, die Stunden zählen weiterhin je Woche).
+          // u+g-Verschmelzung: identischer Unterricht in beiden Wochen (auch als
+          // Stapel, Raum darf abweichen) → EIN breites Schild über beide Spalten
+          // (nur Anzeige – im Modell bleiben je Woche eigene Platzierungen).
           if (w === 'u' && cluster) {
             const gCluster = clusterAt.get(`${p}_${c}_g`);
-            if (
-              gCluster &&
-              !blockAt.has(key) &&
-              !blockAt.has(`${p}_${c}_g`) &&
-              this.mergeableUG(cluster, gCluster, c, day)
-            ) {
+            const pairs =
+              gCluster && !blockAt.has(key) && !blockAt.has(`${p}_${c}_g`)
+                ? this.matchUG(cluster, gCluster, c, day)
+                : null;
+            if (pairs) {
               const span = cluster.end - cluster.start + 1;
               for (let i = 1; i < span; i++) blocked.add(`${p + i}_${c}_u`);
               for (let i = 0; i < span; i++) blocked.add(`${p + i}_${c}_g`);
               h += `<td class="cell cug" data-d="${day}" data-p="${p}" data-c="${c}" data-w="u" colspan="2"${
                 span > 1 ? ` rowspan="${span}"` : ''
               }>`;
-              h += this.renderSingle(cluster.cards[0], gCluster.cards[0].id);
+              h += cluster.cards.length === 1 ? this.renderSingle(cluster.cards[0], pairs[0]) : this.renderStack(cluster, pairs);
               h += '</td>';
               continue;
             }
@@ -501,24 +507,39 @@ export class TimetableView {
     return clusterAt;
   }
 
-  /** Identischer Einzel-Unterricht in u und g (gleiche Lage, gleiche Karte,
-   *  gleiche Klasse in beiden Wochen) → darf als EIN Schild angezeigt werden. */
-  private mergeableUG(u: PlacementCluster, g: PlacementCluster, c: number, day: number): boolean {
-    if (u.cards.length !== 1 || g.cards.length !== 1) return false;
-    if (u.start !== g.start || u.end !== g.end) return false;
-    const a = u.cards[0];
-    const b = g.cards[0];
+  /**
+   * Prüft, ob u- und g-Cluster derselben Spalte identischen Unterricht zeigen
+   * (gleiche Lage, gleiche Karten – auch als Stapel; nur der RAUM darf sich
+   * unterscheiden, er wird dann als „u | g" angezeigt).
+   * Rückgabe: je u-Karte der g-Partner (in Reihenfolge von u.cards), sonst null.
+   */
+  private matchUG(u: PlacementCluster, g: PlacementCluster, c: number, day: number): Placement[] | null {
+    if (u.cards.length === 0 || u.cards.length !== g.cards.length) return null;
+    if (u.start !== g.start || u.end !== g.end) return null;
     if (
       this.state.classes.classNameAt(c, day, 'u').trim().toLowerCase() !==
       this.state.classes.classNameAt(c, day, 'g').trim().toLowerCase()
     )
-      return false;
+      return null;
+    const rest = [...g.cards];
+    const pairs: Placement[] = [];
+    for (const a of u.cards) {
+      const i = rest.findIndex((b) => this.sameLesson(a, b));
+      if (i < 0) return null;
+      pairs.push(rest[i]);
+      rest.splice(i, 1);
+    }
+    return pairs;
+  }
+
+  /** Gleiche Unterrichtskarte in u und g (alle fachlichen Merkmale und die
+   *  Lage; nur der Raum darf abweichen). */
+  private sameLesson(a: Placement, b: Placement): boolean {
     return (
       a.abbr === b.abbr &&
       a.fach === b.fach &&
       a.klasse === b.klasse &&
       a.name === b.name &&
-      a.room === b.room &&
       a.color === b.color &&
       a.duration === b.duration &&
       a.startPeriod === b.startPeriod &&
@@ -537,11 +558,18 @@ export class TimetableView {
     );
   }
 
-  private renderSingle(pl: Placement, pairId?: string): string {
+  /** Raum-Anzeige eines u+g-Schilds: gleicher Raum normal, sonst „u | g". */
+  private roomLabel(pl: Placement, pair?: Placement): string {
+    if (!pair || pair.room === pl.room) return pl.room;
+    return `${pl.room || '–'} | ${pair.room || '–'}`;
+  }
+
+  private renderSingle(pl: Placement, pair?: Placement): string {
     const fg = ink(pl.color);
     const half = semesterLabel(pl);
+    const room = this.roomLabel(pl, pair);
     const cardCls = pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : '';
-    return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}${pl.room.trim() ? '' : ' no-room'}" data-id="${pl.id}"${pairId ? ` data-pair="${pairId}"` : ''} data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-team="${esc(pl.teamTeaching)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
+    return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}${room.trim() ? '' : ' no-room'}" data-id="${pl.id}"${pair ? ` data-pair="${pair.id}"` : ''} data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-team="${esc(pl.teamTeaching)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
         <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
@@ -549,7 +577,7 @@ export class TimetableView {
         <div class="p-abbr">${esc(pl.abbr)}</div>
         ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
         ${pl.name && !pl.fach ? `<div class="p-name">${esc(pl.name)}</div>` : ''}
-        ${pl.room ? `<div class="p-room">${esc(pl.room)}</div>` : ''}
+        ${room ? `<div class="p-room"${pair && pair.room !== pl.room ? ' title="Raum u-Woche | g-Woche"' : ''}>${esc(room)}</div>` : ''}
         ${half ? `<div class="p-range p-half">${half}</div>` : ''}
         ${pl.isLabor ? `<div class="p-range">⚗ Labor${pl.labGroup ? ` ${pl.labGroup}` : ''}</div>` : ''}
         ${pl.isWerkstatt ? '<div class="p-range">🔧 Werkstatt</div>' : ''}
@@ -560,7 +588,7 @@ export class TimetableView {
         ${pl.teamTeaching ? `<div class="p-range">👥 ${esc(pl.teamTeaching)}</div>` : ''}
         ${pl.collision ? '<div class="p-range">💥 Kollision</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
-        ${pairId ? '<span class="ug-badge" title="Gleicher Unterricht in u- und g-Woche – Ziehen/Entfernen/Fixieren wirkt auf beide">u+g</span>' : ''}
+        ${pair ? '<span class="ug-badge" title="Gleicher Unterricht in u- und g-Woche – Ziehen/Entfernen/Fixieren wirkt auf beide">u+g</span>' : ''}
       </div>`;
   }
 
@@ -569,17 +597,20 @@ export class TimetableView {
    * innerhalb seiner Spalte vertikal dort, wo seine Stunden liegen
    * (relevant bei versetzt startenden Blöcken im selben Cluster).
    */
-  private renderStack(cluster: PlacementCluster): string {
+  private renderStack(cluster: PlacementCluster, pairs?: Placement[]): string {
     const span = cluster.end - cluster.start + 1;
     let h = '<div class="stack-wrap">';
-    for (const pl of cluster.cards) {
+    for (let i = 0; i < cluster.cards.length; i++) {
+      const pl = cluster.cards[i];
+      const pair = pairs?.[i];
       const fg = ink(pl.color);
       const half = semesterLabel(pl);
+      const room = this.roomLabel(pl, pair);
       const visibleEnd = Math.min(pl.endPeriod, cluster.end);
       const top = ((pl.startPeriod - cluster.start) / span) * 100;
       const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
       h += `<div class="stack-col">
-          <div class="placed-mini${pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : ''}${pl.locked ? ' locked' : ''}${pl.room.trim() ? '' : ' no-room'}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-team="${esc(pl.teamTeaching)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
+          <div class="placed-mini${pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : ''}${pl.locked ? ' locked' : ''}${room.trim() ? '' : ' no-room'}" data-id="${pl.id}"${pair ? ` data-pair="${pair.id}"` : ''} data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-team="${esc(pl.teamTeaching)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
                style="background:${pl.color};color:${fg};top:${top}%;height:${height}%" draggable="true">
             <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
             <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
@@ -588,10 +619,11 @@ export class TimetableView {
             ${(pl.isLabor || pl.isWerkstatt) && pl.labGroup ? `<div class="p-grp" title="Gruppe ${esc(pl.labGroup)}">${esc(pl.labGroup)}</div>` : ''}
             ${pl.schiene ? '<span class="schiene-badge schiene-badge-mini" title="Schiene über mehrere Klassen">S</span>' : ''}
             ${pl.fach ? `<div class="p-name">${esc(pl.fach)}</div>` : ''}
-            ${pl.room ? `<div class="p-room">${esc(pl.room)}</div>` : ''}
+            ${room ? `<div class="p-room"${pair && pair.room !== pl.room ? ' title="Raum u-Woche | g-Woche"' : ''}>${esc(room)}</div>` : ''}
             ${half ? `<div class="p-range p-half">${half}</div>` : ''}
             ${pl.isVierwoechig ? '<div class="p-range">¼</div>' : ''}
             ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
+            ${pair ? '<span class="ug-badge ug-badge-mini" title="Gleicher Unterricht in u- und g-Woche – wirkt auf beide">u+g</span>' : ''}
           </div>
         </div>`;
     }

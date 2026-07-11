@@ -2321,9 +2321,10 @@ export class App {
       return;
     }
 
+    // g-Woche mit der EIGENEN g-Karte prüfen (der Raum darf sich unterscheiden).
     const collision =
       this.state.schedule.checkSlot(dragData.card, posU, dragData.id) ??
-      this.state.schedule.checkSlot(dragData.card, posG, dragData.pairId);
+      this.state.schedule.checkSlot(dragData.pairCard ?? dragData.card, posG, dragData.pairId);
     if (!collision) {
       place();
       return;

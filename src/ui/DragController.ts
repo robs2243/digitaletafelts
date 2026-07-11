@@ -12,6 +12,9 @@ export interface DragData {
   /** u+g-verschmolzenes Schild: `id` = u-Platzierung, `pairId` = g-Platzierung.
    *  Beide werden gemeinsam gezogen und auf denselben Slot (u UND g) gelegt. */
   pairId?: string;
+  /** Karten-Eigenschaften der g-Platzierung (kann sich im Raum unterscheiden –
+   *  Kollisionsprüfungen der g-Woche laufen damit statt mit `card`). */
+  pairCard?: CardProps;
 }
 
 /** Hält den geteilten Drag-Zustand zwischen Pool und Stundenplan. */
