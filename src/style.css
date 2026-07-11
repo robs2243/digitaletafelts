@@ -992,3 +992,12 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 }
 /* u+g-Abzeichen auf Stapel-Karten (kleiner, damit nichts verdeckt wird). */
 .ug-badge-mini { bottom: 2px; left: 3px; font-size: 8px; line-height: 11px; padding: 0 4px; }
+/* u+g-verschmolzene Schilder zusätzlich hervorheben: feiner weißer Ring +
+   weiches Leuchten – funktioniert auf hellen wie dunklen Kartenfarben. */
+.placed[data-pair],
+.placed-mini[data-pair] {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.9),
+    0 0 9px 3px rgba(56, 189, 248, 0.6),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+}
