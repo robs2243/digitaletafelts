@@ -2612,6 +2612,57 @@ export class AppState {
     };
   }
 
+  /**
+   * Deputats-Abgleich: je Lehrkraft die Gesamtstunden (alle Karten = importiertes
+   * Deputat), davon verplant und noch offen. Gekoppelte Stunden (gleiche Lehrkraft
+   * parallel in mehreren Klassen) zählen nur EINMAL. Karten ohne Kürzel (z. B.
+   * Betrieb) bleiben außen vor.
+   */
+  deputatRows(): { abbr: string; total: number; placed: number; open: number }[] {
+    const rows = new Map<string, { placed: number; open: number }>();
+    const get = (abbr: string): { placed: number; open: number } => {
+      const k = abbr.toLowerCase();
+      let e = rows.get(k);
+      if (!e) {
+        e = { placed: 0, open: 0 };
+        rows.set(k, e);
+      }
+      return e;
+    };
+    const label = new Map<string, string>();
+    // Verplant: gekoppelte Parallel-Stunden je Slot nur einmal.
+    const seenPl = new Set<string>();
+    for (const p of this.schedule.all) {
+      const a = p.abbr.trim();
+      if (!a) continue;
+      label.set(a.toLowerCase(), a);
+      for (const w of p.weeks) {
+        if (p.coupling.trim()) {
+          const k = `${p.coupling}|${a.toLowerCase()}|${p.day}|${p.startPeriod}|${w}`;
+          if (seenPl.has(k)) continue;
+          seenPl.add(k);
+        }
+        get(a).placed += p.duration;
+      }
+    }
+    // Offen (Pool): gekoppelte Karten derselben Lehrkraft je Kopplung nur einmal.
+    const seenPool = new Set<string>();
+    for (const c of this.pool.all) {
+      const a = c.abbr.trim();
+      if (!a) continue;
+      label.set(a.toLowerCase(), a);
+      if (c.coupling.trim()) {
+        const k = `${c.coupling}|${a.toLowerCase()}`;
+        if (seenPool.has(k)) continue;
+        seenPool.add(k);
+      }
+      get(a).open += c.duration;
+    }
+    return [...rows.entries()]
+      .map(([k, e]) => ({ abbr: label.get(k) ?? k, total: e.placed + e.open, placed: e.placed, open: e.open }))
+      .sort((a, b) => b.open - a.open || a.abbr.localeCompare(b.abbr, 'de'));
+  }
+
   /** Lehrkräfte, deren u-/g-Stunden um mehr als das Limit auseinanderliegen (Warnung).
    *  Gekoppelte Stunden (gleiche Lehrkraft parallel in mehreren Klassen) zählen je
    *  Slot nur EINMAL – wie der Planer intern und wie stats(). */
@@ -2919,34 +2970,61 @@ export class AppState {
 
     // Offene Pflichtstunden 1–6 in aktiven Klassenspalten (Warnung).
     const cellBusy = new Set<string>();
-    for (const p of pls) for (const w of p.weeks) for (const per of p.occupiedPeriods()) cellBusy.add(`${p.classIdx}|${p.day}|${w}|${per}`);
+    const werkClassDays = new Set<string>(); // c|d|w mit Werkstatt → Klassen-Pause in der 5. statt 7.
+    for (const p of pls)
+      for (const w of p.weeks) {
+        for (const per of p.occupiedPeriods()) cellBusy.add(`${p.classIdx}|${p.day}|${w}|${per}`);
+        if (p.isWerkstatt) werkClassDays.add(`${p.classIdx}|${p.day}|${w}`);
+      }
     for (let c = 0; c < this.classes.count; c++) {
       for (let d = 0; d < DAYS.length; d++) {
         for (const w of WEEKS) {
           const name = this.classes.classNameAt(c, d, w).trim();
           if (!name) continue;
+          // Pausen: normale Tage die 7. Stunde, an Werkstatt-Tagen der Klasse die 5.
+          const allow5 = werkClassDays.has(`${c}|${d}|${w}`);
+          const isPause = (per: number): boolean => per === 7 || (allow5 && per === 5);
           const open: number[] = [];
-          for (let per = 1; per <= 6; per++) if (!cellBusy.has(`${c}|${d}|${w}|${per}`)) open.push(per);
+          for (let per = 1; per <= 6; per++) if (!isPause(per) && !cellBusy.has(`${c}|${d}|${w}|${per}`)) open.push(per);
           if (open.length) {
             out.push({ severity: 'warn', text: `${name} (${DAYS[d]}, ${w}-Woche): Stunde ${open.join(', ')} der Pflichtstunden 1–6 frei.` });
           }
-          // Klassen-Hohlstunden: Lücken zwischen erster und letzter Stunde (Mittagspause 7. ausgenommen).
+          // KLASSEN-HOHLSTUNDEN (harte Schüler-Regel): Lücken zwischen erster und
+          // letzter Stunde – Schüler müssen durchweg Unterricht haben.
           let min = 0;
           let max = 0;
           for (let per = 1; per <= PERIODS; per++) {
-            if (per === 7 || !cellBusy.has(`${c}|${d}|${w}|${per}`)) continue;
+            if (isPause(per) || !cellBusy.has(`${c}|${d}|${w}|${per}`)) continue;
             if (!min) min = per;
             max = per;
           }
           if (min) {
             const holes: number[] = [];
-            for (let per = min; per <= max; per++) if (per !== 7 && !cellBusy.has(`${c}|${d}|${w}|${per}`)) holes.push(per);
+            for (let per = min; per <= max; per++) if (!isPause(per) && !cellBusy.has(`${c}|${d}|${w}|${per}`)) holes.push(per);
             if (holes.length) {
-              out.push({ severity: 'warn', text: `${name} (${DAYS[d]}, ${w}-Woche): Hohlstunde(n) ${holes.join(', ')}.` });
+              out.push({ severity: 'error', text: `${name} (${DAYS[d]}, ${w}-Woche): Schüler-Hohlstunde(n) ${holes.join(', ')} – Klassen müssen durchweg Unterricht haben.` });
             }
           }
         }
       }
+    }
+
+    // WERKSTATT ≥4h (harte Regel): je Klasse+Gruppe+Tag+Woche nie unter 4 Stunden.
+    const werkHours = new Map<string, number>();
+    for (const p of pls) {
+      if (!p.isWerkstatt) continue;
+      for (const w of p.weeks) {
+        const k = `${p.klasse.trim() || this.classes.columnLabel(p.classIdx)}|${p.labGroup || '–'}|${p.day}|${w}`;
+        werkHours.set(k, (werkHours.get(k) ?? 0) + p.duration);
+      }
+    }
+    for (const [k, h] of werkHours) {
+      if (h >= 4) continue;
+      const [kl, grp, d, w] = k.split('|');
+      out.push({
+        severity: 'error',
+        text: `${kl} (${DAYS[+d]}, ${w}-Woche): Werkstatt Gruppe ${grp} nur ${h} Std – Werkstatt braucht mindestens 4 Std am Stück.`,
+      });
     }
 
     return out;

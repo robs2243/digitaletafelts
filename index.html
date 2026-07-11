@@ -341,6 +341,10 @@
           <button class="btn btn-ok" id="plan-classes" style="width: 100%">🎓 Klassen – Unterricht verwalten</button>
         </div>
         <div class="fg">
+          <label>Deputat – Soll/Ist je Lehrkraft (alle Karten vs. verplant)</label>
+          <button class="btn btn-ok" id="plan-deputat" style="width: 100%">📋 Deputats-Abgleich</button>
+        </div>
+        <div class="fg">
           <label>Excel-Export – alle Karten (sortiert nach Klasse und Lehrer)</label>
           <button class="btn btn-ok" id="plan-export" style="width: 100%">📤 Alle Karten als Excel exportieren</button>
         </div>
@@ -555,6 +559,19 @@
         <div id="cc-list" class="tm-list"></div>
         <div class="mbtns">
           <button class="btn btn-ok" id="cc-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DEPUTATS-ABGLEICH: Soll/Ist je Lehrkraft ═══ -->
+    <div class="overlay" id="deputat-modal">
+      <div class="modal" style="width: 640px">
+        <h2 style="color: #1a237e">📋 Deputats-Abgleich – Soll/Ist je Lehrkraft</h2>
+        <div class="tm-sub">Soll = Stunden aller Karten (Import), Ist = verplant. Gekoppelte Parallel-Stunden zählen einmal.</div>
+        <div id="dp-summary"></div>
+        <div id="dp-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="dp-close">Schließen</button>
         </div>
       </div>
     </div>

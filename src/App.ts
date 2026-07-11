@@ -418,6 +418,13 @@ export class App {
       if (!btn || btn.disabled) return;
       this.handleClassAction(btn.dataset.act ?? '', btn.dataset.class ?? '');
     });
+    // Deputats-Abgleich: Soll/Ist je Lehrkraft.
+    byId('plan-deputat').addEventListener('click', () => this.openDeputat());
+    const deputatOverlay = byId('deputat-modal');
+    byId('dp-close').addEventListener('click', () => deputatOverlay.classList.remove('open'));
+    deputatOverlay.addEventListener('click', (e) => {
+      if (e.target === deputatOverlay) deputatOverlay.classList.remove('open');
+    });
     // Klassen-Fenster: Unterricht je Klasse ansehen, bearbeiten, ergänzen.
     byId('plan-classes').addEventListener('click', () => this.openClassWindow());
     const classesOverlay = byId('classes-modal');
@@ -986,6 +993,40 @@ export class App {
     });
     byId('settings-modal').classList.remove('open');
     this.toast.show('⚙️ Planungsregeln gespeichert', 'ok');
+  }
+
+  // ── Deputats-Abgleich (Soll/Ist je Lehrkraft) ────────────────────────────
+
+  private openDeputat(): void {
+    const rows = this.state.deputatRows();
+    if (!rows.length) {
+      this.toast.show('Keine Karten mit Kürzel vorhanden.', 'inf');
+      return;
+    }
+    const sumT = rows.reduce((s, r) => s + r.total, 0);
+    const sumP = rows.reduce((s, r) => s + r.placed, 0);
+    const done = rows.filter((r) => r.open === 0).length;
+    byId('dp-summary').innerHTML =
+      `<div class="cw-sum" style="margin-bottom:10px">
+        <span class="cw-sum-item"><b>${rows.length}</b> Lehrkräfte</span>
+        <span class="cw-sum-item cw-ok"><b>${done}</b> vollständig verplant</span>
+        <span class="cw-sum-item cw-warn"><b>${rows.length - done}</b> mit offenen Stunden</span>
+        <span class="cw-sum-item"><b>${sumP}</b>/${sumT} Std verplant</span>
+      </div>`;
+    byId('dp-list').innerHTML = rows
+      .map((r) => {
+        const pct = r.total ? Math.round((r.placed / r.total) * 100) : 100;
+        const cls = r.open === 0 ? 'dp-ok' : r.open <= 2 ? 'dp-mid' : 'dp-bad';
+        return `<div class="dp-row ${cls}">
+            <span class="dp-abbr">${esc(r.abbr)}</span>
+            <span class="dp-nums">${r.placed} / ${r.total} Std</span>
+            <span class="dp-open">${r.open ? `${r.open} offen` : '✓ komplett'}</span>
+            <span class="cw-bar dp-bar" title="${pct}% verplant"><span class="cw-bar-fill" style="width:${pct}%"></span></span>
+            <span class="cw-pct">${pct}%</span>
+          </div>`;
+      })
+      .join('');
+    byId('deputat-modal').classList.add('open');
   }
 
   // ── Klassen-Fenster: Unterricht je Klasse ansehen/bearbeiten/ergänzen ────
