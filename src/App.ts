@@ -466,13 +466,17 @@ export class App {
       }
       if (target.closest('.tc-editbtn')) this.openEditCard(id);
     });
-    // Doppelklick auf eine Karte im Klassen-Fenster: kompletten Karten-Editor öffnen
-    // (auch für verplante Karten – deren Position bleibt beim Speichern erhalten).
+    // Doppelklick auf eine Karte im Klassen-Fenster: Pool-Karte → Karten-Editor,
+    // verplante Karte → Karten-Info (wie auf der Titelseite). Der volle Editor für
+    // verplante Karten läuft über den ✎-Stift.
     byId('cw-list').addEventListener('dblclick', (e) => {
       const target = e.target as HTMLElement;
       if (target.closest('button')) return;
       const el = target.closest<HTMLElement>('.tc');
-      if (el?.dataset.id) this.openEditCard(el.dataset.id);
+      if (!el?.dataset.id) return;
+      const id = el.dataset.id;
+      if (this.state.pool.findById(id)) this.openEditCard(id);
+      else if (this.state.schedule.findById(id)) this.openPlacementInfo(id);
     });
     byId('plan-rooms').addEventListener('click', () => this.openRooms());
     byId('plan-roomplan').addEventListener('click', () => this.openRoomPlan());
