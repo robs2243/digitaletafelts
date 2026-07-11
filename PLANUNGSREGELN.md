@@ -7,6 +7,10 @@ Quelle: Vorgaben des Anwenders.
 
 1. **Klassen-Mindestbelegung:** Jede Klasse hat an jedem ihrer Tage mindestens
    **6 Stunden** Unterricht – die **Stunden 1–6 sind Pflicht** (müssen belegt sein).
+   Daraus folgt: **Randstunden 8/9 werden erst genutzt, wenn 1–6 der Klasse
+   (in dieser Woche) voll ist** – auch ein „später Beginn" (1+2 leer, Start um 3)
+   ist verboten, nicht nur Löcher zwischen Stunden. Ausgenommen sind Karten mit
+   fester Randlage (OLZ, Spanisch, Seminarkurs, Betrieb) und Werkstatt-Fenster.
 2. **Lehrer-Maximum:** Eine Lehrkraft hat **maximal 6 Stunden Unterricht pro Tag** –
    **AUSNAHME: bei Werkstatt oder Labor an dem Tag sind bis zu 8 Stunden erlaubt**
    (lange Block-Tage). Lässt sich das nicht einhalten → **den Anwender fragen** (nicht

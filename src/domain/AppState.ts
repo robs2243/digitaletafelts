@@ -1531,6 +1531,23 @@ export class AppState {
         return holes;
       };
 
+      /** Pflicht 1–6 ZUERST füllen (HARTE Schüler-Regel „Klasse hat immer 1–6
+       *  Unterricht"): zählt, wie viele Stunden der Karte KEINEN offenen
+       *  Pflichtplatz (1–6, ohne Pausen/Sperrzeiten) dieser Spalte füllen.
+       *  0 = alles zahlt auf 1–6 ein; z. B. 2 = Karte liegt auf 8–9, obwohl
+       *  vorne noch offen ist (auch wochenübergreifend wirksam: die Woche mit
+       *  offener 1–6-Lücke gewinnt). Karten mit fester Randlage (OLZ/Spanisch/
+       *  Seminarkurs/Betrieb) und Werkstatt (eigene Fenster-Logik) sind neutral. */
+      const mandatoryPush = (card: Card, c: number, d: number, w: Week, start: number): number => {
+        if (card.isWerkstatt || isOlz(card) || isSpan(card) || isSk(card) || isBetrieb(card)) return 0;
+        const allow5 = werkClassDay.has(`${c}|${d}|${w}`);
+        const isPause = (p: number): boolean => p === 7 || (allow5 && p === 5) || classBlockedCells.has(cK(d, w, c, p));
+        let fills = 0;
+        for (const p of blockedPeriods(false, start, card.duration))
+          if (p <= 6 && !isPause(p) && !cell.has(cK(d, w, c, p))) fills++;
+        return card.duration - fills;
+      };
+
       // Kontexte: (Spalte, Tag, Woche) – je passende Einzelwoche ein Kandidat.
       // Der Planer wählt u oder g selbst (über die Bewertung/Ausgleich).
       const contexts = (card: Card): { c: number; d: number; w: Week }[] => {
@@ -1770,8 +1787,10 @@ export class AppState {
               : 0;
             // Klassen ohne Hohlstunden (HARTE Schüler-Regel, immer aktiv): über alle Mitglieder.
             let classGapPush = 0;
+            let mandPush = 0;
             members.forEach((m, i) => {
               classGapPush += classGaps(cols[i], d, w, new Set(blockedPeriods(m.isWerkstatt, start, m.duration)), m.isWerkstatt);
+              mandPush += mandatoryPush(m, cols[i], d, w, start);
             });
             // u/g-Parallelität: liegt (irgend)ein Mitglied in der anderen Woche schon
             // am selben Slot → 0 (parallel bevorzugt), sonst 1.
@@ -1790,6 +1809,7 @@ export class AppState {
             const roomChangePush = members.reduce((acc, m, i) => acc + roomChange(m, cols[i], d, w), 0);
             const score = [
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
+              mandPush, // Pflicht 1–6 zuerst füllen (vor Randstunden 8/9)
               werkAfternoon, // Werkstatt möglichst 6.–9. (0 = Nachmittag)
               span.adj, // Spanisch: mind. ein Tag Pause
               span.same, // Spanisch: 1.+2. und 8.+9. abwechseln
@@ -1871,6 +1891,7 @@ export class AppState {
             const score = [
               imbalancePush, // u/g-Differenz ≤ Limit hat Vorrang
               classGapPush, // Klassen-Hohlstunden vermeiden (0, wenn Regel aus)
+              mandatoryPush(card, c, d, w, start), // Pflicht 1–6 zuerst füllen (vor Randstunden 8/9)
               olzPush, // OLZ in allen AV-Klassen zeitgleich (gleicher Randstunden-Slot)
               span.adj, // Spanisch: mind. ein Tag Pause zwischen den Stunden
               span.same, // Spanisch: 1.+2. und 8.+9. abwechseln (nicht beide gleich)
@@ -2479,6 +2500,7 @@ export class AppState {
                 : 0;
             const score = [
               gapPush, // Klassen-Hohlstunden vermeiden (beide Wochen)
+              mandatoryPush(a, cU, d, 'u', start) + mandatoryPush(b, cG, d, 'g', start), // Pflicht 1–6 zuerst
               isMain(a) && start > 6 ? 1 : 0, // Hauptfach möglichst 1–6
               mainAdj, // Hauptfach: möglichst ein Tag Pause
               roomChange(a, cU, d, 'u') + roomChange(b, cG, d, 'g'), // Raumtreue
