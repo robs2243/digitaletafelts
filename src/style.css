@@ -959,14 +959,24 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .st-diff-list { margin-top: 8px; max-height: 200px; overflow-y: auto; font-size: 12px; line-height: 1.7; background: #f7f8fa; border-radius: 8px; padding: 8px 12px; }
 
 /* ═══ Klassen-Sperrzeit im Raster (z. B. Betriebstag) ═══ */
-.cell.cell-blocked { background: repeating-linear-gradient(45deg, #eef1f5 0 8px, #e4e8ef 8px 16px); }
+.cell.cell-blocked { background: repeating-linear-gradient(45deg, #dbe3f0 0 9px, #c3cede 9px 18px) !important; }
+/* Die Zelle mit der Beschriftung muss ÜBER den Folgezellen liegen, sonst
+   übermalen deren Hintergründe den überlappenden Schriftzug. */
+.cell.cell-blocked-first { z-index: 1; }
 .class-block-label {
-  position: absolute; top: 4px; left: 4px; right: 4px; z-index: 1;
+  position: absolute; top: 3px; left: 3px; right: 3px; z-index: 2;
   display: flex; align-items: center; justify-content: center;
   pointer-events: none;
 }
 .class-block-label span {
   writing-mode: vertical-rl; transform: rotate(180deg);
-  font-weight: 800; font-size: 13px; letter-spacing: 2px; text-transform: uppercase;
-  color: #64748b; white-space: nowrap;
+  font-weight: 900; font-size: 16px; letter-spacing: 3px; text-transform: uppercase;
+  color: #1a237e; white-space: nowrap; max-height: 100%; overflow: hidden;
+  background: rgba(255, 255, 255, 0.9); border: 1.5px solid #8d9bc4; border-radius: 9px;
+  padding: 10px 3px; box-shadow: 0 1px 4px rgba(26, 35, 126, 0.18);
+}
+/* Kurze Sperrzeiten (1–2 Stunden): waagrecht beschriften. */
+.class-block-label.horiz span {
+  writing-mode: horizontal-tb; transform: none;
+  padding: 3px 10px; max-width: 100%; text-overflow: ellipsis;
 }

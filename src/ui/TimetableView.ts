@@ -389,11 +389,13 @@ export class TimetableView {
 
           const weekClass = w === 'u' ? 'cu' : 'cg';
           const cb = blockAt.get(key);
-          h += `<td class="cell ${weekClass}${cb ? ' cell-blocked' : ''}" data-d="${day}" data-p="${p}" data-c="${c}" data-w="${w}"${
+          h += `<td class="cell ${weekClass}${cb ? ' cell-blocked' : ''}${cb?.first ? ' cell-blocked-first' : ''}" data-d="${day}" data-p="${p}" data-c="${c}" data-w="${w}"${
             rowspan > 1 ? ` rowspan="${rowspan}"` : ''
           }>`;
           if (cb?.first) {
-            h += `<div class="class-block-label" style="height: calc(var(--cell-h) * ${cb.len} - 8px)"><span>${esc(cb.text || 'gesperrt')}</span></div>`;
+            // Beschriftung über den GANZEN gesperrten Bereich (senkrecht; bei 1–2
+            // Stunden waagrecht) – die Zelle liegt per z-index über den Folgezellen.
+            h += `<div class="class-block-label${cb.len < 3 ? ' horiz' : ''}" style="height: calc(var(--cell-h) * ${cb.len} - 6px)"><span>${esc(cb.text || 'gesperrt')}</span></div>`;
           }
           if (cluster) {
             h += cluster.cards.length === 1 ? this.renderSingle(cluster.cards[0]) : this.renderStack(cluster);
