@@ -958,14 +958,6 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .st-btn { padding: 4px 10px; font-size: 12px; }
 .st-diff-list { margin-top: 8px; max-height: 200px; overflow-y: auto; font-size: 12px; line-height: 1.7; background: #f7f8fa; border-radius: 8px; padding: 8px 12px; }
 
-/* ═══ Vertretungsplanung ═══ */
-.vt-row { padding: 8px 10px; border-radius: 8px; background: #f7f8fa; }
-.vt-lesson { font-size: 13px; margin-bottom: 6px; }
-.vt-cands { display: flex; flex-wrap: wrap; gap: 6px; }
-.vt-cand { border: 1.5px solid #cfd4dd; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 700; background: #fff; }
-.vt-cand small { font-weight: 500; color: var(--muted); }
-.vt-cand.vt-knows { border-color: #66bb6a; background: #eef9ef; }
-
 /* ═══ Klassen-Sperrzeit im Raster (z. B. Betriebstag) ═══ */
 .cell.cell-blocked { background: repeating-linear-gradient(45deg, #eef1f5 0 8px, #e4e8ef 8px 16px); }
 .class-block-label {

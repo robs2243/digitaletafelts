@@ -353,10 +353,6 @@
           <button class="btn btn-ok" id="plan-staende" style="width: 100%">🕓 Plan-Stände (Verlauf)</button>
         </div>
         <div class="fg">
-          <label>Vertretung – kranke Lehrkraft: betroffene Stunden &amp; freie Kollegen</label>
-          <button class="btn btn-ok" id="plan-vertretung" style="width: 100%">🩺 Vertretungsplanung</button>
-        </div>
-        <div class="fg">
           <label>Klassen-Sperrzeiten – Zeiten je Klasse blocken (z. B. Betriebstag)</label>
           <button class="btn btn-ok" id="plan-classblocks" style="width: 100%">⛔ Klassen-Sperrzeiten</button>
         </div>
@@ -605,33 +601,6 @@
         <div id="st-diff"></div>
         <div class="mbtns">
           <button class="btn btn-ok" id="st-close">Schließen</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- ═══ VERTRETUNGSPLANUNG ═══ -->
-    <div class="overlay" id="vertretung-modal">
-      <div class="modal" style="width: 780px">
-        <h2 style="color: #1a237e">🩺 Vertretungsplanung</h2>
-        <div class="tm-sub">Lehrkraft und Tag wählen: betroffene Stunden mit freien Vertretungs-Kandidaten (Kollegen der Klasse zuerst).</div>
-        <div class="cw-top" style="margin-bottom: 10px">
-          <label class="cw-lbl">Lehrkraft
-            <select id="vt-abbr"></select>
-          </label>
-          <label class="cw-lbl">Tag
-            <select id="vt-day"></select>
-          </label>
-          <label class="cw-lbl">Woche
-            <select id="vt-week">
-              <option value="beide">u + g</option>
-              <option value="u">nur u</option>
-              <option value="g">nur g</option>
-            </select>
-          </label>
-        </div>
-        <div id="vt-list" class="tm-list"></div>
-        <div class="mbtns">
-          <button class="btn btn-ok" id="vt-close">Schließen</button>
         </div>
       </div>
     </div>

@@ -432,17 +432,6 @@ export class App {
       this.handleSnapshotAction(btn.dataset.act ?? '', Number(btn.dataset.i));
     });
 
-    // Vertretungsplanung.
-    byId('plan-vertretung').addEventListener('click', () => this.openVertretung());
-    const vertretungOverlay = byId('vertretung-modal');
-    byId('vt-close').addEventListener('click', () => vertretungOverlay.classList.remove('open'));
-    vertretungOverlay.addEventListener('click', (e) => {
-      if (e.target === vertretungOverlay) vertretungOverlay.classList.remove('open');
-    });
-    byId<HTMLSelectElement>('vt-abbr').addEventListener('change', () => this.renderVertretung());
-    byId<HTMLSelectElement>('vt-day').addEventListener('change', () => this.renderVertretung());
-    byId<HTMLSelectElement>('vt-week').addEventListener('change', () => this.renderVertretung());
-
     // Klassen-Sperrzeiten (z. B. Betriebstag).
     byId('plan-classblocks').addEventListener('click', () => this.openClassBlocks());
     const classblocksOverlay = byId('classblocks-modal');
@@ -1150,98 +1139,6 @@ export class App {
       </div>`;
     if (!lines.length) return `${head}<div class="cw-none" style="padding:6px">Keine Unterschiede bei den Platzierungen.</div>`;
     return `${head}<div class="st-diff-list">${lines.map((l) => `<div>${esc(l)}</div>`).join('')}${moved + added + removed > lines.length ? '<div>…</div>' : ''}</div>`;
-  }
-
-  // ── Vertretungsplanung (light) ────────────────────────────────────────────
-
-  private openVertretung(): void {
-    const teachers = [...new Set(this.state.schedule.all.map((p) => p.abbr.trim()).filter(Boolean))].sort((a, b) =>
-      a.localeCompare(b, 'de'),
-    );
-    if (!teachers.length) {
-      this.toast.show('Keine verplanten Karten vorhanden.', 'inf');
-      return;
-    }
-    const abbrSel = byId<HTMLSelectElement>('vt-abbr');
-    const prev = abbrSel.value;
-    abbrSel.innerHTML = teachers.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
-    if (teachers.includes(prev)) abbrSel.value = prev;
-    const daySel = byId<HTMLSelectElement>('vt-day');
-    if (!daySel.options.length) daySel.innerHTML = DAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('');
-    this.renderVertretung();
-    byId('vertretung-modal').classList.add('open');
-  }
-
-  private renderVertretung(): void {
-    const abbr = byId<HTMLSelectElement>('vt-abbr').value;
-    const day = Number(byId<HTMLSelectElement>('vt-day').value);
-    const weekSel = byId<HTMLSelectElement>('vt-week').value;
-    const weeks: Week[] = weekSel === 'beide' ? ['u', 'g'] : [weekSel as Week];
-    const key = abbr.toLowerCase();
-
-    // Belegungen aller Lehrkräfte an diesem Tag (je Woche): Stunden + Tageslast + Klassen.
-    const busy = new Map<string, Set<number>>(); // abbr|w → Stunden
-    const dayHours = new Map<string, number>(); // abbr|w → Unterrichtsstunden
-    const teachesClass = new Map<string, Set<string>>(); // abbr → Klassen (global)
-    const allTeachers = new Set<string>();
-    for (const p of this.state.schedule.all) {
-      const a = p.abbr.trim();
-      if (!a) continue;
-      allTeachers.add(a);
-      (teachesClass.get(a.toLowerCase()) ?? teachesClass.set(a.toLowerCase(), new Set()).get(a.toLowerCase())!).add(
-        p.klasse.trim().toLowerCase(),
-      );
-      if (p.day !== day) continue;
-      for (const w of p.weeks) {
-        const bk = `${a.toLowerCase()}|${w}`;
-        const set = busy.get(bk) ?? busy.set(bk, new Set()).get(bk)!;
-        for (const per of p.occupiedPeriods()) set.add(per);
-        dayHours.set(bk, (dayHours.get(bk) ?? 0) + p.duration);
-      }
-    }
-
-    const lessons = this.state.schedule.all
-      .filter((p) => p.abbr.trim().toLowerCase() === key && p.day === day && p.weeks.some((w) => weeks.includes(w)))
-      .sort((x, y) => (x.week < y.week ? -1 : x.week > y.week ? 1 : x.startPeriod - y.startPeriod));
-    if (!lessons.length) {
-      byId('vt-list').innerHTML = `<div class="cw-none" style="padding:8px">${esc(abbr)} hat am ${DAYS[day]} keinen Unterricht.</div>`;
-      return;
-    }
-
-    byId('vt-list').innerHTML = lessons
-      .map((p) => {
-        const w = p.week;
-        const periods = p.occupiedPeriods();
-        // Kandidaten: frei in allen Stunden, keine Sperrzeit, Tageslimit 6 eingehalten.
-        const cands = [...allTeachers]
-          .filter((t) => t.toLowerCase() !== key)
-          .filter((t) => {
-            const set = busy.get(`${t.toLowerCase()}|${w}`);
-            if (set && periods.some((per) => set.has(per))) return false;
-            if (periods.some((per) => this.state.isTeacherBlocked(t, day, w, per))) return false;
-            return (dayHours.get(`${t.toLowerCase()}|${w}`) ?? 0) + p.duration <= 6;
-          })
-          .map((t) => ({
-            abbr: t,
-            knows: teachesClass.get(t.toLowerCase())?.has(p.klasse.trim().toLowerCase()) ?? false,
-            load: dayHours.get(`${t.toLowerCase()}|${w}`) ?? 0,
-          }))
-          .sort((x, y) => Number(y.knows) - Number(x.knows) || x.load - y.load || x.abbr.localeCompare(y.abbr, 'de'));
-        const candHtml = cands.length
-          ? cands
-              .slice(0, 8)
-              .map(
-                (c) =>
-                  `<span class="vt-cand${c.knows ? ' vt-knows' : ''}" title="${c.knows ? 'unterrichtet die Klasse' : 'kennt die Klasse nicht'} · ${c.load} Std am Tag">${esc(c.abbr)}${c.knows ? ' ★' : ''} <small>${c.load}h</small></span>`,
-              )
-              .join('')
-          : '<span class="cw-none">keine freie Lehrkraft</span>';
-        return `<div class="vt-row">
-            <div class="vt-lesson"><b>${p.startPeriod}.–${p.startPeriod + p.duration - 1}. Std</b> (${w}) · ${esc(p.klasse || '?')} ${esc(p.fach || '')}${p.room ? ` · ${esc(p.room)}` : ''}</div>
-            <div class="vt-cands">${candHtml}</div>
-          </div>`;
-      })
-      .join('');
   }
 
   // ── Klassen-Sperrzeiten (z. B. Betriebstag) ───────────────────────────────
