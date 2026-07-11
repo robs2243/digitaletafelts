@@ -120,9 +120,9 @@ export class App {
     this.timetableView = new TimetableView(byId<HTMLTableElement>('tt'), this.state, this.drag, {
       onDrop: (pos) => this.handleDrop(pos),
       onDragEnd: () => this.renderAll(),
-      onRemovePlacement: (id) => this.handleRemovePlacement(id),
+      onRemovePlacement: (id, pairId) => this.handleRemovePlacement(id, pairId),
       onCommentPlacement: (id) => this.openPlacementInfo(id),
-      onToggleLock: (id) => this.handleToggleLock(id),
+      onToggleLock: (id, pairId) => this.handleToggleLock(id, pairId),
       onLockedBlocked: () =>
         this.toast.show('🔒 Karte ist fixiert – zum Verschieben erst die Fixierung aufheben.', 'inf'),
       onSetClassLabel: (c, d, field, value) => this.handleSetClassLabel(c, d, field, value),
@@ -2208,6 +2208,12 @@ export class App {
     const dragData = this.drag.active;
     if (!dragData) return;
 
+    // u+g-verschmolzenes Schild: beide Platzierungen gemeinsam verschieben.
+    if (dragData.pairId) {
+      this.handleDropPair(dragData, pos);
+      return;
+    }
+
     // Klassenbindung: Karte darf nur in eine Spalte mit passendem Klassennamen.
     if (!this.state.cardFitsColumn(dragData.card, pos)) {
       this.collisionModal.show({ messageHtml: classMismatchMessage(dragData.card.klasse), canStack: false });
@@ -2280,6 +2286,88 @@ export class App {
     });
   }
 
+  /**
+   * Drop eines u+g-verschmolzenen Schilds: die u-Platzierung (`id`) und die
+   * g-Platzierung (`pairId`) wandern GEMEINSAM auf denselben Slot in u und g.
+   * Prüfungen laufen für beide Wochen; „Trotzdem"/„Stapeln" gilt für beide.
+   */
+  private handleDropPair(dragData: DragData, pos: PlacementPosition): void {
+    const posU: PlacementPosition = { ...pos, week: 'u' };
+    const posG: PlacementPosition = { ...pos, week: 'g' };
+
+    if (!this.state.cardFitsColumn(dragData.card, posU) || !this.state.cardFitsColumn(dragData.card, posG)) {
+      this.collisionModal.show({ messageHtml: classMismatchMessage(dragData.card.klasse), canStack: false });
+      return;
+    }
+
+    const place = () => this.placeDragPair(dragData, posU, posG);
+
+    if (this.state.cardHitsClassBlock(dragData.card, posU) || this.state.cardHitsClassBlock(dragData.card, posG)) {
+      this.collisionModal.show({
+        messageHtml: `⛔ Die Klasse hat zu dieser Zeit eine <strong>Klassen-Sperrzeit</strong> (${DAYS[pos.day]}).`,
+        canStack: false,
+        canForce: true,
+        onForce: place,
+      });
+      return;
+    }
+    if (this.state.cardHitsBlock(dragData.card, posU) || this.state.cardHitsBlock(dragData.card, posG)) {
+      this.collisionModal.show({
+        messageHtml: `🚫 <strong>${esc(dragData.card.abbr)}</strong> hat zu dieser Zeit eine <strong>Sperrzeit</strong> (${DAYS[pos.day]}).`,
+        canStack: false,
+        canForce: true,
+        onForce: place,
+      });
+      return;
+    }
+
+    const collision =
+      this.state.schedule.checkSlot(dragData.card, posU, dragData.id) ??
+      this.state.schedule.checkSlot(dragData.card, posG, dragData.pairId);
+    if (!collision) {
+      place();
+      return;
+    }
+    if (dragData.card.collision && collision.type !== 'overflow') {
+      place();
+      return;
+    }
+    if (collision.type === 'class') {
+      const c = dragData.card;
+      const laborLike = c.isLabor || c.isWerkstatt;
+      const overStack = laborLike && (this.state.slotCardCount(posU) >= 4 || this.state.slotCardCount(posG) >= 4);
+      if ((laborLike || c.isVierwoechig || c.noCount) && !overStack) {
+        place();
+        return;
+      }
+      const msg = collisionMessage(collision, pos, dragData.card.abbr, (ci, d, w) =>
+        this.state.classes.displayLabel(ci, d, w),
+      );
+      this.collisionModal.show({ messageHtml: msg, canStack: true, onStack: place });
+      return;
+    }
+    const msg = collisionMessage(collision, pos, dragData.card.abbr, (ci, d, w) =>
+      this.state.classes.displayLabel(ci, d, w),
+    );
+    const canForce = collision.type === 'teacher' || collision.type === 'room';
+    this.collisionModal.show({
+      messageHtml: msg,
+      canStack: false,
+      canForce,
+      onForce: canForce ? place : undefined,
+    });
+  }
+
+  private placeDragPair(dragData: DragData, posU: PlacementPosition, posG: PlacementPosition): void {
+    const a = this.state.movePlacement(dragData.id, posU);
+    const b = dragData.pairId ? this.state.movePlacement(dragData.pairId, posG) : null;
+    const first = a ?? b;
+    if (!first) return;
+    const range = first.duration > 1 ? `${first.startPeriod}–${first.endPeriod}` : `${first.startPeriod}`;
+    const fach = first.fach ? ` – ${first.fach}` : '';
+    this.toast.show(`✓ ${first.abbr}${fach} → ${DAYS[posU.day]}, Std.${range} (u+g)`);
+  }
+
   private placeDrag(dragData: DragData, pos: PlacementPosition): void {
     const placement =
       dragData.source === 'pool'
@@ -2291,15 +2379,18 @@ export class App {
     this.toast.show(`✓ ${placement.abbr}${fach} → ${DAYS[pos.day]}, Std.${range} (${pos.week.toUpperCase()})`);
   }
 
-  private handleRemovePlacement(id: string): void {
+  private handleRemovePlacement(id: string, pairId?: string): void {
     const placement = this.state.returnToPool(id);
-    if (placement) this.toast.show(`${placement.abbr} zurück in den Pool`, 'inf');
+    const pair = pairId ? this.state.returnToPool(pairId) : null;
+    if (placement) this.toast.show(`${placement.abbr}${pair ? ' (u+g, 2 Karten)' : ''} zurück in den Pool`, 'inf');
   }
 
-  private handleToggleLock(id: string): void {
+  private handleToggleLock(id: string, pairId?: string): void {
     const locked = this.state.toggleLock(id);
     if (locked === null) return;
-    this.toast.show(locked ? '🔒 Karte fixiert' : '🔓 Fixierung aufgehoben', 'inf');
+    if (pairId) this.state.toggleLock(pairId);
+    const both = pairId ? ' (u+g)' : '';
+    this.toast.show(locked ? `🔒 Karte fixiert${both}` : `🔓 Fixierung aufgehoben${both}`, 'inf');
   }
 
   // ── Klassen ─────────────────────────────────────────────────────────────

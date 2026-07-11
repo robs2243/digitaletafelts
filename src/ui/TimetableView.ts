@@ -20,9 +20,10 @@ interface PlacementCluster {
 export interface TimetableHandlers {
   onDrop: (pos: PlacementPosition) => void;
   onDragEnd: () => void;
-  onRemovePlacement: (placementId: string) => void;
+  /** `pairId`: zweite Platzierung eines u+g-verschmolzenen Schilds (wirkt mit). */
+  onRemovePlacement: (placementId: string, pairId?: string) => void;
   onCommentPlacement: (placementId: string) => void;
-  onToggleLock: (placementId: string) => void;
+  onToggleLock: (placementId: string, pairId?: string) => void;
   /** Aufruf, wenn eine fixierte Karte verschoben/entfernt werden sollte. */
   onLockedBlocked: () => void;
   /** Setzt den Text; Rückgabe = automatisch übernommene Feldfarbe (oder null). */
@@ -65,7 +66,8 @@ export class TimetableView {
       const lockBtn = target.closest<HTMLElement>('.p-lock');
       if (lockBtn?.dataset.id) {
         e.stopPropagation();
-        this.handlers.onToggleLock(lockBtn.dataset.id);
+        // u+g-verschmolzenes Schild: Fixieren wirkt auf beide Platzierungen.
+        this.handlers.onToggleLock(lockBtn.dataset.id, lockBtn.closest<HTMLElement>('.placed')?.dataset.pair);
         return;
       }
       const rmBtn = target.closest<HTMLElement>('.p-rm');
@@ -75,7 +77,8 @@ export class TimetableView {
           this.handlers.onLockedBlocked();
           return;
         }
-        this.handlers.onRemovePlacement(rmBtn.dataset.id);
+        // u+g-verschmolzenes Schild: beide Platzierungen zurück in den Pool.
+        this.handlers.onRemovePlacement(rmBtn.dataset.id, rmBtn.closest<HTMLElement>('.placed')?.dataset.pair);
         return;
       }
       const delBtn = target.closest<HTMLElement>('.cls-del');
@@ -138,7 +141,7 @@ export class TimetableView {
         this.handlers.onLockedBlocked();
         return;
       }
-      this.drag.start({ source: 'grid', id, card: placement.cardSnapshot() });
+      this.drag.start({ source: 'grid', id, card: placement.cardSnapshot(), pairId: plEl.dataset.pair });
       e.dataTransfer?.setData('text/plain', id);
       if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
       setTimeout(() => plEl.classList.add('moving'), 0);
@@ -167,14 +170,13 @@ export class TimetableView {
       cell.classList.remove('dv', 'ds', 'di');
 
       // Klassenbindung: Karte darf nur in die passende Klassen-Spalte.
-      if (!this.state.cardFitsColumn(dragData.card, pos)) {
+      if (!this.dragFitsColumn(dragData, pos)) {
         cell.classList.add('di');
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
         return;
       }
 
-      const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
-      const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
+      const collision = this.dragCollision(dragData, pos);
 
       if (!collision) {
         cell.classList.add('dv');
@@ -210,18 +212,48 @@ export class TimetableView {
     return (e.target as HTMLElement).closest<HTMLTableCellElement>('td.cell');
   }
 
+  /** Klassenbindung der gezogenen Karte – bei u+g-Paaren in BEIDEN Wochen. */
+  private dragFitsColumn(dragData: DragData, pos: PlacementPosition): boolean {
+    if (!dragData.pairId) return this.state.cardFitsColumn(dragData.card, pos);
+    return (
+      this.state.cardFitsColumn(dragData.card, { ...pos, week: 'u' }) &&
+      this.state.cardFitsColumn(dragData.card, { ...pos, week: 'g' })
+    );
+  }
+
+  /** Kollisionsprüfung der gezogenen Karte – bei u+g-Paaren in BEIDEN Wochen
+   *  (jeweils ohne die eigene u- bzw. g-Platzierung). */
+  private dragCollision(dragData: DragData, pos: PlacementPosition): ReturnType<AppState['schedule']['checkSlot']> {
+    if (!dragData.pairId) {
+      const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
+      return this.state.schedule.checkSlot(dragData.card, pos, excludeId);
+    }
+    return (
+      this.state.schedule.checkSlot(dragData.card, { ...pos, week: 'u' }, dragData.id) ??
+      this.state.schedule.checkSlot(dragData.card, { ...pos, week: 'g' }, dragData.pairId)
+    );
+  }
+
+  /** Sperrzeit-Treffer (Lehrkraft oder Klasse) – bei u+g-Paaren in BEIDEN Wochen. */
+  private dragHitsBlock(dragData: DragData, pos: PlacementPosition): boolean {
+    const weeks: Week[] = dragData.pairId ? ['u', 'g'] : [pos.week];
+    return weeks.some(
+      (week) =>
+        this.state.cardHitsBlock(dragData.card, { ...pos, week }) ||
+        this.state.cardHitsClassBlock(dragData.card, { ...pos, week }),
+    );
+  }
+
   /** Färbt beim Drag-Start alle Raster-Zellen nach Eignung für die gezogene Karte. */
   private highlightDropTargets(dragData: DragData): void {
-    const excludeId = dragData.source === 'grid' ? dragData.id : undefined;
     const stacksAuto =
       dragData.card.isLabor || dragData.card.isWerkstatt || dragData.card.isVierwoechig || dragData.card.noCount;
     for (const cell of this.el.querySelectorAll<HTMLTableCellElement>('td.cell')) {
       const pos = this.posFromCell(cell);
-      if (!this.state.cardFitsColumn(dragData.card, pos)) continue; // andere Klasse → neutral
-      const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
+      if (!this.dragFitsColumn(dragData, pos)) continue; // andere Klasse → neutral
+      const collision = this.dragCollision(dragData, pos);
       let cls: string;
-      if (!collision)
-        cls = this.state.cardHitsBlock(dragData.card, pos) || this.state.cardHitsClassBlock(dragData.card, pos) ? 'gblk' : 'gdv';
+      if (!collision) cls = this.dragHitsBlock(dragData, pos) ? 'gblk' : 'gdv';
       else if (collision.type === 'class') cls = stacksAuto ? 'gdv' : 'gds';
       else cls = 'gdi';
       cell.classList.add(cls);
@@ -381,6 +413,30 @@ export class TimetableView {
           if (blocked.has(key)) continue;
 
           const cluster = clusterAt.get(key);
+
+          // u+g-Verschmelzung: identischer Einzel-Unterricht in beiden Wochen →
+          // EIN breites Schild über beide Spalten (nur Anzeige – im Modell
+          // bleiben zwei Platzierungen, die Stunden zählen weiterhin je Woche).
+          if (w === 'u' && cluster) {
+            const gCluster = clusterAt.get(`${p}_${c}_g`);
+            if (
+              gCluster &&
+              !blockAt.has(key) &&
+              !blockAt.has(`${p}_${c}_g`) &&
+              this.mergeableUG(cluster, gCluster, c, day)
+            ) {
+              const span = cluster.end - cluster.start + 1;
+              for (let i = 1; i < span; i++) blocked.add(`${p + i}_${c}_u`);
+              for (let i = 0; i < span; i++) blocked.add(`${p + i}_${c}_g`);
+              h += `<td class="cell cug" data-d="${day}" data-p="${p}" data-c="${c}" data-w="u" colspan="2"${
+                span > 1 ? ` rowspan="${span}"` : ''
+              }>`;
+              h += this.renderSingle(cluster.cards[0], gCluster.cards[0].id);
+              h += '</td>';
+              continue;
+            }
+          }
+
           let rowspan = 1;
           if (cluster) {
             rowspan = cluster.end - cluster.start + 1;
@@ -445,11 +501,47 @@ export class TimetableView {
     return clusterAt;
   }
 
-  private renderSingle(pl: Placement): string {
+  /** Identischer Einzel-Unterricht in u und g (gleiche Lage, gleiche Karte,
+   *  gleiche Klasse in beiden Wochen) → darf als EIN Schild angezeigt werden. */
+  private mergeableUG(u: PlacementCluster, g: PlacementCluster, c: number, day: number): boolean {
+    if (u.cards.length !== 1 || g.cards.length !== 1) return false;
+    if (u.start !== g.start || u.end !== g.end) return false;
+    const a = u.cards[0];
+    const b = g.cards[0];
+    if (
+      this.state.classes.classNameAt(c, day, 'u').trim().toLowerCase() !==
+      this.state.classes.classNameAt(c, day, 'g').trim().toLowerCase()
+    )
+      return false;
+    return (
+      a.abbr === b.abbr &&
+      a.fach === b.fach &&
+      a.klasse === b.klasse &&
+      a.name === b.name &&
+      a.room === b.room &&
+      a.color === b.color &&
+      a.duration === b.duration &&
+      a.startPeriod === b.startPeriod &&
+      a.locked === b.locked &&
+      a.isLabor === b.isLabor &&
+      a.labGroup === b.labGroup &&
+      a.isWerkstatt === b.isWerkstatt &&
+      a.isVierwoechig === b.isVierwoechig &&
+      a.firstHalf === b.firstHalf &&
+      a.secondHalf === b.secondHalf &&
+      a.noCount === b.noCount &&
+      a.coupling === b.coupling &&
+      a.teamTeaching === b.teamTeaching &&
+      a.schiene === b.schiene &&
+      a.comment === b.comment
+    );
+  }
+
+  private renderSingle(pl: Placement, pairId?: string): string {
     const fg = ink(pl.color);
     const half = semesterLabel(pl);
     const cardCls = pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : '';
-    return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}${pl.room.trim() ? '' : ' no-room'}" data-id="${pl.id}" data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-team="${esc(pl.teamTeaching)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
+    return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}${pl.room.trim() ? '' : ' no-room'}" data-id="${pl.id}"${pairId ? ` data-pair="${pairId}"` : ''} data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-team="${esc(pl.teamTeaching)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
               style="background:${pl.color};color:${fg}" draggable="true">
         <button class="p-rm" data-id="${pl.id}" title="Zurück in Pool">✕</button>
         <button class="p-lock" data-id="${pl.id}" title="${pl.locked ? 'Fixierung aufheben' : 'Karte fixieren'}">${pl.locked ? '🔒' : '🔓'}</button>
@@ -468,6 +560,7 @@ export class TimetableView {
         ${pl.teamTeaching ? `<div class="p-range">👥 ${esc(pl.teamTeaching)}</div>` : ''}
         ${pl.collision ? '<div class="p-range">💥 Kollision</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
+        ${pairId ? '<span class="ug-badge" title="Gleicher Unterricht in u- und g-Woche – Ziehen/Entfernen/Fixieren wirkt auf beide">u+g</span>' : ''}
       </div>`;
   }
 

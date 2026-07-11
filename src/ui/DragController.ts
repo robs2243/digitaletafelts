@@ -9,6 +9,9 @@ export interface DragData {
   id: string;
   /** Kopie der Karten-Eigenschaften – bleibt auch nach Drag-Ende gültig. */
   card: CardProps;
+  /** u+g-verschmolzenes Schild: `id` = u-Platzierung, `pairId` = g-Platzierung.
+   *  Beide werden gemeinsam gezogen und auf denselben Slot (u UND g) gelegt. */
+  pairId?: string;
 }
 
 /** Hält den geteilten Drag-Zustand zwischen Pool und Stundenplan. */
