@@ -1566,6 +1566,9 @@ export class AppState {
         !c.isWerkstatt &&
         !c.isLabor &&
         !c.labGroup.trim() &&
+        // ¼-Karten nie einzeln umziehen – sie liegen als Paar (Reparatur würde
+        // das Paar auseinanderreißen und eine Allein-¼ hinterlassen).
+        !c.isVierwoechig &&
         !isBetrieb(c);
 
       /** Macht die Belegung einer EINFACHEN Karte rückgängig (exakte Umkehr von occupy)
@@ -1710,10 +1713,10 @@ export class AppState {
        * – Kopplung: gleiche Lehrkraft, andere Klassen → Lehrerstunden zählen nur 1×.
        * – Team: mehrere Lehrkräfte, gleiche Klasse → jede Karte zählt normal.
        */
-      const placeGroup = (members: Card[], kind: 'coupling' | 'team' | 'lab'): void => {
+      const placeGroup = (members: Card[], kind: 'coupling' | 'team' | 'lab' | 'vier'): void => {
         const id = kind === 'coupling' ? members[0].coupling : kind === 'team' ? members[0].teamTeaching : members[0].klasse;
-        const tag = kind === 'coupling' ? '⛓' : kind === 'team' ? '👥' : '⚗';
-        const what = kind === 'coupling' ? 'Kopplung' : kind === 'team' ? 'Teamteaching' : 'Labor a/b';
+        const tag = kind === 'coupling' ? '⛓' : kind === 'team' ? '👥' : kind === 'vier' ? '¼' : '⚗';
+        const what = kind === 'coupling' ? 'Kopplung' : kind === 'team' ? 'Teamteaching' : kind === 'vier' ? '4-wöchig-Paar' : 'Labor a/b';
         const label = `${tag} ${id} (${members.map((m) => m.abbr).join(',')})`;
         if (members.some((m) => !m.klasse.trim())) {
           skipped.push({ card: label, reason: `${what}: Klasse fehlt` });
@@ -2392,6 +2395,35 @@ export class AppState {
       };
 
       const fixedBlocks = (c: Card) => c.noCount && !c.isWerkstatt && !c.isLabor && !c.coupling.trim() && !c.teamTeaching.trim();
+
+      // 4-WÖCHIGE Karten (¼) VORAB zu Paaren bündeln: eine ¼-Karte darf nie
+      // allein liegen (jede 4. Woche fiele der Unterricht aus). Gleiche
+      // Klasse+Dauer, andere Lehrkraft, anderer/leerer Raum – jedes Paar wird
+      // GEMEINSAM auf denselben Slot gelegt (gestapelt). Überzählige ohne
+      // Partner laufen einzeln und werden im Prüfbericht gemeldet.
+      const vierPaired = new Set<string>();
+      const vierPairs: Card[][] = [];
+      {
+        const byKey = new Map<string, Card[]>();
+        for (const c of cards) {
+          if (!c.isVierwoechig || c.isWerkstatt || c.isLabor || fixedBlocks(c) || isOlz(c)) continue;
+          const k = `${c.klasse.trim().toLowerCase()}|${c.duration}`;
+          (byKey.get(k) ?? byKey.set(k, []).get(k)!).push(c);
+        }
+        for (const list of byKey.values()) {
+          for (let i = 0; i < list.length; i++) {
+            if (vierPaired.has(list[i].id)) continue;
+            for (let j = i + 1; j < list.length; j++) {
+              if (vierPaired.has(list[j].id) || !canPair(list[i], list[j])) continue;
+              vierPairs.push([list[i], list[j]]);
+              vierPaired.add(list[i].id);
+              vierPaired.add(list[j].id);
+              break;
+            }
+          }
+        }
+      }
+
       step(cards.filter(fixedBlocks), placeNormal); // 1. BETRIEBSTAGE/Block-Karten zuerst (starrster Ganztags-Anker)
       placeWerkSchieneGroups(werkSchieneCoup); // 1b. Schienen-Werkstätten GANZ ZUERST (geteilte Räume, ganzer Tag, je Paar eigener Tag)
       placeCoupList(schieneCoup); // 2. große SCHIENEN über ≥3 Klassen (Anker)
@@ -2400,15 +2432,21 @@ export class AppState {
       placeCoupList(werkCoup); // 4. Werkstatt-Kopplungen (4h-Block)
       if (shuffleOrder) shuffle(earlyCoup, rng); // 5. Spanisch/Seminar (vor Hauptfächern)
       for (const members of focusFirstGroups(earlyCoup)) placeGroup(members, 'coupling');
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c)), placeNormal); // 6. Hauptfächer
+      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && isMain(c) && !vierPaired.has(c.id)), placeNormal); // 6. Hauptfächer
       stepPairs(abPairs.filter((p) => !p[0].isWerkstatt)); // 7. Labor
       step([...abRest.filter((c) => !c.isWerkstatt), ...cards.filter((c) => !c.isWerkstatt && c.isLabor && !isAB(c))], placeNormal);
       placeCoupList(restCoup); // 8. restliche Kopplungen
       const teamGroupsList = [...teamMap.values()];
       if (shuffleOrder) shuffle(teamGroupsList, rng);
       for (const members of focusFirstGroups(teamGroupsList)) placeGroup(members, 'team');
+      // 8b. ¼-Paare: beide 4-wöchigen Karten GEMEINSAM auf denselben Slot.
+      if (shuffleOrder) shuffle(vierPairs, rng);
+      for (const members of focusFirstGroups(vierPairs)) placeGroup(members, 'vier');
       // 9. Rest (ohne Betrieb-Anker und ohne die bereits früh gelegten OLZ).
-      step(cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c) && !isOlz(c)), placeNormal);
+      step(
+        cards.filter((c) => !c.isWerkstatt && !c.isLabor && !isMain(c) && !fixedBlocks(c) && !isOlz(c) && !vierPaired.has(c.id)),
+        placeNormal,
+      );
       // 10. Reparatur: letzte offene Einzelkarten per Tausch-Kette lösen (nur aussichtsreiche Läufe).
       if (assigns.length >= bestPlaced) repair();
 
@@ -2860,9 +2898,44 @@ export class AppState {
         });
     }
 
+    // ¼ 4-wöchig: eine 4-wöchige Karte darf nie ALLEIN liegen – sonst hat die
+    // Klasse dort jede 4. Woche keinen Unterricht. Parallel (gestapelt) muss
+    // eine weitere 4-wö.-Karte liegen, die die Zwischenwochen füllt.
+    {
+      const viers = this.schedule.all.filter((p) => p.isVierwoechig);
+      const seenV = new Set<string>();
+      for (const p of viers) {
+        const uncovered = p
+          .occupiedPeriods()
+          .filter(
+            (per) =>
+              !viers.some(
+                (q) =>
+                  q.id !== p.id &&
+                  q.classIdx === p.classIdx &&
+                  q.day === p.day &&
+                  q.week === p.week &&
+                  q.occupiedPeriods().includes(per),
+              ),
+          );
+        if (!uncovered.length) continue;
+        const sig = `${p.klasse}|${p.abbr}|${p.fach}|${p.day}|${p.week}|${p.startPeriod}`;
+        if (seenV.has(sig)) continue;
+        seenV.add(sig);
+        out.push({
+          severity: 'error',
+          text: `¼ 4-wöchig allein: ${p.klasse || '?'} ${p.abbr} ${p.fach} (${DAYS[p.day]}, ${p.week}-Woche, Std ${uncovered.join(',')}) – jede 4. Woche fällt der Unterricht aus. Eine zweite 4-wö.-Karte muss parallel (gestapelt) liegen.`,
+        });
+      }
+    }
+
     const pls = this.schedule.all;
+    // Zwei 4-wöchige Karten dürfen sich überlagern (sie wechseln sich im
+    // 4-Wochen-Rhythmus ab) – auch gleiche Lehrkraft/Raum ist dann kein Konflikt.
     const linked = (a: Placement, b: Placement): boolean =>
-      (!!a.coupling && a.coupling === b.coupling) || (!!a.teamTeaching && a.teamTeaching === b.teamTeaching);
+      (!!a.coupling && a.coupling === b.coupling) ||
+      (!!a.teamTeaching && a.teamTeaching === b.teamTeaching) ||
+      (a.isVierwoechig && b.isVierwoechig);
     const slotKey = (d: number, w: Week, p: number): string => `${d}|${w}|${p}`;
     const lbl = (p: Placement): string => `${p.klasse || '?'} ${p.abbr}${p.fach ? ' ' + p.fach : ''}`;
     // 8-Std-Tag am Stück erlaubt: K2FR/K3FR (randvoll) und Betrieb-Ganztagsblöcke.

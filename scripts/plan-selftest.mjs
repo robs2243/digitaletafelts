@@ -261,7 +261,7 @@ check('Spanisch (SBx) nur 1+2 / 8+9', pls.filter((p) => isSpan(p.fach) && p.star
 //     im Integritäts-Check geht es um Kollisionen/Sperrzeiten/Datenfehler.
 {
   const issues = st.validatePlan();
-  const quality = (t) => /Schüler-Hohlstunde|Werkstatt braucht mindestens 4/.test(t);
+  const quality = (t) => /Schüler-Hohlstunde|Werkstatt braucht mindestens 4|4-wöchig allein/.test(t);
   const errs = issues.filter((i) => i.severity === 'error' && !quality(i.text));
   check('App-Prüfbericht: 0 Integritäts-Fehler', errs.map((e) => e.text));
   info('App-Prüfbericht Qualitäts-Fehler (Hohlstunden/Werkstatt)', String(issues.filter((i) => i.severity === 'error' && quality(i.text)).length));
