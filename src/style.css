@@ -994,11 +994,22 @@ body.rooms-only .placed.no-room::after, body.rooms-only .placed-mini.no-room::af
 .ug-badge-mini { bottom: 2px; left: 3px; font-size: 8px; line-height: 11px; padding: 0 4px; }
 /* u+g-verschmolzene Schilder zusätzlich hervorheben: feiner weißer Ring +
    weiches Leuchten – funktioniert auf hellen wie dunklen Kartenfarben. */
-.placed[data-pair],
-.placed-mini[data-pair] {
+/* Die Karte rückt dafür etwas nach innen, damit der Rand die Nachbarkarten
+   nicht überlappt (Gesamt-Fußabdruck bleibt wie ohne Leuchtrand). */
+.placed[data-pair] {
+  inset: 7px;
   box-shadow:
     0 0 0 3px rgba(255, 255, 255, 0.95),
     0 0 0 5px rgba(56, 189, 248, 0.85),
-    0 0 14px 5px rgba(56, 189, 248, 0.55),
+    0 0 10px 5px rgba(56, 189, 248, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.18);
+}
+.placed-mini[data-pair] {
+  left: 4px;
+  right: 4px;
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 0 0 3px rgba(56, 189, 248, 0.85),
+    0 0 7px 2px rgba(56, 189, 248, 0.45),
     0 2px 6px rgba(0, 0, 0, 0.18);
 }
