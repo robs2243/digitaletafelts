@@ -125,6 +125,22 @@ export interface PersistedPlacement extends PersistedCard, PlacementPosition {
 }
 
 /** Gesamtzustand im Persistenzformat. */
+/** Klassen-Sperrzeit: geblockter Bereich einer Klasse mit Beschriftung im Plan
+ *  (z. B. „Betriebstag" über die Stunden 1–9). */
+export interface ClassBlock {
+  /** Klassenname (wie in der Spalten-Beschriftung). */
+  klasse: string;
+  /** Tag-Index (0 = Montag … 4 = Freitag). */
+  day: number;
+  week: Week;
+  /** Erste gesperrte Stunde (1-basiert). */
+  from: number;
+  /** Letzte gesperrte Stunde (einschließlich). */
+  to: number;
+  /** Beschriftung, die im Plan über dem Bereich steht. */
+  text: string;
+}
+
 export interface PersistedState {
   /** Neu: Spalten mit Tagesbeschriftungen. Alt: string[] (wird migriert). */
   classes: (string | ClassColumn)[];
@@ -139,6 +155,8 @@ export interface PersistedState {
   teacherMaxDays?: Record<string, number>;
   /** Dauerhafte Farbzuordnung je Kürzel (kleingeschrieben → Hex), über Importe hinweg. */
   teacherColors?: Record<string, string>;
+  /** Klassen-Sperrzeiten (z. B. Betriebstage) mit Beschriftung. */
+  classBlocks?: ClassBlock[];
   /** Konfigurierbare Planungsregeln (fehlt = Defaults). */
   planSettings?: PlanSettings;
 }

@@ -345,6 +345,18 @@
           <button class="btn btn-ok" id="plan-deputat" style="width: 100%">📋 Deputats-Abgleich</button>
         </div>
         <div class="fg">
+          <label>Plan-Stände – Sicherungspunkte anlegen, vergleichen, wiederherstellen</label>
+          <button class="btn btn-ok" id="plan-staende" style="width: 100%">🕓 Plan-Stände (Verlauf)</button>
+        </div>
+        <div class="fg">
+          <label>Vertretung – kranke Lehrkraft: betroffene Stunden &amp; freie Kollegen</label>
+          <button class="btn btn-ok" id="plan-vertretung" style="width: 100%">🩺 Vertretungsplanung</button>
+        </div>
+        <div class="fg">
+          <label>Klassen-Sperrzeiten – Zeiten je Klasse blocken (z. B. Betriebstag)</label>
+          <button class="btn btn-ok" id="plan-classblocks" style="width: 100%">⛔ Klassen-Sperrzeiten</button>
+        </div>
+        <div class="fg">
           <label>Excel-Export – alle Karten (sortiert nach Klasse und Lehrer)</label>
           <button class="btn btn-ok" id="plan-export" style="width: 100%">📤 Alle Karten als Excel exportieren</button>
         </div>
@@ -572,6 +584,87 @@
         <div id="dp-list" class="tm-list"></div>
         <div class="mbtns">
           <button class="btn btn-ok" id="dp-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PLAN-STÄNDE: benannte Sicherungspunkte ═══ -->
+    <div class="overlay" id="staende-modal">
+      <div class="modal" style="width: 720px">
+        <h2 style="color: #1a237e">🕓 Plan-Stände – Sicherungspunkte</h2>
+        <div class="tm-sub">Aktuellen Plan als benannten Stand sichern, vergleichen und jederzeit wiederherstellen.</div>
+        <div class="fg" style="display: flex; gap: 8px; align-items: center">
+          <input id="st-name" type="text" placeholder="Name, z. B. Stand Konferenz 15.7." style="flex: 1" />
+          <button class="btn btn-pri" id="st-save">💾 Stand sichern</button>
+        </div>
+        <div id="st-list" class="tm-list"></div>
+        <div id="st-diff"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="st-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ VERTRETUNGSPLANUNG ═══ -->
+    <div class="overlay" id="vertretung-modal">
+      <div class="modal" style="width: 780px">
+        <h2 style="color: #1a237e">🩺 Vertretungsplanung</h2>
+        <div class="tm-sub">Lehrkraft und Tag wählen: betroffene Stunden mit freien Vertretungs-Kandidaten (Kollegen der Klasse zuerst).</div>
+        <div class="cw-top" style="margin-bottom: 10px">
+          <label class="cw-lbl">Lehrkraft
+            <select id="vt-abbr"></select>
+          </label>
+          <label class="cw-lbl">Tag
+            <select id="vt-day"></select>
+          </label>
+          <label class="cw-lbl">Woche
+            <select id="vt-week">
+              <option value="beide">u + g</option>
+              <option value="u">nur u</option>
+              <option value="g">nur g</option>
+            </select>
+          </label>
+        </div>
+        <div id="vt-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="vt-close">Schließen</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ KLASSEN-SPERRZEITEN (z. B. Betriebstag) ═══ -->
+    <div class="overlay" id="classblocks-modal">
+      <div class="modal" style="width: 760px">
+        <h2 style="color: #1a237e">⛔ Klassen-Sperrzeiten</h2>
+        <div class="tm-sub">Zeiten je Klasse blocken – mit Beschriftung, die direkt im Plan steht (z. B. „Betriebstag" über 1.–9.).</div>
+        <div class="cw-top" style="flex-wrap: wrap; margin-bottom: 10px">
+          <label class="cw-lbl">Klasse
+            <select id="cb-klasse"></select>
+          </label>
+          <label class="cw-lbl">Tag
+            <select id="cb-day"></select>
+          </label>
+          <label class="cw-lbl">Woche
+            <select id="cb-week">
+              <option value="beide">u + g</option>
+              <option value="u">nur u</option>
+              <option value="g">nur g</option>
+            </select>
+          </label>
+          <label class="cw-lbl">Von
+            <select id="cb-from"></select>
+          </label>
+          <label class="cw-lbl">Bis
+            <select id="cb-to"></select>
+          </label>
+          <label class="cw-lbl" style="flex: 1; min-width: 160px">Beschriftung im Plan
+            <input id="cb-text" type="text" placeholder="z. B. Betriebstag" />
+          </label>
+          <button class="btn btn-pri" id="cb-add">＋ Sperrzeit anlegen</button>
+        </div>
+        <div id="cb-list" class="tm-list"></div>
+        <div class="mbtns">
+          <button class="btn btn-ok" id="cb-close">Schließen</button>
         </div>
       </div>
     </div>

@@ -220,7 +220,8 @@ export class TimetableView {
       if (!this.state.cardFitsColumn(dragData.card, pos)) continue; // andere Klasse → neutral
       const collision = this.state.schedule.checkSlot(dragData.card, pos, excludeId);
       let cls: string;
-      if (!collision) cls = this.state.cardHitsBlock(dragData.card, pos) ? 'gblk' : 'gdv';
+      if (!collision)
+        cls = this.state.cardHitsBlock(dragData.card, pos) || this.state.cardHitsClassBlock(dragData.card, pos) ? 'gblk' : 'gdv';
       else if (collision.type === 'class') cls = stacksAuto ? 'gdv' : 'gds';
       else cls = 'gdi';
       cell.classList.add(cls);
@@ -348,6 +349,19 @@ export class TimetableView {
     /** Zellen, die durch ein rowspan darüber bereits abgedeckt sind. */
     const blocked = new Set<string>();
 
+    // Klassen-Sperrzeiten (z. B. Betriebstag) dieses Tages je Spalte auflösen:
+    // schraffierte Zellen + Beschriftung senkrecht über den ganzen Bereich.
+    const blockAt = new Map<string, { text: string; first: boolean; len: number }>();
+    for (const b of this.state.getClassBlocks()) {
+      if (b.day !== day) continue;
+      for (let c = 0; c < count; c++) {
+        if (this.state.classes.classNameAt(c, day, b.week).trim().toLowerCase() !== b.klasse.toLowerCase()) continue;
+        for (let p = b.from; p <= b.to; p++) {
+          blockAt.set(`${p}_${c}_${b.week}`, { text: b.text, first: p === b.from, len: b.to - b.from + 1 });
+        }
+      }
+    }
+
     // Tageskopf: senkrechter Wochentag in Spalte 1 (über Kopf + alle Stunden),
     // dann Stunden-Kopfzelle und die Klassen-Beschriftungen (u+g / u | g).
     let h = '<tr class="day-hdr-row">';
@@ -374,9 +388,13 @@ export class TimetableView {
           }
 
           const weekClass = w === 'u' ? 'cu' : 'cg';
-          h += `<td class="cell ${weekClass}" data-d="${day}" data-p="${p}" data-c="${c}" data-w="${w}"${
+          const cb = blockAt.get(key);
+          h += `<td class="cell ${weekClass}${cb ? ' cell-blocked' : ''}" data-d="${day}" data-p="${p}" data-c="${c}" data-w="${w}"${
             rowspan > 1 ? ` rowspan="${rowspan}"` : ''
           }>`;
+          if (cb?.first) {
+            h += `<div class="class-block-label" style="height: calc(var(--cell-h) * ${cb.len} - 8px)"><span>${esc(cb.text || 'gesperrt')}</span></div>`;
+          }
           if (cluster) {
             h += cluster.cards.length === 1 ? this.renderSingle(cluster.cards[0]) : this.renderStack(cluster);
           }

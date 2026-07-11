@@ -4,7 +4,7 @@ import { DAYS, PALETTE, PERIODS, WEEKS } from './domain/constants';
 import type { Placement } from './domain/Placement';
 import { ink } from './utils/color';
 import { semesterFactor } from './domain/semester';
-import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgress, PlanRunResult, PlanSettings } from './domain/types';
+import type { CardProps, CardWithPlace, LabelField, PlacementPosition, PlanProgress, PlanRunResult, PlanSettings, Week } from './domain/types';
 import { DEFAULT_PLAN_SETTINGS } from './domain/types';
 import { esc } from './utils/html';
 import * as XLSX from 'xlsx';
@@ -418,6 +418,47 @@ export class App {
       if (!btn || btn.disabled) return;
       this.handleClassAction(btn.dataset.act ?? '', btn.dataset.class ?? '');
     });
+    // Plan-Stände (benannte Sicherungspunkte).
+    byId('plan-staende').addEventListener('click', () => this.openStaende());
+    const staendeOverlay = byId('staende-modal');
+    byId('st-close').addEventListener('click', () => staendeOverlay.classList.remove('open'));
+    staendeOverlay.addEventListener('click', (e) => {
+      if (e.target === staendeOverlay) staendeOverlay.classList.remove('open');
+    });
+    byId('st-save').addEventListener('click', () => this.handleSaveSnapshot());
+    byId('st-list').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-act]');
+      if (!btn) return;
+      this.handleSnapshotAction(btn.dataset.act ?? '', Number(btn.dataset.i));
+    });
+
+    // Vertretungsplanung.
+    byId('plan-vertretung').addEventListener('click', () => this.openVertretung());
+    const vertretungOverlay = byId('vertretung-modal');
+    byId('vt-close').addEventListener('click', () => vertretungOverlay.classList.remove('open'));
+    vertretungOverlay.addEventListener('click', (e) => {
+      if (e.target === vertretungOverlay) vertretungOverlay.classList.remove('open');
+    });
+    byId<HTMLSelectElement>('vt-abbr').addEventListener('change', () => this.renderVertretung());
+    byId<HTMLSelectElement>('vt-day').addEventListener('change', () => this.renderVertretung());
+    byId<HTMLSelectElement>('vt-week').addEventListener('change', () => this.renderVertretung());
+
+    // Klassen-Sperrzeiten (z. B. Betriebstag).
+    byId('plan-classblocks').addEventListener('click', () => this.openClassBlocks());
+    const classblocksOverlay = byId('classblocks-modal');
+    byId('cb-close').addEventListener('click', () => classblocksOverlay.classList.remove('open'));
+    classblocksOverlay.addEventListener('click', (e) => {
+      if (e.target === classblocksOverlay) classblocksOverlay.classList.remove('open');
+    });
+    byId('cb-add').addEventListener('click', () => this.handleAddClassBlock());
+    byId('cb-list').addEventListener('click', (e) => {
+      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-del]');
+      if (!btn) return;
+      this.state.removeClassBlockAt(Number(btn.dataset.del));
+      this.renderClassBlocksList();
+      this.toast.show('⛔ Sperrzeit entfernt', 'inf');
+    });
+
     // Deputats-Abgleich: Soll/Ist je Lehrkraft.
     byId('plan-deputat').addEventListener('click', () => this.openDeputat());
     const deputatOverlay = byId('deputat-modal');
@@ -993,6 +1034,283 @@ export class App {
     });
     byId('settings-modal').classList.remove('open');
     this.toast.show('⚙️ Planungsregeln gespeichert', 'ok');
+  }
+
+  // ── Plan-Stände (benannte Sicherungspunkte) ──────────────────────────────
+
+  private openStaende(): void {
+    byId<HTMLInputElement>('st-name').value = '';
+    byId('st-diff').innerHTML = '';
+    this.renderStaende();
+    byId('staende-modal').classList.add('open');
+  }
+
+  private renderStaende(): void {
+    const list = this.storage.loadSnapshots();
+    byId('st-list').innerHTML = list.length
+      ? list
+          .map((s, i) => {
+            const d = new Date(s.savedAt);
+            const when = `${d.toLocaleDateString('de-DE')} ${d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+            const info = `${(s.state.placed ?? []).length} verplant · ${(s.state.cards ?? []).length} im Pool`;
+            return `<div class="st-row">
+                <span class="st-name">${esc(s.name)}</span>
+                <span class="st-info">${when} · ${info}</span>
+                <button class="btn btn-sec st-btn" data-act="diff" data-i="${i}">🔍 Vergleichen</button>
+                <button class="btn btn-ok st-btn" data-act="restore" data-i="${i}">↩ Wiederherstellen</button>
+                <button class="btn btn-del st-btn" data-act="del" data-i="${i}">✕</button>
+              </div>`;
+          })
+          .join('')
+      : '<div class="cw-none" style="padding:8px">Noch keine Stände gesichert.</div>';
+  }
+
+  private handleSaveSnapshot(): void {
+    const input = byId<HTMLInputElement>('st-name');
+    const name = input.value.trim() || `Stand ${new Date().toLocaleDateString('de-DE')} ${new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`;
+    if (!this.storage.saveSnapshot(name, this.state.toJSON())) {
+      this.toast.show('⚠️ Speicher voll – bitte alte Stände löschen.', 'inf');
+      return;
+    }
+    input.value = '';
+    this.renderStaende();
+    this.toast.show(`💾 Stand „${name}" gesichert`, 'ok');
+  }
+
+  private handleSnapshotAction(act: string, i: number): void {
+    const list = this.storage.loadSnapshots();
+    const snap = list[i];
+    if (!snap) return;
+    if (act === 'del') {
+      if (!confirm(`Stand „${snap.name}" löschen?`)) return;
+      this.storage.deleteSnapshot(i);
+      this.renderStaende();
+      this.toast.show('🗑 Stand gelöscht', 'inf');
+    } else if (act === 'restore') {
+      if (!confirm(`Stand „${snap.name}" wiederherstellen?\nDer aktuelle Plan wird vorher automatisch als Stand gesichert.`)) return;
+      this.storage.saveSnapshot('Automatisch – vor Wiederherstellung', this.state.toJSON());
+      this.state.loadFrom(snap.state);
+      this.renderStaende();
+      this.toast.show(`↩ „${snap.name}" wiederhergestellt`, 'ok');
+    } else if (act === 'diff') {
+      byId('st-diff').innerHTML = this.renderSnapshotDiff(snap.name, snap.state);
+    }
+  }
+
+  /** Vergleicht einen Stand mit dem aktuellen Plan (verschoben / neu / entfernt). */
+  private renderSnapshotDiff(name: string, old: import('./domain/types').PersistedState): string {
+    type Pos = { day: number; startPeriod: number; week: string };
+    const keyOf = (p: { klasse?: string; abbr?: string; fach?: string; duration?: number }): string =>
+      `${(p.klasse ?? '').trim().toLowerCase()}|${(p.abbr ?? '').trim().toLowerCase()}|${(p.fach ?? '').trim().toLowerCase()}|${p.duration ?? 0}`;
+    const posOf = (p: Pos): string => `${DAYS[p.day]?.slice(0, 2) ?? '?'} ${p.week} ${p.startPeriod}.`;
+    const collect = (list: { klasse?: string; abbr?: string; fach?: string; duration?: number; day: number; startPeriod: number; week: string }[]): Map<string, string[]> => {
+      const m = new Map<string, string[]>();
+      for (const p of list) {
+        const k = keyOf(p);
+        (m.get(k) ?? m.set(k, []).get(k)!).push(posOf(p));
+      }
+      return m;
+    };
+    const a = collect(old.placed ?? []); // Stand
+    const b = collect(this.state.schedule.all.map((p) => ({ klasse: p.klasse, abbr: p.abbr, fach: p.fach, duration: p.duration, day: p.day, startPeriod: p.startPeriod, week: p.week })));
+    const lines: string[] = [];
+    let moved = 0;
+    let added = 0;
+    let removed = 0;
+    const label = (k: string): string => {
+      const [kl, ab, fa] = k.split('|');
+      return `${kl.toUpperCase() || '?'} ${ab.toUpperCase()}${fa ? ` (${fa})` : ''}`;
+    };
+    for (const k of new Set([...a.keys(), ...b.keys()])) {
+      // Mengen-Differenz: gleiche Positionen kürzen, Rest = verschoben/neu/entfernt.
+      const cntB = new Map<string, number>();
+      for (const x of b.get(k) ?? []) cntB.set(x, (cntB.get(x) ?? 0) + 1);
+      const restA: string[] = [];
+      for (const x of a.get(k) ?? []) {
+        const n = cntB.get(x) ?? 0;
+        if (n > 0) cntB.set(x, n - 1);
+        else restA.push(x);
+      }
+      const restB: string[] = [];
+      for (const [x, n] of cntB) for (let i = 0; i < n; i++) restB.push(x);
+      const pairs = Math.min(restA.length, restB.length);
+      moved += pairs;
+      for (let i = 0; i < pairs && lines.length < 40; i++) lines.push(`🔀 ${label(k)}: ${restA[i]} → ${restB[i]}`);
+      removed += restA.length - pairs;
+      for (let i = pairs; i < restA.length && lines.length < 40; i++) lines.push(`➖ ${label(k)}: ${restA[i]} (nicht mehr verplant)`);
+      added += restB.length - pairs;
+      for (let i = pairs; i < restB.length && lines.length < 40; i++) lines.push(`➕ ${label(k)}: ${restB[i]} (neu verplant)`);
+    }
+    const head = `<div class="cw-sum" style="margin-top:10px">
+        <span class="cw-sum-item">Vergleich mit <b>${esc(name)}</b></span>
+        <span class="cw-sum-item">🔀 <b>${moved}</b> verschoben</span>
+        <span class="cw-sum-item cw-ok">➕ <b>${added}</b> neu</span>
+        <span class="cw-sum-item cw-warn">➖ <b>${removed}</b> entfernt</span>
+      </div>`;
+    if (!lines.length) return `${head}<div class="cw-none" style="padding:6px">Keine Unterschiede bei den Platzierungen.</div>`;
+    return `${head}<div class="st-diff-list">${lines.map((l) => `<div>${esc(l)}</div>`).join('')}${moved + added + removed > lines.length ? '<div>…</div>' : ''}</div>`;
+  }
+
+  // ── Vertretungsplanung (light) ────────────────────────────────────────────
+
+  private openVertretung(): void {
+    const teachers = [...new Set(this.state.schedule.all.map((p) => p.abbr.trim()).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, 'de'),
+    );
+    if (!teachers.length) {
+      this.toast.show('Keine verplanten Karten vorhanden.', 'inf');
+      return;
+    }
+    const abbrSel = byId<HTMLSelectElement>('vt-abbr');
+    const prev = abbrSel.value;
+    abbrSel.innerHTML = teachers.map((t) => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    if (teachers.includes(prev)) abbrSel.value = prev;
+    const daySel = byId<HTMLSelectElement>('vt-day');
+    if (!daySel.options.length) daySel.innerHTML = DAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+    this.renderVertretung();
+    byId('vertretung-modal').classList.add('open');
+  }
+
+  private renderVertretung(): void {
+    const abbr = byId<HTMLSelectElement>('vt-abbr').value;
+    const day = Number(byId<HTMLSelectElement>('vt-day').value);
+    const weekSel = byId<HTMLSelectElement>('vt-week').value;
+    const weeks: Week[] = weekSel === 'beide' ? ['u', 'g'] : [weekSel as Week];
+    const key = abbr.toLowerCase();
+
+    // Belegungen aller Lehrkräfte an diesem Tag (je Woche): Stunden + Tageslast + Klassen.
+    const busy = new Map<string, Set<number>>(); // abbr|w → Stunden
+    const dayHours = new Map<string, number>(); // abbr|w → Unterrichtsstunden
+    const teachesClass = new Map<string, Set<string>>(); // abbr → Klassen (global)
+    const allTeachers = new Set<string>();
+    for (const p of this.state.schedule.all) {
+      const a = p.abbr.trim();
+      if (!a) continue;
+      allTeachers.add(a);
+      (teachesClass.get(a.toLowerCase()) ?? teachesClass.set(a.toLowerCase(), new Set()).get(a.toLowerCase())!).add(
+        p.klasse.trim().toLowerCase(),
+      );
+      if (p.day !== day) continue;
+      for (const w of p.weeks) {
+        const bk = `${a.toLowerCase()}|${w}`;
+        const set = busy.get(bk) ?? busy.set(bk, new Set()).get(bk)!;
+        for (const per of p.occupiedPeriods()) set.add(per);
+        dayHours.set(bk, (dayHours.get(bk) ?? 0) + p.duration);
+      }
+    }
+
+    const lessons = this.state.schedule.all
+      .filter((p) => p.abbr.trim().toLowerCase() === key && p.day === day && p.weeks.some((w) => weeks.includes(w)))
+      .sort((x, y) => (x.week < y.week ? -1 : x.week > y.week ? 1 : x.startPeriod - y.startPeriod));
+    if (!lessons.length) {
+      byId('vt-list').innerHTML = `<div class="cw-none" style="padding:8px">${esc(abbr)} hat am ${DAYS[day]} keinen Unterricht.</div>`;
+      return;
+    }
+
+    byId('vt-list').innerHTML = lessons
+      .map((p) => {
+        const w = p.week;
+        const periods = p.occupiedPeriods();
+        // Kandidaten: frei in allen Stunden, keine Sperrzeit, Tageslimit 6 eingehalten.
+        const cands = [...allTeachers]
+          .filter((t) => t.toLowerCase() !== key)
+          .filter((t) => {
+            const set = busy.get(`${t.toLowerCase()}|${w}`);
+            if (set && periods.some((per) => set.has(per))) return false;
+            if (periods.some((per) => this.state.isTeacherBlocked(t, day, w, per))) return false;
+            return (dayHours.get(`${t.toLowerCase()}|${w}`) ?? 0) + p.duration <= 6;
+          })
+          .map((t) => ({
+            abbr: t,
+            knows: teachesClass.get(t.toLowerCase())?.has(p.klasse.trim().toLowerCase()) ?? false,
+            load: dayHours.get(`${t.toLowerCase()}|${w}`) ?? 0,
+          }))
+          .sort((x, y) => Number(y.knows) - Number(x.knows) || x.load - y.load || x.abbr.localeCompare(y.abbr, 'de'));
+        const candHtml = cands.length
+          ? cands
+              .slice(0, 8)
+              .map(
+                (c) =>
+                  `<span class="vt-cand${c.knows ? ' vt-knows' : ''}" title="${c.knows ? 'unterrichtet die Klasse' : 'kennt die Klasse nicht'} · ${c.load} Std am Tag">${esc(c.abbr)}${c.knows ? ' ★' : ''} <small>${c.load}h</small></span>`,
+              )
+              .join('')
+          : '<span class="cw-none">keine freie Lehrkraft</span>';
+        return `<div class="vt-row">
+            <div class="vt-lesson"><b>${p.startPeriod}.–${p.startPeriod + p.duration - 1}. Std</b> (${w}) · ${esc(p.klasse || '?')} ${esc(p.fach || '')}${p.room ? ` · ${esc(p.room)}` : ''}</div>
+            <div class="vt-cands">${candHtml}</div>
+          </div>`;
+      })
+      .join('');
+  }
+
+  // ── Klassen-Sperrzeiten (z. B. Betriebstag) ───────────────────────────────
+
+  private openClassBlocks(): void {
+    const names = new Set<string>();
+    for (let c = 0; c < this.state.classes.count; c++)
+      for (let d = 0; d < DAYS.length; d++)
+        for (const w of WEEKS) {
+          const n = this.state.classes.classNameAt(c, d, w).trim();
+          if (n) names.add(n);
+        }
+    for (const c of [...this.state.pool.all, ...this.state.schedule.all]) {
+      const n = c.klasse.trim();
+      if (n) names.add(n);
+    }
+    if (!names.size) {
+      this.toast.show('Keine Klassen vorhanden.', 'inf');
+      return;
+    }
+    const sel = byId<HTMLSelectElement>('cb-klasse');
+    const prev = sel.value;
+    const sorted = [...names].sort((a, b) => a.localeCompare(b, 'de'));
+    sel.innerHTML = sorted.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+    if (sorted.includes(prev)) sel.value = prev;
+    const daySel = byId<HTMLSelectElement>('cb-day');
+    if (!daySel.options.length) daySel.innerHTML = DAYS.map((d, i) => `<option value="${i}">${d}</option>`).join('');
+    const fill = (id: string, def: number): void => {
+      const s = byId<HTMLSelectElement>(id);
+      if (!s.options.length) {
+        s.innerHTML = Array.from({ length: PERIODS }, (_, i) => `<option value="${i + 1}">${i + 1}.</option>`).join('');
+        s.value = String(def);
+      }
+    };
+    fill('cb-from', 1);
+    fill('cb-to', PERIODS);
+    this.renderClassBlocksList();
+    byId('classblocks-modal').classList.add('open');
+  }
+
+  private handleAddClassBlock(): void {
+    const klasse = byId<HTMLSelectElement>('cb-klasse').value;
+    const day = Number(byId<HTMLSelectElement>('cb-day').value);
+    const weekSel = byId<HTMLSelectElement>('cb-week').value;
+    const from = Number(byId<HTMLSelectElement>('cb-from').value);
+    const to = Number(byId<HTMLSelectElement>('cb-to').value);
+    const text = byId<HTMLInputElement>('cb-text').value.trim();
+    if (!klasse || from > to) {
+      this.toast.show('Bitte Klasse wählen und „Von ≤ Bis" beachten.', 'inf');
+      return;
+    }
+    const weeks: Week[] = weekSel === 'beide' ? ['u', 'g'] : [weekSel as Week];
+    for (const week of weeks) this.state.addClassBlock({ klasse, day, week, from, to, text });
+    this.renderClassBlocksList();
+    this.toast.show(`⛔ Sperrzeit für ${klasse} angelegt${text ? ` („${text}")` : ''}`, 'ok');
+  }
+
+  private renderClassBlocksList(): void {
+    const blocks = this.state.getClassBlocks();
+    byId('cb-list').innerHTML = blocks.length
+      ? blocks
+          .map(
+            (b, i) => `<div class="st-row">
+              <span class="st-name">${esc(b.klasse)}</span>
+              <span class="st-info">${DAYS[b.day]}, ${b.week}-Woche · ${b.from}.–${b.to}. Std${b.text ? ` · „${esc(b.text)}"` : ''}</span>
+              <button class="btn btn-del st-btn" data-del="${i}">✕</button>
+            </div>`,
+          )
+          .join('')
+      : '<div class="cw-none" style="padding:8px">Noch keine Klassen-Sperrzeiten angelegt.</div>';
   }
 
   // ── Deputats-Abgleich (Soll/Ist je Lehrkraft) ────────────────────────────
@@ -1950,6 +2268,17 @@ export class App {
     // Klassenbindung: Karte darf nur in eine Spalte mit passendem Klassennamen.
     if (!this.state.cardFitsColumn(dragData.card, pos)) {
       this.collisionModal.show({ messageHtml: classMismatchMessage(dragData.card.klasse), canStack: false });
+      return;
+    }
+
+    // Klassen-Sperrzeit (z. B. Betriebstag): bewusst übergehbar (Trotzdem platzieren).
+    if (this.state.cardHitsClassBlock(dragData.card, pos)) {
+      this.collisionModal.show({
+        messageHtml: `⛔ Die Klasse hat zu dieser Zeit eine <strong>Klassen-Sperrzeit</strong> (${DAYS[pos.day]}, ${pos.week}-Woche).`,
+        canStack: false,
+        canForce: true,
+        onForce: () => this.placeDrag(dragData, pos),
+      });
       return;
     }
 

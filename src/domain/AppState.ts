@@ -3,11 +3,11 @@ import { CardPool } from './CardPool';
 import { ClassList } from './ClassList';
 import { DAYS, PALETTE, PERIODS, WEEKS } from './constants';
 import { Placement } from './Placement';
-import { teachingPeriods } from './periods';
+import { blockedPeriods as blockedPeriodsOf, teachingPeriods } from './periods';
 import { Schedule } from './Schedule';
 import { semesterFactor } from './semester';
 import { DEFAULT_PLAN_SETTINGS } from './types';
-import type { CardProps, CardWithPlace, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, PlanSettings, StatRow, Week } from './types';
+import type { CardProps, CardWithPlace, ClassBlock, LabelField, PersistedState, PlacementPosition, PlanProgress, PlanRunResult, PlanSettings, StatRow, Week } from './types';
 
 export interface ChangeEvent {
   /** false: nur persistieren, UI nicht neu rendern (z. B. Tippen im Klassennamen). */
@@ -33,6 +33,8 @@ export class AppState {
   private teacherMaxDays = new Map<string, number>();
   /** Dauerhafte Farbzuordnung: Kürzel (lowercase) → Hex (über Importe hinweg stabil). */
   private teacherColors = new Map<string, string>();
+  /** Klassen-Sperrzeiten (z. B. Betriebstag) mit Beschriftung im Plan. */
+  private classBlocks: ClassBlock[] = [];
   /** Konfigurierbare Planungsregeln. */
   private planSettings: PlanSettings = { ...DEFAULT_PLAN_SETTINGS };
   private nid: number;
@@ -77,6 +79,7 @@ export class AppState {
     this.teacherBlocks = fresh.teacherBlocks;
     this.teacherMaxDays = fresh.teacherMaxDays;
     this.teacherColors = fresh.teacherColors;
+    this.classBlocks = fresh.classBlocks;
     this.planSettings = fresh.planSettings;
     // Verlauf nach „Datei öffnen" zurücksetzen – nicht über den Ladevorgang hinweg undo-bar.
     this.undoStack = [];
@@ -146,6 +149,7 @@ export class AppState {
     this.teacherBlocks = AppState.parseTeacherBlocks(raw.teacherBlocks);
     this.teacherMaxDays = AppState.parseTeacherMaxDays(raw.teacherMaxDays);
     this.teacherColors = AppState.parseTeacherColors(raw.teacherColors);
+    this.classBlocks = AppState.parseClassBlocks(raw.classBlocks);
     this.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
     this.restoring = true;
     this.emit();
@@ -497,6 +501,43 @@ export class AppState {
   cardHitsBlock(card: CardProps, pos: PlacementPosition): boolean {
     const periods = teachingPeriods(card.isWerkstatt, pos.startPeriod, card.duration);
     return periods.some((p) => this.isTeacherBlocked(card.abbr, pos.day, pos.week, p));
+  }
+
+  // ── Klassen-Sperrzeiten (z. B. Betriebstag) ──────────────────────────────
+
+  getClassBlocks(): readonly ClassBlock[] {
+    return this.classBlocks;
+  }
+
+  addClassBlock(block: ClassBlock): void {
+    this.classBlocks.push({ ...block, klasse: block.klasse.trim(), text: block.text.trim() });
+    this.emit();
+  }
+
+  removeClassBlockAt(index: number): void {
+    if (index < 0 || index >= this.classBlocks.length) return;
+    this.classBlocks.splice(index, 1);
+    this.emit();
+  }
+
+  /** Sperrzeiten einer Klasse (per Name) an Tag+Woche. */
+  classBlocksFor(klasse: string, day: number, week: Week): ClassBlock[] {
+    const k = klasse.trim().toLowerCase();
+    if (!k) return [];
+    return this.classBlocks.filter((b) => b.klasse.toLowerCase() === k && b.day === day && b.week === week);
+  }
+
+  /** Ist die Stunde für die Klasse gesperrt? */
+  isClassBlocked(klasse: string, day: number, week: Week, period: number): boolean {
+    return this.classBlocksFor(klasse, day, week).some((b) => period >= b.from && period <= b.to);
+  }
+
+  /** Trifft die Karte an dieser Position eine Klassen-Sperrzeit? (für Drag&Drop) */
+  cardHitsClassBlock(card: CardProps, pos: PlacementPosition): boolean {
+    const klasse = this.classes.classNameAt(pos.classIdx, pos.day, pos.week);
+    if (!klasse) return false;
+    const periods = blockedPeriodsOf(card.isWerkstatt, pos.startPeriod, card.duration);
+    return periods.some((p) => this.isClassBlocked(klasse, pos.day, pos.week, p));
   }
 
   /** Löscht mehrere nicht verplante (Pool-)Karten anhand ihrer IDs. */
@@ -1279,6 +1320,15 @@ export class AppState {
       const cellOcc = new Map<string, { total: number; stack: number; groups: Set<string> }>();
       const classDayRooms = new Map<string, Set<string>>(); // c|d|w → bereits genutzte (nicht-flexible) Räume der Klasse
       const werkClassDay = new Set<string>(); // c|d|w mit Werkstatt → Klassen-Pause in der 5. statt 7. Stunde
+      // KLASSEN-SPERRZEITEN (z. B. Betriebstag): gesperrte Zellen je Spalte vorab
+      // auflösen – der Planer legt dort nichts hin, Lücken zählen nicht als Hohlstunde.
+      const classBlockedCells = new Set<string>();
+      for (const b of this.classBlocks) {
+        for (let c = 0; c < this.classes.count; c++) {
+          if (this.classes.classNameAt(c, b.day, b.week).trim().toLowerCase() !== b.klasse.toLowerCase()) continue;
+          for (let p = b.from; p <= b.to; p++) classBlockedCells.add(cK(b.day, b.week, c, p));
+        }
+      }
       const groupB: { c: number; d: number; w: Week; start: number; duration: number; isWerk: boolean; klasse: string }[] = [];
       const assigns: Assign[] = [];
       const skipped: { card: string; reason: string }[] = [];
@@ -1425,6 +1475,8 @@ export class AppState {
           const used = teachDaysUsed.get(card.abbr.toLowerCase());
           if (used && !used.has(d) && used.size >= md) return 'max. Anwesenheitstage';
         }
+        // Klassen-Sperrzeit (z. B. Betriebstag): dort wird nie etwas verplant.
+        for (const p of blk) if (classBlockedCells.has(cK(d, w, c, p))) return 'Klassen-Sperrzeit';
         const canStack = stackable(card);
         for (const p of blk) {
           const e = cellOcc.get(cK(d, w, c, p));
@@ -1464,7 +1516,8 @@ export class AppState {
       const classGaps = (c: number, d: number, w: Week, newPeriods: Set<number>, isWerkCard = false): number => {
         const filled = (p: number): boolean => cell.has(cK(d, w, c, p)) || newPeriods.has(p);
         const allow5 = isWerkCard || werkClassDay.has(`${c}|${d}|${w}`);
-        const isPause = (p: number): boolean => p === 7 || (allow5 && p === 5);
+        // Klassen-Sperrzeiten zählen wie Pausen: keine Hohlstunde, kein Lückenzwang.
+        const isPause = (p: number): boolean => p === 7 || (allow5 && p === 5) || classBlockedCells.has(cK(d, w, c, p));
         let min = 0;
         let max = 0;
         for (let p = 1; p <= PERIODS; p++) {
@@ -2389,7 +2442,8 @@ export class AppState {
             for (let d = 0; d < DAYS.length; d++) {
               for (const w of WEEKS) {
                 const allow5 = werkClassDay.has(`${c}|${d}|${w}`);
-                const isPause = (p: number): boolean => p === 7 || (allow5 && p === 5);
+                const isPause = (p: number): boolean =>
+                  p === 7 || (allow5 && p === 5) || classBlockedCells.has(cK(d, w, c, p));
                 const occAt = (p: number): boolean => cell.has(cK(d, w, c, p));
                 const core: number[] = [];
                 for (let p = 1; p <= PERIODS; p++) if (!isPause(p) && occAt(p)) core.push(p);
@@ -2411,7 +2465,7 @@ export class AppState {
                     const sAllow5 = werkClassDay.has(`${a.c}|${a.d}|${a.w}`);
                     const sCore: number[] = [];
                     for (let q = 1; q <= PERIODS; q++)
-                      if (!(q === 7 || (sAllow5 && q === 5)) && cell.has(cK(a.d, a.w, a.c, q))) sCore.push(q);
+                      if (!(q === 7 || (sAllow5 && q === 5) || classBlockedCells.has(cK(a.d, a.w, a.c, q))) && cell.has(cK(a.d, a.w, a.c, q))) sCore.push(q);
                     // Nur vom TAGES-ENDE nehmen (oder der Tag wird komplett frei) – Karten
                     // vom Morgenrand zu klauen ließe den Quelltag erst mittags beginnen.
                     const wholeDay = sCore.length === a.card.duration;
@@ -2444,7 +2498,8 @@ export class AppState {
         for (let d = 0; d < DAYS.length; d++) {
           for (const w of WEEKS) {
             if (!this.classes.classNameAt(c, d, w).trim()) continue;
-            for (let p = 1; p <= 6; p++) if (!cell.has(cK(d, w, c, p))) openMandatory++;
+            for (let p = 1; p <= 6; p++)
+              if (!cell.has(cK(d, w, c, p)) && !classBlockedCells.has(cK(d, w, c, p))) openMandatory++;
           }
         }
       }
@@ -2976,14 +3031,29 @@ export class AppState {
         for (const per of p.occupiedPeriods()) cellBusy.add(`${p.classIdx}|${p.day}|${w}|${per}`);
         if (p.isWerkstatt) werkClassDays.add(`${p.classIdx}|${p.day}|${w}`);
       }
+    // Karten in Klassen-Sperrzeiten (z. B. Betriebstag) melden.
+    for (const p of pls) {
+      const klasse = p.klasse.trim() || this.classes.columnLabel(p.classIdx);
+      for (const w of p.weeks) {
+        const hit = p.occupiedPeriods().some((per) => this.isClassBlocked(klasse, p.day, w, per));
+        if (hit) {
+          const b = this.classBlocksFor(klasse, p.day, w)[0];
+          out.push({
+            severity: 'error',
+            text: `${lbl(p)} liegt in einer Klassen-Sperrzeit${b?.text ? ` („${b.text}")` : ''} (${DAYS[p.day]}, ${w}-Woche).`,
+          });
+        }
+      }
+    }
     for (let c = 0; c < this.classes.count; c++) {
       for (let d = 0; d < DAYS.length; d++) {
         for (const w of WEEKS) {
           const name = this.classes.classNameAt(c, d, w).trim();
           if (!name) continue;
-          // Pausen: normale Tage die 7. Stunde, an Werkstatt-Tagen der Klasse die 5.
+          // Pausen: 7. Stunde, an Werkstatt-Tagen die 5., sowie Klassen-Sperrzeiten.
           const allow5 = werkClassDays.has(`${c}|${d}|${w}`);
-          const isPause = (per: number): boolean => per === 7 || (allow5 && per === 5);
+          const isPause = (per: number): boolean =>
+            per === 7 || (allow5 && per === 5) || this.isClassBlocked(name, d, w, per);
           const open: number[] = [];
           for (let per = 1; per <= 6; per++) if (!isPause(per) && !cellBusy.has(`${c}|${d}|${w}|${per}`)) open.push(per);
           if (open.length) {
@@ -3102,6 +3172,7 @@ export class AppState {
       teacherBlocks,
       teacherMaxDays,
       teacherColors,
+      classBlocks: this.classBlocks.map((b) => ({ ...b })),
       planSettings: { ...this.planSettings },
     };
   }
@@ -3127,6 +3198,21 @@ export class AppState {
     return map;
   }
 
+  /** Deserialisiert die Klassen-Sperrzeiten aus dem Persistenzformat. */
+  static parseClassBlocks(raw: ClassBlock[] | undefined): ClassBlock[] {
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter((b) => b && typeof b.klasse === 'string' && b.klasse.trim())
+      .map((b) => ({
+        klasse: String(b.klasse).trim(),
+        day: Math.max(0, Math.min(4, Number(b.day) || 0)),
+        week: b.week === 'g' ? 'g' : 'u',
+        from: Math.max(1, Math.min(9, Number(b.from) || 1)),
+        to: Math.max(1, Math.min(9, Number(b.to) || 1)),
+        text: String(b.text ?? '').trim(),
+      }));
+  }
+
   static fromJSON(raw: PersistedState): AppState {
     const pool = new CardPool();
     pool.replaceAll((raw.cards ?? []).map(Card.fromJSON));
@@ -3137,6 +3223,7 @@ export class AppState {
     const app = new AppState(pool, classes, schedule, raw.nid ?? 1, rooms, AppState.parseTeacherBlocks(raw.teacherBlocks));
     app.teacherMaxDays = AppState.parseTeacherMaxDays(raw.teacherMaxDays);
     app.teacherColors = AppState.parseTeacherColors(raw.teacherColors);
+    app.classBlocks = AppState.parseClassBlocks(raw.classBlocks);
     app.planSettings = { ...DEFAULT_PLAN_SETTINGS, ...(raw.planSettings ?? {}) };
     app.lastSnapshot = JSON.stringify(app.toJSON());
     return app;

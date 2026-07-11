@@ -256,12 +256,16 @@ check('Spanisch (SBx) nur 1+2 / 8+9', pls.filter((p) => isSpan(p.fach) && p.star
   info('Klassentage mit unvollständiger 1–6-Abdeckung', `${under6} (datenabhängig – zu wenige Karten am Tag)`);
 }
 
-// 15) Prüfbericht der App selbst
+// 15) Prüfbericht der App selbst. Schüler-Hohlstunden/Werkstatt<4h sind dort
+//     bewusst FEHLER (Anwender-Sicht) – hier zählen sie über die eigenen Checks,
+//     im Integritäts-Check geht es um Kollisionen/Sperrzeiten/Datenfehler.
 {
   const issues = st.validatePlan();
-  const errs = issues.filter((i) => i.severity === 'error');
-  check('App-Prüfbericht: 0 Fehler', errs.map((e) => e.text));
-  info('App-Prüfbericht Warnungen', String(issues.length - errs.length));
+  const quality = (t) => /Schüler-Hohlstunde|Werkstatt braucht mindestens 4/.test(t);
+  const errs = issues.filter((i) => i.severity === 'error' && !quality(i.text));
+  check('App-Prüfbericht: 0 Integritäts-Fehler', errs.map((e) => e.text));
+  info('App-Prüfbericht Qualitäts-Fehler (Hohlstunden/Werkstatt)', String(issues.filter((i) => i.severity === 'error' && quality(i.text)).length));
+  info('App-Prüfbericht Warnungen', String(issues.filter((i) => i.severity === 'warn').length));
 }
 
 // 16) Übersicht offen/Pflicht
