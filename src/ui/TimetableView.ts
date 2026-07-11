@@ -551,23 +551,23 @@ export class TimetableView {
       a.firstHalf === b.firstHalf &&
       a.secondHalf === b.secondHalf &&
       a.noCount === b.noCount &&
-      a.coupling === b.coupling &&
       a.teamTeaching === b.teamTeaching &&
       a.schiene === b.schiene &&
       a.comment === b.comment
     );
   }
 
-  /** Raum-Anzeige eines u+g-Schilds: gleicher Raum normal, sonst „u | g". */
-  private roomLabel(pl: Placement, pair?: Placement): string {
-    if (!pair || pair.room === pl.room) return pl.room;
-    return `${pl.room || '–'} | ${pair.room || '–'}`;
+  /** Feld-Anzeige eines u+g-Schilds: gleicher Wert normal, sonst „u | g"
+   *  (Raum und Kopplungs-ID dürfen sich zwischen den Wochen unterscheiden). */
+  private pairText(a: string, b: string | undefined): string {
+    if (b === undefined || a === b) return a;
+    return `${a || '–'} | ${b || '–'}`;
   }
 
   private renderSingle(pl: Placement, pair?: Placement): string {
     const fg = ink(pl.color);
     const half = semesterLabel(pl);
-    const room = this.roomLabel(pl, pair);
+    const room = this.pairText(pl.room, pair?.room);
     const cardCls = pl.isLabor ? ' labor-card' : pl.isWerkstatt ? ' werkstatt-card' : '';
     return `<div class="placed${cardCls}${pl.locked ? ' locked' : ''}${room.trim() ? '' : ' no-room'}" data-id="${pl.id}"${pair ? ` data-pair="${pair.id}"` : ''} data-abbr="${esc(pl.abbr)}" data-room="${esc(pl.room)}" data-klasse="${esc(pl.klasse)}" data-coupling="${esc(pl.coupling)}" data-team="${esc(pl.teamTeaching)}" data-labor="${pl.isLabor ? '1' : '0'}" data-werkstatt="${pl.isWerkstatt ? '1' : '0'}"
               style="background:${pl.color};color:${fg}" draggable="true">
@@ -584,7 +584,7 @@ export class TimetableView {
         ${pl.isVierwoechig ? '<div class="p-range">¼ 4-wö.</div>' : ''}
         ${pl.schiene ? '<span class="schiene-badge" title="Schiene über mehrere Klassen">S</span>' : ''}
         ${pl.noCount ? '<div class="p-range">∅ zählt nicht</div>' : ''}
-        ${pl.coupling ? `<div class="p-range">⛓ ${esc(pl.coupling)}</div>` : ''}
+        ${pl.coupling || pair?.coupling ? `<div class="p-range"${pair && pair.coupling !== pl.coupling ? ' title="Kopplung u-Woche | g-Woche"' : ''}>⛓ ${esc(this.pairText(pl.coupling, pair?.coupling))}</div>` : ''}
         ${pl.teamTeaching ? `<div class="p-range">👥 ${esc(pl.teamTeaching)}</div>` : ''}
         ${pl.collision ? '<div class="p-range">💥 Kollision</div>' : ''}
         ${pl.comment ? `<span class="p-comment" title="${esc(pl.comment)}">💬</span>` : ''}
@@ -605,7 +605,7 @@ export class TimetableView {
       const pair = pairs?.[i];
       const fg = ink(pl.color);
       const half = semesterLabel(pl);
-      const room = this.roomLabel(pl, pair);
+      const room = this.pairText(pl.room, pair?.room);
       const visibleEnd = Math.min(pl.endPeriod, cluster.end);
       const top = ((pl.startPeriod - cluster.start) / span) * 100;
       const height = ((visibleEnd - pl.startPeriod + 1) / span) * 100;
